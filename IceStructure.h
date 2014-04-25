@@ -12,22 +12,20 @@
 #define IceStructure_H
 //---------------------------------------------------------------------------
 
-#include <stdio.h>
 #include <iostream>
 #include <vector>
-#include <map>
 #include <algorithm>
-#include <omp.h>
-#include "rx_matrix.h"
 
+//#include "rx_matrix.h"
+#include <UtilityScript\mk_Vector2D.h>
+#include <UtilityScript\mk_Vector3D.h>
 
 using namespace std;
 
 class IceStructure
 {
 public:
-	IceStructure(int pNumMax, int cNumMax, int tNumMax);				//四面体ベース
-	IceStructure(int pNum, int cNum);
+	IceStructure(int pNum, int cNum, int tNum);
 	~IceStructure(void);
 
 	void SetParticleNum(int pNum){	m_iPNum = pNum; }		//現在の粒子数
@@ -112,108 +110,6 @@ public:
 
 //-------------------------------------粒子ベース処理----------------------------------------
 
-
-//-------------------------------------四面体ベース処理-------------------------------------
-	void InitStateConnect();								//接続情報のサイズ確保
-	void InitStateCalc();									//計算情報のサイズ確保
-
-	//接続情報用アクセッサ
-	void AddPtoC_Connect();
-	void AddPtoC_Connect(int cIndx, int oIndx);
-	void AddCtoP_Connect(vector<int> pIndxes);
-
-	void DeletePtoC_Connect(int pIndx, int coIndx);
-	void DeleteCtoP_Connect(int cIndx, int oIndx);
-
-	void SetPtoC_Connect(int pIndx, int lIndx, int cIndx, int oIndx);			//粒子番号，クラスタ番号，順序番号　接続情報の作成
-	void SetCtoP_Connect(int cIndx, vector<int> pIndxList);						//書き換えるクラスタ番号，粒子番号のリスト
-
-	void SetPtoCNum_Connect(int pIndx, int pNum){	m_piPtoCNum_Connect[pIndx] = pNum;	}
-	void SetCtoPNum_Connect(int cIndx, int cNum){	m_piCtoPNum_Connect[cIndx] = cNum;	}
-
-	void SetPtoCIndx_Connect(int pIndx, int pNum);
-	void SetCtoPIndx_Connect(int cIndx, int cNum);
-
-	void CountPtoC_Connect(int pIndx){ m_piPtoCNum_Connect[pIndx]++; }			//粒子が所属している接続クラスタのカウンタ
-	void CountCtoP_Connect(int cIndx){ m_piCtoPNum_Connect[cIndx]++; }			//接続クラスタに所属している粒子のカウンタ
-
-	int* GetPtoC_Connect(int pIndx, int lIndx);
-	int GetCtoP_Connect(int cIndx, int lIndx);
-
-	int GetPtoCNum_Connect(int pIndx){ return m_piPtoCNum_Connect[pIndx]; }		//SM法と連携するためにも重要になる
-	int GetCtoPNum_Connect(int cIndx){ return m_piCtoPNum_Connect[cIndx]; }		//SM法と連携するためにも重要になる
-
-	int GetPtoCIndx_Connect(int pIndx){ return m_piPtoCIndx_Connect[pIndx];	}
-	int GetCtoPIndx_Connect(int cIndx){ return m_piCtoPIndx_Connect[cIndx];	}
-
-	void ClearPtoC_Connect(int pIndx);
-	void ClearCtoP_Connect(int cIndx);
-
-	void ResetOrderPToC(int cIndx, int oIndx);
-
-	//計算処理クラスタ用アクセッサ
-	void AddPtoC_Calc();
-	void AddPtoC_Calc(int cIndx, int oIndx);
-	void AddCtoP_Calc(vector<int> pIndxes);
-
-	void DeletePtoC_Calc(int pIndx, int coIndx);
-	void DeleteCtoP_Calc(int cIndx, int oIndx);
-
-	void SetPtoC_Calc(int pIndx, int lIndx, int cIndx, int oIndx, int layer);	//粒子番号，クラスタ番号，順序番号　計算処理クラスタの情報
-	void SetCtoP_Calc(int cIndx, vector<int> pIndxList, int* pLayerList);		//書き換えるクラスタ番号，粒子番号のリスト
-
-	void SetPtoCNum_Calc(int pIndx, int pNum){	m_piPtoCNum_Calc[pIndx] = pNum;	}
-	void SetCtoPNum_Calc(int cIndx, int cNum){	m_piCtoPNum_Calc[cIndx] = cNum;	}
-
-	void SetPtoCIndx_Calc(int pIndx, int pNum);
-	void SetCtoPIndx_Calc(int cIndx, int cNum);
-
-	void CountPtoC_Calc(int pIndx){ m_piPtoCNum_Calc[pIndx]++; }				//粒子が所属している計算クラスタのカウンタ
-	void CountCtoP_Calc(int cIndx){ m_piCtoPNum_Calc[cIndx]++; }				//計算クラスタに所属している粒子のカウンタ
-
-	int* GetPtoC_Calc(int pIndx, int lIndx);
-	int* GetCtoP_Calc(int cIndx, int lIndx);
-
-	int GetPtoCNum_Calc(int pIndx){	return m_piPtoCNum_Calc[pIndx]; }
-	int GetCtoPNum_Calc(int cIndx){ return m_piCtoPNum_Calc[cIndx]; }
-
-	int GetPtoCIndx_Calc(int pIndx){ return m_piPtoCIndx_Calc[pIndx];	}
-	int GetCtoPIndx_Calc(int cIndx){ return m_piCtoPIndx_Calc[cIndx];	}
-
-	void ClearPtoC_Calc(int pIndx);
-	void ClearCtoP_Calc(int cIndx);
-
-	void ResetOrderPToCCalc(int pIndx, int cIndx, int oIndx);
-
-	//近傍クラスタ用アクセッサ
-	void AddNeighborCluster(int cIndx, int layer);							//近傍クラスタの追加　ある近傍クラスタリストのデータを追加
-	void SetNeighborCluster(int cIndx, int layer);							//近傍クラスタの修正　ある近傍クラスタリストのデータを書き換え
-	void SetNeighborClusterFromCluster(int cIndx, int layer, int jlayer);	//近傍クラスタの修正　近傍クラスタの持つ情報を利用した書き換え
-	int* GetNeighborCluster(int cIndx, int lIndx);							//近傍クラスタ番号　クラスタの近傍クラスタのリストを返す
-	int GetNCNum(int cIndx){ return m_ppiNCNum[cIndx]; }					//近傍クラスタの数
-	void ClearNeighborCluster(int cIndx);
-
-	////計算処理クラスタ→接続情報クラスタ
-	void MakeCalcToConnect(void);
-	void AddCalcToConnect(int caIndx, int coIndx, int oIndx);
-	void DeleteCalcToConnect(int caIndx, int poIndx);
-	int* GetCalcToConnect(int cIndx, int lIndx);
-	void SetCalcToConnect(int caIndx, int ocaIndx, int coIndx, int oIndx);
-	void ResetOrderCaToCo(int cIndx, int poIndx);
-	void ClearCalcToConnect(int caIndx);
-
-	//デバッグ
-	void DebugPtoC_Connect(int pIndx);
-	void DebugCtoP_Connect(int cIndx);
-
-	void DebugPtoC_Calc(int pIndx);
-	void DebugCtoP_Calc(int cIndx);
-
-	void DebugCalcToConnect(int cIndx);
-
-	void DebugNeighborCluster(int cIndx);
-//-------------------------------------四面体ベース処理-------------------------------------
-
 	//フラグ　未使用
 	void SetPFlag(int indx, bool state){	m_pbPFlag[indx] = state;	}
 	void SetCFlag(int indx, bool state){	m_pbCFlag[indx] = state;	}
@@ -242,6 +138,13 @@ protected:
 
 	int m_iPtoTMax;
 	int m_iTtoPMax;
+
+	int m_iCNumMax;								//最大クラスタ数
+	int m_iCNum;								//現在のクラスタ数
+
+	//とりあえず，ポインタは使わない
+	mk_Vector3D<int> m_mk3DiPtoC_cO;			//粒子→クラスタ　何番目のクラスタ内で何番目なのかを判定　0番から始まるのに注意
+	mk_Vector2D<int> m_mk2DiCtoP_cO;			//クラスタ→粒子　クラスタに所属する粒子を返す　粒子の接続情報
 
 	//粒子→
 	int*** m_pppiPtoC;							//粒子→クラスタ　何番目のクラスタ内で何番目なのかを判定　0番から始まるのに注意
@@ -278,38 +181,37 @@ protected:
 	int*   m_piNTNum;							//各近傍四面体の個数
 //-------------------------------------粒子ベース処理----------------------------------------
 
-//-------------------------------------四面体ベース処理-------------------------------------
-	int m_iCNumMax;								//最大クラスタ数
-	int m_iCNum;								//現在のクラスタ数
-
-	//接続情報
-	int*** m_pppiPtoC_Connect;					//粒子→クラスタ　何番目のクラスタ内で何番目なのかを判定　0番から始まるのに注意
-	int**  m_ppiCtoP_Connect;					//クラスタ→粒子　クラスタに所属する粒子を返す　粒子の接続情報
-
-	int* m_piPtoCNum_Connect;					//粒子が接続クラスタに所属している個数
-	int* m_piCtoPNum_Connect;					//クラスタが粒子を含んでいる個数
-
-	int* m_piPtoCIndx_Connect;					//粒子が接続クラスタに所属していることを保存する配列の，現在の添え字番号
-	int* m_piCtoPIndx_Connect;					//接続クラスタが粒子を含んでいることを保存する配列の，現在の添え字番号
-
-	//計算処理クラスタ
-	int*** m_pppiPtoC_Calc;						//粒子→クラスタ　何番目のクラスタ内で何番目なのかを判定　0番から始まるのに注意
-	int*** m_ppiCtoP_Calc;						//クラスタ→粒子　クラスタに所属する粒子を返す　粒子の接続情報
-
-	int* m_piPtoCNum_Calc;						//粒子が計算クラスタに所属している個数
-	int* m_piCtoPNum_Calc;						//クラスタが粒子を含んでいる個数
-
-	int* m_piPtoCIndx_Calc;						//粒子が計算クラスタに所属していることを保存する配列の，現在の添え字番号
-	int* m_piCtoPIndx_Calc;						//計算クラスタが粒子を含んでいることを保存する配列の，現在の添え字番号
-
-	//近傍クラスタ
-	int*** m_ppiNeighborCluster;				//近傍クラスタの組　それぞれに粒子のリストを用意
-	int*  m_ppiNCNum;							//接続クラスタの近傍となるクラスタの個数
-
-	//計算処理クラスタ→接続情報クラスタ
-	int*** m_pppiCalcToConnect;					//計算処理クラスタ→接続情報クラスタ
-//-------------------------------------四面体ベース処理-------------------------------------
-
+////-------------------------------------四面体ベース処理-------------------------------------
+//
+//	//接続情報
+//	//とりあえず，ポインタは使わない
+//	mk_Vector3D<int> m_mk3DiPtoC_cO;			//粒子→クラスタ　何番目のクラスタ内で何番目なのかを判定　0番から始まるのに注意
+//	mk_Vector2D<int> m_mk2DiCtoP_cO;			//クラスタ→粒子　クラスタに所属する粒子を返す　粒子の接続情報
+//
+//	int* m_piPtoCNum_Connect;					//粒子が接続クラスタに所属している個数
+//	int* m_piCtoPNum_Connect;					//クラスタが粒子を含んでいる個数
+//
+//	int* m_piPtoCIndx_Connect;					//粒子が接続クラスタに所属していることを保存する配列の，現在の添え字番号
+//	int* m_piCtoPIndx_Connect;					//接続クラスタが粒子を含んでいることを保存する配列の，現在の添え字番号
+//
+//	//計算処理クラスタ
+//	int*** m_pppiPtoC_Calc;						//粒子→クラスタ　何番目のクラスタ内で何番目なのかを判定　0番から始まるのに注意
+//	int*** m_ppiCtoP_Calc;						//クラスタ→粒子　クラスタに所属する粒子を返す　粒子の接続情報
+//
+//	int* m_piPtoCNum_Calc;						//粒子が計算クラスタに所属している個数
+//	int* m_piCtoPNum_Calc;						//クラスタが粒子を含んでいる個数
+//
+//	int* m_piPtoCIndx_Calc;						//粒子が計算クラスタに所属していることを保存する配列の，現在の添え字番号
+//	int* m_piCtoPIndx_Calc;						//計算クラスタが粒子を含んでいることを保存する配列の，現在の添え字番号
+//
+//	//近傍クラスタ
+//	int*** m_ppiNeighborCluster;				//近傍クラスタの組　それぞれに粒子のリストを用意
+//	int*  m_ppiNCNum;							//接続クラスタの近傍となるクラスタの個数
+//
+//	//計算処理クラスタ→接続情報クラスタ
+//	int*** m_pppiCalcToConnect;					//計算処理クラスタ→接続情報クラスタ
+////-------------------------------------四面体ベース処理-------------------------------------
+//
 	//探索用フラグ　未使用
 	bool* m_pbPFlag;							//粒子
 	bool* m_pbCFlag;							//クラスタ

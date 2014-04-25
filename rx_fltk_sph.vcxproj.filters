@@ -37,6 +37,9 @@
     <Filter Include="Tetgen">
       <UniqueIdentifier>{ca8595b1-6c61-4581-a7ae-10556a6db832}</UniqueIdentifier>
     </Filter>
+    <Filter Include="UnilityScript">
+      <UniqueIdentifier>{f4217391-751c-462f-9842-1bc21b0f15cd}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="rx_sph_solid.cpp">
@@ -196,6 +199,12 @@
     </ClInclude>
     <ClInclude Include="tetgen.h">
       <Filter>Tetgen</Filter>
+    </ClInclude>
+    <ClInclude Include="UtilityScript\mk_Vector2D.h">
+      <Filter>UnilityScript</Filter>
+    </ClInclude>
+    <ClInclude Include="UtilityScript\mk_Vector3D.h">
+      <Filter>UnilityScript</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

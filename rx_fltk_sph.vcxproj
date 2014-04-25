@@ -286,6 +286,8 @@
     <ClInclude Include="rx_wavelet_noise.h" />
     <ClInclude Include="ShapeMatching.h" />
     <ClInclude Include="tetgen.h" />
+    <ClInclude Include="UtilityScript\mk_Vector2D.h" />
+    <ClInclude Include="UtilityScript\mk_Vector3D.h" />
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="rx_aniso_kernel.cu">
