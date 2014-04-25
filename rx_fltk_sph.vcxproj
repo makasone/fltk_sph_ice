@@ -1,0 +1,405 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release(Boundary Particle)|Win32">
+      <Configuration>Release(Boundary Particle)</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectName>rx_fltk_sph</ProjectName>
+    <ProjectGuid>{F5962D82-BAB7-4A23-A541-E7658FD0C781}</ProjectGuid>
+    <RootNamespace>rx_fltk_sph</RootNamespace>
+    <Keyword>Win32Proj</Keyword>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <CharacterSet>NotSet</CharacterSet>
+    <WholeProgramOptimization>false</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release(Boundary Particle)|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <CharacterSet>NotSet</CharacterSet>
+    <WholeProgramOptimization>false</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <CharacterSet>NotSet</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\CUDA 5.0.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="$(VCTargetsPath)Microsoft.CPP.UpgradeFromVC71.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release(Boundary Particle)|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="$(VCTargetsPath)Microsoft.CPP.UpgradeFromVC71.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.30319.1</_ProjectFileVersion>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(Configuration)\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(Configuration)\</IntDir>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</LinkIncremental>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(Configuration)\</OutDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release(Boundary Particle)|Win32'">$(Configuration)\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(Configuration)\</IntDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release(Boundary Particle)|Win32'">$(Configuration)\</IntDir>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" />
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release(Boundary Particle)|Win32'" />
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>./;../../../common/shared/inc;$(CudaToolkitIncludeDir);../../../common/shared/inc/cuda;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;dDOUBLE;_CRT_SECURE_NO_DEPRECATE;GLS_DLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
+      <DisableSpecificWarnings>4996;4244;4305;4819;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
+      <OutputFile>$(OutDir)$(ProjectName).exe</OutputFile>
+      <AdditionalLibraryDirectories>../../../common/shared/lib;$(CudaToolkitLibDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Console</SubSystem>
+      <RandomizedBaseAddress>false</RandomizedBaseAddress>
+      <DataExecutionPrevention>
+      </DataExecutionPrevention>
+      <TargetMachine>MachineX86</TargetMachine>
+      <IgnoreSpecificDefaultLibraries>libcmt.lib</IgnoreSpecificDefaultLibraries>
+    </Link>
+    <CudaCompile>
+      <Include>
+      </Include>
+      <AdditionalDeps>
+      </AdditionalDeps>
+      <CodeGeneration>compute_20,sm_20;compute_30,sm_30;compute_35,sm_35</CodeGeneration>
+      <Runtime>MDd</Runtime>
+      <Optimization>Od</Optimization>
+      <GPUDebugInfo>false</GPUDebugInfo>
+      <RuntimeChecks>Default</RuntimeChecks>
+      <Warning>W1</Warning>
+      <HostDebugInfo>true</HostDebugInfo>
+    </CudaCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <Optimization>Full</Optimization>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <AdditionalIncludeDirectories>./;../../../common/shared/inc;$(CudaToolkitIncludeDir);../../../common/shared/inc/cuda</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;dDOUBLE;_CRT_SECURE_NO_DEPRECATE;GLS_DLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <BrowseInformation>true</BrowseInformation>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <DisableSpecificWarnings>4267;4311;4996;4244;4305;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <AdditionalOptions>
+      </AdditionalOptions>
+      <OpenMPSupport>true</OpenMPSupport>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
+      <OutputFile>$(OutDir)$(ProjectName).exe</OutputFile>
+      <AdditionalLibraryDirectories>../../../common/shared/lib;$(CudaToolkitLibDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <SubSystem>Console</SubSystem>
+      <OptimizeReferences>
+      </OptimizeReferences>
+      <EnableCOMDATFolding>
+      </EnableCOMDATFolding>
+      <RandomizedBaseAddress>false</RandomizedBaseAddress>
+      <DataExecutionPrevention>
+      </DataExecutionPrevention>
+      <TargetMachine>MachineX86</TargetMachine>
+      <StackReserveSize>
+      </StackReserveSize>
+      <HeapCommitSize>
+      </HeapCommitSize>
+      <StackCommitSize>
+      </StackCommitSize>
+      <HeapReserveSize>
+      </HeapReserveSize>
+    </Link>
+    <Bscmake>
+      <OutputFile>$(IntDir)$(ProjectName).bsc</OutputFile>
+    </Bscmake>
+    <CudaCompile>
+      <Include>
+      </Include>
+      <AdditionalDeps>
+      </AdditionalDeps>
+      <CodeGeneration>compute_20,sm_20;compute_30,sm_30;compute_35,sm_35</CodeGeneration>
+      <Runtime>MD</Runtime>
+      <FastMath>true</FastMath>
+      <Optimization>O2</Optimization>
+      <AdditionalCompilerOptions>
+      </AdditionalCompilerOptions>
+      <UseHostInclude>true</UseHostInclude>
+      <RuntimeChecks>Default</RuntimeChecks>
+      <Defines>WIN32</Defines>
+      <Warning>W0</Warning>
+    </CudaCompile>
+    <PostBuildEvent>
+      <Command>copy /Y /V $(OutDir)$(TargetFileName) bin\</Command>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release(Boundary Particle)|Win32'">
+    <ClCompile>
+      <Optimization>Full</Optimization>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <AdditionalIncludeDirectories>./;../../../common/shared/inc;$(CudaToolkitIncludeDir);../../../common/shared/inc/cuda</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;RX_USE_BOUNDARY_PARTICLE;dDOUBLE;_CRT_SECURE_NO_DEPRECATE;GLS_DLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <BrowseInformation>true</BrowseInformation>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <DisableSpecificWarnings>4267;4311;4996;4244;4305;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <AdditionalOptions>
+      </AdditionalOptions>
+      <OpenMPSupport>true</OpenMPSupport>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>cuda.lib;cudart.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <OutputFile>$(OutDir)$(ProjectName).exe</OutputFile>
+      <AdditionalLibraryDirectories>../../../common/shared/lib;$(CudaToolkitLibDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <SubSystem>Console</SubSystem>
+      <OptimizeReferences>
+      </OptimizeReferences>
+      <EnableCOMDATFolding>
+      </EnableCOMDATFolding>
+      <RandomizedBaseAddress>false</RandomizedBaseAddress>
+      <DataExecutionPrevention>
+      </DataExecutionPrevention>
+      <TargetMachine>MachineX86</TargetMachine>
+    </Link>
+    <Bscmake>
+      <OutputFile>$(IntDir)$(ProjectName).bsc</OutputFile>
+    </Bscmake>
+    <CudaCompile>
+      <Include>
+      </Include>
+      <AdditionalDeps>
+      </AdditionalDeps>
+      <CodeGeneration>compute_20,sm_20;compute_30,sm_30;compute_35,sm_35</CodeGeneration>
+      <Runtime>MD</Runtime>
+      <FastMath>true</FastMath>
+      <Optimization>O2</Optimization>
+      <AdditionalCompilerOptions>
+      </AdditionalCompilerOptions>
+      <UseHostInclude>true</UseHostInclude>
+      <RuntimeChecks>Default</RuntimeChecks>
+      <Defines>WIN32</Defines>
+      <Warning>W0</Warning>
+    </CudaCompile>
+    <PostBuildEvent>
+      <Command>
+      </Command>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="HeatTransfar.cpp" />
+    <ClCompile Include="IceStructure.cpp" />
+    <ClCompile Include="Ice_SM.cpp" />
+    <ClCompile Include="rx_fltk_glcanvas.cpp" />
+    <ClCompile Include="rx_fltk_window.cpp" />
+    <ClCompile Include="rx_mc_cpu.cpp" />
+    <ClCompile Include="rx_mc_gpu.cpp" />
+    <ClCompile Include="rx_ps.cpp" />
+    <ClCompile Include="rx_sph_cpu.cpp" />
+    <ClCompile Include="rx_sph_dd.cpp" />
+    <ClCompile Include="rx_sph_gpu.cpp" />
+    <ClCompile Include="rx_sph_pbd.cpp" />
+    <ClCompile Include="rx_sph_pbd_gpu.cpp" />
+    <ClCompile Include="rx_sph_solid.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="rx_gldraw.cpp" />
+    <ClCompile Include="..\..\..\common\shared\inc\rx_trackball.cpp" />
+    <ClCompile Include="mt19937ar.cpp" />
+    <ClCompile Include="rx_ssm_cpu.cpp" />
+    <ClCompile Include="rx_ssm_gpu.cpp" />
+    <ClCompile Include="rx_particle_on_surf.cpp" />
+    <ClCompile Include="rx_wavelet_noise.cpp" />
+    <ClCompile Include="ShapeMatching.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\common\shared\inc\rx_timer.h" />
+    <ClInclude Include="HeatTransfar.h" />
+    <ClInclude Include="IceStructure.h" />
+    <ClInclude Include="Ice_SM.h" />
+    <ClInclude Include="rx_cuda_utils.h" />
+    <ClInclude Include="rx_fltk_glcanvas.h" />
+    <ClInclude Include="rx_fltk_widgets.h" />
+    <ClInclude Include="rx_fltk_window.h" />
+    <ClInclude Include="rx_kernel.h" />
+    <ClInclude Include="rx_mc.h" />
+    <ClInclude Include="rx_mc_tables.h" />
+    <ClInclude Include="..\..\..\common\shared\inc\rx_mesh.h" />
+    <ClInclude Include="rx_nnsearch.h" />
+    <ClInclude Include="rx_ps.h" />
+    <ClInclude Include="rx_sph.h" />
+    <ClInclude Include="rx_sph_commons.h" />
+    <ClInclude Include="rx_sph_config.h" />
+    <ClInclude Include="rx_sph_solid.h" />
+    <ClInclude Include="rx_gldraw.h" />
+    <ClInclude Include="rx_material.h" />
+    <ClInclude Include="..\..\..\common\shared\inc\rx_trackball.h" />
+    <ClInclude Include="..\..\..\common\shared\inc\rx_shaders.h" />
+    <ClInclude Include="mt19937ar.h" />
+    <ClInclude Include="rx_ssm.h" />
+    <ClInclude Include="rx_ssm_tables.h" />
+    <ClInclude Include="rx_particle_on_surf.h" />
+    <ClInclude Include="rx_wavelet_noise.h" />
+    <ClInclude Include="ShapeMatching.h" />
+    <ClInclude Include="tetgen.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <CudaCompile Include="rx_aniso_kernel.cu">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release(Boundary Particle)|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+    </CudaCompile>
+    <CudaCompile Include="rx_cu_funcs.cu" />
+    <CudaCompile Include="rx_mc.cu">
+      <AdditionalDeps Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">rx_cu_common.cuh;rx_cu_common.cu;rx_mu_kernel.cu</AdditionalDeps>
+      <AdditionalDeps Condition="'$(Configuration)|$(Platform)'=='Release(Boundary Particle)|Win32'">rx_cu_common.cuh;rx_cu_common.cu;rx_mu_kernel.cu</AdditionalDeps>
+      <AdditionalDeps Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">rx_cu_common.cuh;rx_cu_common.cu;rx_mu_kernel.cu</AdditionalDeps>
+      <Runtime Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">MD</Runtime>
+      <Runtime Condition="'$(Configuration)|$(Platform)'=='Release(Boundary Particle)|Win32'">MD</Runtime>
+    </CudaCompile>
+    <CudaCompile Include="rx_pbdsph_kernel.cu">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release(Boundary Particle)|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+    </CudaCompile>
+    <CudaCompile Include="rx_ssm.cu">
+      <AdditionalDeps Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">rx_cu_common.cuh;rx_cu_common.cu;rx_ssm_kernel.cu</AdditionalDeps>
+      <AdditionalDeps Condition="'$(Configuration)|$(Platform)'=='Release(Boundary Particle)|Win32'">rx_cu_common.cuh;rx_cu_common.cu;rx_ssm_kernel.cu</AdditionalDeps>
+      <AdditionalDeps Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">rx_cu_common.cuh;rx_cu_common.cu;rx_ssm_kernel.cu</AdditionalDeps>
+      <Runtime Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">MD</Runtime>
+      <Runtime Condition="'$(Configuration)|$(Platform)'=='Release(Boundary Particle)|Win32'">MD</Runtime>
+    </CudaCompile>
+    <CudaCompile Include="rx_ssm_kernel.cu">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release(Boundary Particle)|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+    </CudaCompile>
+    <CudaCompile Include="rx_turb_kernel.cu">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release(Boundary Particle)|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+    </CudaCompile>
+    <None Include="bin\sph_scene_10.cfg" />
+    <None Include="bin\sph_scene_8.cfg" />
+    <None Include="bin\sph_scene_9.cfg" />
+    <None Include="ClassDiagram1.cd" />
+    <None Include="rx_mc_kernel.cu">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release(Boundary Particle)|Win32'">true</ExcludedFromBuild>
+      <FileType>Document</FileType>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+    </None>
+    <CudaCompile Include="rx_sph.cu">
+      <AdditionalDeps Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">rx_cu_common.cuh;rx_cu_common.cu;rx_sph_kernel.cu;rx_pbdsph_kernel.cu;rx_turb_kernel.cu</AdditionalDeps>
+      <AdditionalDeps Condition="'$(Configuration)|$(Platform)'=='Release(Boundary Particle)|Win32'">rx_cu_common.cuh;rx_cu_common.cu;rx_sph_kernel.cu;rx_pbdsph_kernel.cu;rx_turb_kernel.cu</AdditionalDeps>
+      <AdditionalDeps Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">rx_cu_common.cuh;rx_cu_common.cu;rx_sph_kernel.cu</AdditionalDeps>
+      <Runtime Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">MD</Runtime>
+      <Runtime Condition="'$(Configuration)|$(Platform)'=='Release(Boundary Particle)|Win32'">MD</Runtime>
+    </CudaCompile>
+    <None Include="rx_sph_kernel.cu">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release(Boundary Particle)|Win32'">true</ExcludedFromBuild>
+      <FileType>Document</FileType>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+    </None>
+    <None Include="rx_cu_common.cu">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release(Boundary Particle)|Win32'">true</ExcludedFromBuild>
+      <FileType>Document</FileType>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+    </None>
+    <CustomBuildStep Include="bin\shader\fresnel.fs">
+      <FileType>Document</FileType>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release(Boundary Particle)|Win32'">true</ExcludedFromBuild>
+    </CustomBuildStep>
+    <CustomBuildStep Include="bin\shader\fresnel.vs">
+      <FileType>Document</FileType>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release(Boundary Particle)|Win32'">true</ExcludedFromBuild>
+    </CustomBuildStep>
+    <CustomBuildStep Include="rx_ps.cuh">
+      <FileType>Document</FileType>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release(Boundary Particle)|Win32'">true</ExcludedFromBuild>
+    </CustomBuildStep>
+    <CustomBuildStep Include="rx_ps_kernel.cu">
+      <FileType>Document</FileType>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release(Boundary Particle)|Win32'">true</ExcludedFromBuild>
+    </CustomBuildStep>
+    <CustomBuildStep Include="rx_cu_common.cuh">
+      <FileType>Document</FileType>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release(Boundary Particle)|Win32'">true</ExcludedFromBuild>
+    </CustomBuildStep>
+    <None Include="bin\sph_scene_1.cfg" />
+    <None Include="bin\sph_scene_2.cfg" />
+    <None Include="bin\sph_scene_3.cfg" />
+    <None Include="bin\sph_scene_4.cfg" />
+    <None Include="bin\sph_scene_5.cfg" />
+    <None Include="bin\sph_scene_6.cfg" />
+    <None Include="bin\sph_scene_7.cfg" />
+    <None Include="rx_cu_common.cuh">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release(Boundary Particle)|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+    </None>
+    <None Include="rx_cu_funcs.cuh">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release(Boundary Particle)|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+    </None>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\CUDA 5.0.targets" />
+  </ImportGroup>
+</Project>
