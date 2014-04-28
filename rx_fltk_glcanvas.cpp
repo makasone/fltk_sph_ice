@@ -488,18 +488,10 @@ void rxFlGLWindow::InitGL(void)
 	m_ice = 0;
 
 	//追加
-//	RXTIMER("start");
 	InitHT(m_Scene);		// 熱処理初期化
-//	RXTIMER("InitHT");
-
 	InitTetra();
-//	RXTIMER("InitTetra");
 	InitCluster();
-//	RXTIMER("InitCluster");
 	InitSolid();
-//	RXTIMER("InitSolid");
-
-//	RXTIMER("end");
 
 	// GLSLのコンパイル
 	g_glslPointSprite = CreateGLSL(ps_vs, ps_fs, "point sprite");
@@ -1327,7 +1319,7 @@ void rxFlGLWindow::Idle(void)
 		CalMeshSPH(m_iMeshMaxN, m_fMeshThr);
 	}
 	RXTIMER("mesh mc");
-	cout << __FUNCTION__ << " step2" << endl;
+
 	//
 	// FPSの計算
 	//
@@ -2974,7 +2966,7 @@ void rxFlGLWindow::InitTetra()
 
 	m_iLayer = m_Scene.GetSphEnv().layer;
 	
-	m_ice = new IceStructure(5000, 5000, 18000);				//最大粒子数　最大クラスタ数　最大四面体数
+	m_ice = new IceStructure(5000, 5000, 26000);				//最大粒子数　最大クラスタ数　最大四面体数
 	m_ice->SetTetraNum(m_vviTetraList.size());					//現四面体数を登録
 
 	//各四面体に含まれる粒子数のカウント

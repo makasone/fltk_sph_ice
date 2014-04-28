@@ -97,7 +97,7 @@ class rxSSMeshGPU;
 //#define CLUSTER_TETRA
 //#define CLUSTER_PARTICLE
 
-#define ICENUM 3375
+#define ICENUM 4913
 
 // •`‰æƒtƒ‰ƒO
 enum

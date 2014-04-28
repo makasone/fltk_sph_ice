@@ -16,9 +16,9 @@ IceStructure::IceStructure(int pNumMax, int cNumMax, int tNumMax)
 	m_iTNumMax = tNumMax;
 
 	//粒子情報の初期化
-	m_iPtoCMax = m_iCNumMax*0.4;	//1331 layer2 0.4 layer3 0.75
+	m_iPtoCMax = m_iCNumMax*0.3;	//1331 layer2 0.4 layer3 0.75
 									//2197 layer2 0.4 layer3 0.4 layer4 0.5
-	m_iPtoTMax = m_iTNumMax*0.4;	//1331 layer2 0.3 layer3 0.5
+	m_iPtoTMax = m_iTNumMax*0.3;	//1331 layer2 0.3 layer3 0.5
 									//2197 layer2 0.3 layer3 0.3
 
 	m_piPtoCNum = new int[m_iPNumMax];
@@ -38,7 +38,7 @@ IceStructure::IceStructure(int pNumMax, int cNumMax, int tNumMax)
 
 	//クラスタ情報の初期化
 	//CtoTMaxは粒子数と等しいので定義しない
-	m_iCtoPMax = m_iPNumMax*0.5;	//1331 layer2 0.5 layer3 0.75
+	m_iCtoPMax = m_iPNumMax*0.4;	//1331 layer2 0.5 layer3 0.75
 									//2197 layer2 0.5 layre3 0.5
 	m_piCtoPNum = new int[m_iCNumMax];
 	m_piCtoTNum = new int[m_iCNumMax];
@@ -76,7 +76,7 @@ IceStructure::IceStructure(int pNumMax, int cNumMax, int tNumMax)
 	//近傍四面体
 	m_piNTNum = new int[m_iTNumMax];
 
-	m_iNeighborMax = m_iTNumMax*0.3;		//1331 layer2 0.3 layer3 0.75
+	m_iNeighborMax = m_iTNumMax*0.1;		//1331 layer2 0.3 layer3 0.75
 											//2197 layer2 0.3 layre3 0.3 layer4 0.4
 											//3375 layer2
 
