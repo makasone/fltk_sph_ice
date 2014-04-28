@@ -937,35 +937,16 @@ void rxFlGLWindow::ClearPick(void)
 		if(m_ht == 0)	return;
 		if(m_ice->GetParticleNum() <= m_iPickedParticle){	return;	}	//融解のみの実験のときに必要になる．
 
-		////接続クラスタの選択を解除
-		//for( int i = 0; i < m_ice->GetPtoCIndx_Connect(m_iPickedParticle); i++ )
-		//{
-		//	int* coSet = m_ice->GetPtoC_Connect(m_iPickedParticle, i);
-		//	int cIndx = coSet[0];
-		//	int oIndx = coSet[1];
-		//	if(cIndx == -1 || oIndx == -1) continue;
-
-		//	m_sm_connects[cIndx]->UnFixVertex(oIndx);
-		//}
-
-		////計算クラスタ
-		//for( int i = 0; i < m_ice->GetPtoCIndx_Calc(m_iPickedParticle); i++ )
-		//{
-		//	int* coSet = m_ice->GetPtoC_Calc(m_iPickedParticle, i);
-		//	int cIndx = coSet[0];
-		//	int oIndx = coSet[1];
-		//	if(cIndx == -1 || oIndx == -1) continue;
-
-		//	m_sm_calcs[cIndx]->UnFixVertex(oIndx);
-		//}
-
 		//粒子ベースクラスタ
 		for( int i = 0; i < m_ice->GetPtoCIndx(m_iPickedParticle); i++ )
 		{
-			int* coSet = m_ice->GetPtoC(m_iPickedParticle, i);
-			int cIndx = coSet[0];
-			int oIndx = coSet[1];
-			if(cIndx == -1 || oIndx == -1) continue;
+			int cIndx = m_ice->GetPtoC(m_iPickedParticle, i, 0);
+			int oIndx = m_ice->GetPtoC(m_iPickedParticle, i, 1);
+
+			if(cIndx == -1 || oIndx == -1)
+			{
+				continue;
+			}
 
 			m_sm_cluster[cIndx]->UnFixVertex(oIndx);
 		}
@@ -1032,24 +1013,13 @@ void rxFlGLWindow::Motion(int x, int y)
 
 			Vec3 dir = Unit(ray_to-ray_from);	// 視点からマウス位置へのベクトル
 			Vec3 new_pos = ray_from+dir*g_fPickDist;
-//			int v = g_vSelectedVertices[0];
+			//int v = g_vSelectedVertices[0];
 
-			////粒子が属するクラスタの数値を更新
-			//for( int i = 0; i < m_ice->GetPtoCIndx_Connect(m_iPickedParticle); i++ )
-			//{
-			//	int* coSet = m_ice->GetPtoC_Connect(m_iPickedParticle, i);
-			//	int cIndx = coSet[0];
-			//	int oIndx = coSet[1];
-			//	if(cIndx == -1 || oIndx == -1) continue;
-			//	m_sm_calcs[cIndx]->FixVertex( oIndx, new_pos );
-			//}
-
-			//粒子ベースクラスタ
+			//粒子が属するクラスタの数値を更新
 			for( int i = 0; i < m_ice->GetPtoCIndx(m_iPickedParticle); i++ )
 			{
-				int* coSet = m_ice->GetPtoC(m_iPickedParticle, i);
-				int cIndx = coSet[0];
-				int oIndx = coSet[1];
+				int cIndx = m_ice->GetPtoC(m_iPickedParticle, i, 0);
+				int oIndx = m_ice->GetPtoC(m_iPickedParticle, i, 1);
 				if(cIndx == -1 || oIndx == -1) continue;
 	
 				m_sm_cluster[cIndx]->FixVertex(oIndx, new_pos);
@@ -3438,9 +3408,8 @@ void rxFlGLWindow::StepInterpolation(double dt)
 			//値の取得，合成
 			for(j = 0; j < m_ice->GetPtoCIndx(i); j++)
 			{
-				coSet = m_ice->GetPtoC(i, j);
-				jcIndx = coSet[0];
-				joIndx = coSet[1];
+				jcIndx = m_ice->GetPtoC(i, j, 0);
+				joIndx = m_ice->GetPtoC(i, j, 1);
 
 				if(jcIndx == -1 || joIndx == -1){	continue;	}
 
@@ -3456,15 +3425,11 @@ void rxFlGLWindow::StepInterpolation(double dt)
 			{
 				pos /= shapeNum;
 				vel /= shapeNum;
-//				cout << "shapeNum != 0.0 i = " << i << " shapeNum = " << shapeNum <<  endl;
 			}		
 			else
 			{
 				pos = Vec3(p[i*4+0], p[i*4+1], p[i*4+2]);
 				vel = Vec3(v[i*4+0], v[i*4+1], v[i*4+2]);
-				//デバッグ
-				//pos = Vec3(0.0, 0.0, 0.0);
-				//vel = Vec3(0.0, 0.0, 0.0);
 			}
 
 			//SPH法とSM法で求めた速度と位置を補間
@@ -3588,9 +3553,7 @@ void rxFlGLWindow::MakeClusterInfo(int cIndx, int* PtoCNum)
 		//-1を探索して上書きするのに切り替える．
 		for(int j = 0; j < m_ice->GetPtoCMax(); j++)
 		{
-			int* coSet = m_ice->GetPtoC(pIndx, j);
-
-			if(coSet[0] != -1 || coSet[1] != -1){	continue;	}
+			if(m_ice->GetPtoC(pIndx, j, 0) != -1 || m_ice->GetPtoC(pIndx, j, 1) != -1){	continue;	}
 
 			if(j >= m_ice->GetPtoCIndx(pIndx))
 			{
@@ -3778,7 +3741,7 @@ void rxFlGLWindow::SearchMeltParticle(vector<int>& pList)
  * @param[in] lList   再定義するクラスタのレイヤー参照リスト
  */
 void rxFlGLWindow::SearchReconstructCluster_Melt(const vector<int>& pList, vector<int>& cList, vector<int>& lList)
-{//	cout << __FUNCTION__ << endl;
+{
 	if(pList.size() == 0){	return; }
 
 	//融解粒子が所属していたクラスタが再定義クラスタ．
@@ -3788,24 +3751,30 @@ void rxFlGLWindow::SearchReconstructCluster_Melt(const vector<int>& pList, vecto
 
 		for(int j = 0; j < m_ice->GetPtoCIndx(ipIndx); j++)
 		{
-			int* coSet = m_ice->GetPtoC(ipIndx, j);
-			if(coSet[0] == -1 || coSet[1] == -1){	continue;	}
-			
-			vector<int>::iterator check = std::find(cList.begin(), cList.end(), coSet[0]);
+			int jcIndx = m_ice->GetPtoC(ipIndx, j, 0);
+			int joIndx = m_ice->GetPtoC(ipIndx, j, 1);
+			int jlIndx = m_ice->GetPtoC(ipIndx, j, 2);
+
+			if( jcIndx == -1 || joIndx == -1)
+			{
+				continue;
+			}
+
+			vector<int>::iterator check = std::find(cList.begin(), cList.end(), jcIndx);
 
 			//既に含まれているのなら，layerを比べて小さいほうを優先する
 			if(check != cList.end())
 			{
 				int layerIndx = check-cList.begin();
-				if(lList[layerIndx] > coSet[2])
+				if(lList[layerIndx] > jlIndx)
 				{
-					lList[layerIndx] = coSet[2];
+					lList[layerIndx] = jlIndx;
 				}
 				continue;
 			}
 
-			cList.push_back(coSet[0]);
-			lList.push_back(coSet[2]);
+			cList.push_back(jcIndx);
+			lList.push_back(jlIndx);
 		}
 	}
 }
@@ -3967,10 +3936,13 @@ void rxFlGLWindow::UpdateInfo_Melt_PandC(const vector<int>& pList, const vector<
 				if(jpIndx == -1){	continue;	}
 
 				for(k = 0; k < m_ice->GetPtoCIndx(jpIndx); k++)
-				{
-					coSet = m_ice->GetPtoC(jpIndx, k);
-					
-					if(coSet[0] == -1 || coSet[1] == -1 || coSet[0] != icIndx){	continue;	}
+				{					
+					if(m_ice->GetPtoC(jpIndx, k, 0) == -1
+					|| m_ice->GetPtoC(jpIndx, k, 1) == -1
+					|| m_ice->GetPtoC(jpIndx, k, 0) != icIndx)
+					{
+						continue;
+					}
 	
 	#pragma omp critical (DeletePtoC)	//TODO：：後にカウントしたほうが並列化できてよい
 	{
@@ -4020,10 +3992,14 @@ void rxFlGLWindow::UpdateInfo_Melt_PandC(const vector<int>& pList, const vector<
 
 				for(k = 0; k < m_ice->GetPtoCIndx(jpIndx); k++)
 				{
-					coSet = m_ice->GetPtoC(jpIndx, k);
-					
-					if(coSet[0] == -1 || coSet[1] == -1 || coSet[0] != icIndx){	continue;	}
-	
+					if(m_ice->GetPtoC(jpIndx, k, 0) == -1
+					|| m_ice->GetPtoC(jpIndx, k, 1) == -1
+					|| m_ice->GetPtoC(jpIndx, k, 0) != icIndx)
+					{
+						continue;
+					}
+
+
 	#pragma omp critical (DeletePtoC)	//TODO：：後にカウントしたほうが並列化できてよい
 	{
 					m_ice->DeletePtoC(jpIndx, k);
@@ -4384,37 +4360,18 @@ void rxFlGLWindow::StepSolid_Freeze(double dt)
 	vector<int> viTetraList;														//再定義する四面体の集合
 	vector<int> viTLayerList;														//再定義する四面体のレイヤー
 	
-	//cout << __FUNCTION__ << " Check1" << endl;
-	//RXTIMER("Search and Set start");
 	SearchFreezeParticle(viParticleList);											//凝固粒子の探索
-	//cout << __FUNCTION__ << " Check2" << endl;
 	SetFreezeTetraInfo(viParticleList);												//凝固粒子に関する四面体の作成
-	//cout << __FUNCTION__ << " Check3" << endl;
 	SetFreezeClusterInfo(viParticleList);											//凝固粒子に関するクラスタの作成
-	//RXTIMER("Search and Set end");
 
-	//cout << __FUNCTION__ << " Check4" << endl;
-
-	//RXTIMER("SearchReconstract start");
 	SearchReconstructTetra_Freeze(viParticleList, viTetraList, viTLayerList);		//再定義四面体の探索
 	SearchReconstructCluster_Freeze(viParticleList, viClusterList, viCLayerList);	//再定義クラスタの探索
-	//RXTIMER("SearchReconstract end");
-	
-	//cout << __FUNCTION__ << " Check5" << endl;
 
-	//CheckDeleteCluster();														//同一，包含関係にあるクラスタを削除
-	////RXTIMER("CheckDeleteTetra start");
+	//CheckDeleteCluster();															//同一，包含関係にあるクラスタを削除
 	//CheckDeleteTetra(viTetraList, viTLayerList);									//同一，包含関係にある四面体を削除
-	////RXTIMER("CheckDeleteTetra end");
 
-	//RXTIMER("SetTetraInfo start");
 	SetTetraInfo(viParticleList, viTetraList, viTLayerList);						//粒子・近傍四面体情報の再定義
-	//RXTIMER("SetTetraInfo end");
-	//RXTIMER("SetClusterInfo start");
 	SetClusterInfo(viParticleList, viClusterList, viCLayerList);					//粒子・クラスタ情報の再定義
-	//RXTIMER("SetClusterInfo end");
-
-	//cout << __FUNCTION__ << " Check6" << endl;
 
 	//デバッグ
 	if(viParticleList.size() == 0 || viClusterList.size() == 0){	return;	}
@@ -4558,21 +4515,20 @@ void rxFlGLWindow::SearchReconstructCluster_Freeze(const vector<int>& pList, vec
 		//凝固粒子が含まれているクラスタを取得
 		for(int j = 0; j < m_ice->GetPtoCIndx(ipIndx); j++)
 		{
-			int* coSet = m_ice->GetPtoC(ipIndx, j);
-			int jcIndx = coSet[0];
-			
-			if(coSet[0] == -1 || coSet[1] == -1){	continue;	}
-			if(jcIndx == ipIndx)				{	continue;	}
+			int jcIndx = m_ice->GetPtoC(ipIndx, j, 0);
+			int joIndx = m_ice->GetPtoC(ipIndx, j, 1);
+			int jlIndx = m_ice->GetPtoC(ipIndx, j, 2);
+
+			if(jcIndx == -1 || joIndx == -1){	continue;	}
+			if(jcIndx == ipIndx)			{	continue;	}
 			if(std::find(cList.begin(), cList.end(), jcIndx) != cList.end()){	continue;	}
-			//cout << "check2 jcIndx = " << jcIndx << endl;
+
 			//if(std::find(pList.begin(), pList.end(), jcIndx) != pList.end()){	continue;	}
 
-			//cout << "Add jcIndx = " << jcIndx << endl;
 			cList.push_back(jcIndx);
 			lList.push_back(1);
 		}
 	}
-
 }
 
 /*!
@@ -4584,7 +4540,6 @@ void rxFlGLWindow::SearchReconstructCluster_Freeze(const vector<int>& pList, vec
 void rxFlGLWindow::SearchReconstructTetra_Freeze(const vector<int>& pList, vector<int>& tList, vector<int>& lList)
 {	
 	if(pList.size() == 0){	return; }
-	//cout << __FUNCTION__ << endl;
 
 	//今回新しく作られた四面体群Aの近傍四面体群をA'とすると，A'の近傍四面体へAを追加する必要がある．
 	//しかし追加する際のlayerが昇順でないという問題があるので，計算時間はかかるかもしれないが単純に再定義する．

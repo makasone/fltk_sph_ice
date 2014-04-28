@@ -191,18 +191,27 @@ void IceStructure::InitTetraInfo()
 void IceStructure::InitClusterInfo()
 {
 	//粒子→クラスタ
-	m_pppiPtoC = new int**[m_iPNumMax];
+	//m_pppiPtoC = new int**[m_iPNumMax];
+	m_mk3DiPtoC.SetSize(m_iPNumMax, m_iPtoCMax, 3);
 
 	for(int i = 0; i < m_iPNumMax; i++)
 	{
-		m_pppiPtoC[i] = new int*[m_iPtoCMax];
+		//m_pppiPtoC[i] = new int*[m_iPtoCMax];
 		
 		for(int j = 0; j < m_iPtoCMax; j++)
 		{
-			m_pppiPtoC[i][j] = new int[3];
-			m_pppiPtoC[i][j][0] = -1;				//[0] = クラスタ番号
-			m_pppiPtoC[i][j][1] = -1;				//[1] = クラスタ内での番号
-			m_pppiPtoC[i][j][2] = -1;				//[2] = layer番号
+			//m_pppiPtoC[i][j] = new int[3];
+			//m_pppiPtoC[i][j][0] = -1;				//[0] = クラスタ番号
+			//m_pppiPtoC[i][j][1] = -1;				//[1] = クラスタ内での番号
+			//m_pppiPtoC[i][j][2] = -1;				//[2] = layer番号
+
+			//[0] = クラスタ番号
+			//[1] = クラスタ内での番号
+			//[2] = layer番号
+			for(int k = 0; k < 3; k++)
+			{
+				m_mk3DiPtoC(i, j, k) = -1;
+			}
 		}
 	}
 
@@ -265,7 +274,12 @@ int IceStructure::GetPtoCFreeIndx(int pIndx)
 
 	for(int i = 0; i < m_iPtoCMax; i++)
 	{
-		if(GetPtoC(pIndx, i)[0] != -1 || GetPtoC(pIndx, i)[1] != -1){	continue;	}
+		//if(GetPtoC(pIndx, i)[0] != -1 || GetPtoC(pIndx, i)[1] != -1){	continue;	}
+		if(GetPtoC(pIndx, i, 0) != -1 || GetPtoC(pIndx, i, 1) != -1 || GetPtoC(pIndx, i, 2) != -1)
+		{
+			continue;
+		}
+
 		freeIndx = i;	break;
 	}
 
@@ -343,9 +357,13 @@ void IceStructure::SetPtoC(int pIndx, int lIndx, int cIndx, int oIndx, int layer
 		return;
 	}
 
-	m_pppiPtoC[pIndx][lIndx][0] = cIndx;
-	m_pppiPtoC[pIndx][lIndx][1] = oIndx;
-	m_pppiPtoC[pIndx][lIndx][2] = layer;
+	//m_pppiPtoC[pIndx][lIndx][0] = cIndx;
+	//m_pppiPtoC[pIndx][lIndx][1] = oIndx;
+	//m_pppiPtoC[pIndx][lIndx][2] = layer;
+	
+	m_mk3DiPtoC(pIndx, lIndx, 0) = cIndx;
+	m_mk3DiPtoC(pIndx, lIndx, 1) = oIndx;
+	m_mk3DiPtoC(pIndx, lIndx, 2) = layer;
 }
 
 /*!
@@ -588,7 +606,7 @@ void IceStructure::SetNeighborTetraFromLayer(int tIndx, int searchLayer, int del
  * @param[in] lIndx　粒子内番号
  */
 int* IceStructure::GetPtoT(int pIndx, int lIndx)
-{//	cout << __FUNCTION__ << endl;
+{
 	return m_pppiPtoT[pIndx][lIndx];
 }
 
@@ -598,7 +616,7 @@ int* IceStructure::GetPtoT(int pIndx, int lIndx)
  * @param[in] lIndx　四面体内番号
  */
 int IceStructure::GetTtoP(int tIndx, int lIndx)
-{//	cout << __FUNCTION__ << endl;
+{
 	return m_ppiTtoP[tIndx][lIndx];
 }
 
@@ -607,9 +625,20 @@ int IceStructure::GetTtoP(int tIndx, int lIndx)
  * @param[in] pIndx　粒子番号
  * @param[in] lIndx　粒子内番号
  */
-int* IceStructure::GetPtoC(int pIndx, int lIndx)
+//int* IceStructure::GetPtoC(int pIndx, int lIndx)
+//{
+//	return m_pppiPtoC[pIndx][lIndx];
+//}
+
+/*!
+ * 取得処理　粒子→クラスタ
+ * @param[in] pIndx	粒子番号
+ * @param[in] lIndx	粒子内番号
+ * @param[in] oIndx	0->クラスタの番号, 1->クラスタ内での粒子番号, 2->階層
+ */
+int IceStructure::GetPtoC(int pIndx, int lIndx, int m)
 {
-	return m_pppiPtoC[pIndx][lIndx];
+	return m_mk3DiPtoC(pIndx, lIndx, m);
 }
 
 /*!
@@ -685,9 +714,14 @@ void IceStructure::DeletePtoC(int pIndx, int lIndx)
 		return;
 	}
 
-	m_pppiPtoC[pIndx][lIndx][0] = -1;
-	m_pppiPtoC[pIndx][lIndx][1] = -1;
-	m_pppiPtoC[pIndx][lIndx][2] = -1;
+	//m_pppiPtoC[pIndx][lIndx][0] = -1;
+	//m_pppiPtoC[pIndx][lIndx][1] = -1;
+	//m_pppiPtoC[pIndx][lIndx][2] = -1;
+
+	for(int i = 0; i < 3; i++)
+	{
+		m_mk3DiPtoC(pIndx, lIndx, i) = -1;
+	}
 }
 
 /*!
@@ -741,9 +775,14 @@ void IceStructure::ClearPtoC(int pIndx)
 {
 	for(int i = 0; i < m_iPtoCMax; i++)
 	{
-		m_pppiPtoC[pIndx][i][0] = -1;
-		m_pppiPtoC[pIndx][i][1] = -1;
-		m_pppiPtoC[pIndx][i][2] = -1;
+		//m_pppiPtoC[pIndx][i][0] = -1;
+		//m_pppiPtoC[pIndx][i][1] = -1;
+		//m_pppiPtoC[pIndx][i][2] = -1;
+
+		for(int j = 0; j < 3; j++)
+		{
+			m_mk3DiPtoC(pIndx, i, j) = -1;
+		}
 	}
 
 	m_piPtoCIndx[pIndx] = 0;
@@ -857,8 +896,13 @@ void IceStructure::DebugPtoC(int pIndx)
 	
 	for(int i = 0; i < GetPtoCIndx(pIndx); i++)
 	{
-			int* coSet = GetPtoC(pIndx, i);
-			cout <<" c=" << coSet[0] << " o=" << coSet[1];
+			//int* coSet = GetPtoC(pIndx, i);
+			//cout <<" c=" << coSet[0] << " o=" << coSet[1];
+
+			for(int j = 0; j < 3; j++)
+			{
+				cout << " c=" << GetPtoC(pIndx, i, j) << " o=" << GetPtoC(pIndx, i, j);
+			}
 	}
 	cout << endl;
 

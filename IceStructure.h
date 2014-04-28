@@ -36,7 +36,6 @@ public:
 	int GetClusterNum(void){		return m_iCNum;	}
 	int GetTetraNum(void){			return m_iTNum;	}
 
-//-------------------------------------粒子ベース処理----------------------------------------
 	void InitTetraInfo();											//四面体情報のメモリ確保
 	void InitClusterInfo();											//クラスタ情報のメモリ確保
 
@@ -89,6 +88,9 @@ public:
 	int* GetCtoP(int cIndx, int lIndx);
 	int  GetTtoP(int tIndx, int lIndx);
 
+	//修正
+	int GetPtoC(int pIndx, int lIndx, int oIndx);
+
 	int* GetNeighborTetra(int tIndx, int lIndx);
 
 	void ClearPtoT(int pIndx);
@@ -108,8 +110,6 @@ public:
 	void DebugTtoP(int tIndx);
 	void DebugNeighborTetra(int tIndx);
 
-//-------------------------------------粒子ベース処理----------------------------------------
-
 	//フラグ　未使用
 	void SetPFlag(int indx, bool state){	m_pbPFlag[indx] = state;	}
 	void SetCFlag(int indx, bool state){	m_pbCFlag[indx] = state;	}
@@ -127,12 +127,10 @@ protected:
 
 	int m_iPNumMax;								//最大粒子数
 	int m_iPNum;								//現在の粒子数
-
-	int m_iNeighborMax;							//近傍粒子の最大数
 	
 	int m_iPtoCMax;								//粒子がクラスタに所属する最大数　connectはcalcの半分でいい
 	int m_iCtoPMax;								//クラスタが含む粒子の最大数　　　connectは最大４で固定	
-//-------------------------------------粒子ベース処理----------------------------------------
+
 	int m_iTNumMax;
 	int m_iTNum;
 
@@ -142,9 +140,11 @@ protected:
 	int m_iCNumMax;								//最大クラスタ数
 	int m_iCNum;								//現在のクラスタ数
 
+	int m_iNeighborMax;							//近傍粒子の最大数
+
 	//とりあえず，ポインタは使わない
-	mk_Vector3D<int> m_mk3DiPtoC_cO;			//粒子→クラスタ　何番目のクラスタ内で何番目なのかを判定　0番から始まるのに注意
-	mk_Vector2D<int> m_mk2DiCtoP_cO;			//クラスタ→粒子　クラスタに所属する粒子を返す　粒子の接続情報
+	mk_Vector3D<int> m_mk3DiPtoC;				//粒子→クラスタ　何番目のクラスタ内で何番目なのかを判定　0番から始まるのに注意
+	mk_Vector2D<int> m_mk2DiCtoP;				//クラスタ→粒子　クラスタに所属する粒子を返す　粒子の接続情報
 
 	//粒子→
 	int*** m_pppiPtoC;							//粒子→クラスタ　何番目のクラスタ内で何番目なのかを判定　0番から始まるのに注意
@@ -179,39 +179,7 @@ protected:
 	//近傍四面体
 	int*** m_pppiNeighborTetra;					//近傍四面体
 	int*   m_piNTNum;							//各近傍四面体の個数
-//-------------------------------------粒子ベース処理----------------------------------------
 
-////-------------------------------------四面体ベース処理-------------------------------------
-//
-//	//接続情報
-//	//とりあえず，ポインタは使わない
-//	mk_Vector3D<int> m_mk3DiPtoC_cO;			//粒子→クラスタ　何番目のクラスタ内で何番目なのかを判定　0番から始まるのに注意
-//	mk_Vector2D<int> m_mk2DiCtoP_cO;			//クラスタ→粒子　クラスタに所属する粒子を返す　粒子の接続情報
-//
-//	int* m_piPtoCNum_Connect;					//粒子が接続クラスタに所属している個数
-//	int* m_piCtoPNum_Connect;					//クラスタが粒子を含んでいる個数
-//
-//	int* m_piPtoCIndx_Connect;					//粒子が接続クラスタに所属していることを保存する配列の，現在の添え字番号
-//	int* m_piCtoPIndx_Connect;					//接続クラスタが粒子を含んでいることを保存する配列の，現在の添え字番号
-//
-//	//計算処理クラスタ
-//	int*** m_pppiPtoC_Calc;						//粒子→クラスタ　何番目のクラスタ内で何番目なのかを判定　0番から始まるのに注意
-//	int*** m_ppiCtoP_Calc;						//クラスタ→粒子　クラスタに所属する粒子を返す　粒子の接続情報
-//
-//	int* m_piPtoCNum_Calc;						//粒子が計算クラスタに所属している個数
-//	int* m_piCtoPNum_Calc;						//クラスタが粒子を含んでいる個数
-//
-//	int* m_piPtoCIndx_Calc;						//粒子が計算クラスタに所属していることを保存する配列の，現在の添え字番号
-//	int* m_piCtoPIndx_Calc;						//計算クラスタが粒子を含んでいることを保存する配列の，現在の添え字番号
-//
-//	//近傍クラスタ
-//	int*** m_ppiNeighborCluster;				//近傍クラスタの組　それぞれに粒子のリストを用意
-//	int*  m_ppiNCNum;							//接続クラスタの近傍となるクラスタの個数
-//
-//	//計算処理クラスタ→接続情報クラスタ
-//	int*** m_pppiCalcToConnect;					//計算処理クラスタ→接続情報クラスタ
-////-------------------------------------四面体ベース処理-------------------------------------
-//
 	//探索用フラグ　未使用
 	bool* m_pbPFlag;							//粒子
 	bool* m_pbCFlag;							//クラスタ
