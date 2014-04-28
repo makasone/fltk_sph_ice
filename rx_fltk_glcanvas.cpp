@@ -3201,8 +3201,8 @@ void rxFlGLWindow::MakeCluster(int pIndx)
 	//ある粒子が含まれる四面体を近傍クラスタとし，各四面体に含まれる粒子でクラスタを作成
 	for(int i = 0; i < m_ice->GetPtoTIndx(pIndx); i++)
 	{
-		int itIndx = m_ice->GetPtoT(pIndx, i)[0];
-		int ioIndx = m_ice->GetPtoT(pIndx, i)[1];
+		int itIndx = m_ice->GetPtoT(pIndx, i, 0);
+		int ioIndx = m_ice->GetPtoT(pIndx, i, 1);
 
 		if(itIndx == -1 || ioIndx == -1){ continue;	}
 
@@ -3227,8 +3227,8 @@ void rxFlGLWindow::MakeCluster(int pIndx)
 	//TODO::不安定になるなら，layerが遠いほどbetaを下げる
 	for(int i = 0; i < m_ice->GetPtoTIndx(pIndx); i++)
 	{
-		int itIndx = m_ice->GetPtoT(pIndx, i)[0];
-		int ioIndx = m_ice->GetPtoT(pIndx, i)[1];
+		int itIndx = m_ice->GetPtoT(pIndx, i, 0);
+		int ioIndx = m_ice->GetPtoT(pIndx, i, 1);
 
 		if(itIndx == -1 || ioIndx == -1){	continue;	}
 
@@ -3802,14 +3802,17 @@ void rxFlGLWindow::SearchReconstructTetra_Melt(const vector<int>& pList, vector<
 
 		for(int j = 0; j < m_ice->GetPtoTIndx(ipIndx); j++)
 		{
-			int* jtlSet = m_ice->GetPtoT(ipIndx, j);
-			if(jtlSet[0] == -1 || jtlSet[1] == -1){	continue;	}
+			if(m_ice->GetPtoT(ipIndx, j, 0) == -1
+			|| m_ice->GetPtoT(ipIndx, j, 1) == -1)
+			{
+				continue;
+			}
 
 			//if(std::find(tList.begin(), tList.end(), jtlSet[0]) != tList.end()){ continue;	}
-			if(m_ice->GetTFlag(jtlSet[0]))	{	continue;	}
-			else							{	m_ice->SetTFlag(jtlSet[0], true);	}
+			if( m_ice->GetTFlag(m_ice->GetPtoT(ipIndx, j, 0)) )	{	continue;	}
+			else												{	m_ice->SetTFlag(m_ice->GetPtoT(ipIndx, j, 0), true);	}
 
-			tList.push_back(jtlSet[0]);
+			tList.push_back(m_ice->GetPtoT(ipIndx, j, 0));
 			lList.push_back(1);								//0か1かの判断はできないので1に合わせる．
 		}
 	}
@@ -3861,9 +3864,8 @@ void rxFlGLWindow::UpdateInfo_Melt_PandT(const vector<int>& pList)
 
 		for(int j = 0; j < m_ice->GetPtoTIndx(ipIndx); j++)
 		{
-			int* toSet = m_ice->GetPtoT(ipIndx, j);
-			int tIndx = toSet[0];
-			int oIndx = toSet[1];										//この場合はそのまま添え字
+			int tIndx = m_ice->GetPtoT(ipIndx, j, 0);
+			int oIndx = m_ice->GetPtoT(ipIndx, j, 1);										//この場合はそのまま添え字
 			
 			if(tIndx == -1 || oIndx == -1){ continue;	}
 
@@ -3893,8 +3895,10 @@ void rxFlGLWindow::UpdateInfo_Delete_TandP(const vector<int>& tList, const vecto
 
 			for(int k = 0; k < m_ice->GetPtoTIndx(jpIndx); k++)
 			{
-				int* ktIndx = m_ice->GetPtoT(jpIndx, k);	
-				if(ktIndx[0] == -1 || ktIndx[1] == -1 || ktIndx[0] != itIndx){	continue;	}
+				int ktIndx = m_ice->GetPtoT(jpIndx, k, 0);
+				int koIndx = m_ice->GetPtoT(jpIndx, k, 1);
+
+				if(ktIndx == -1 || koIndx == -1 || koIndx != itIndx){	continue;	}
 
 				m_ice->DeletePtoT(jpIndx, k);
 				break;
@@ -4222,8 +4226,8 @@ void rxFlGLWindow::SetClusterInfo(const vector<int>& pList, const vector<int>& c
 			//以下を関数にすると，エラーが出てうまくいかない
 			for(j = 0; j < m_ice->GetPtoTIndx(icIndx); j++)
 			{
-				jtIndx = m_ice->GetPtoT(icIndx, j)[0];
-				joIndx = m_ice->GetPtoT(icIndx, j)[1];
+				jtIndx = m_ice->GetPtoT(icIndx, j, 0);
+				joIndx = m_ice->GetPtoT(icIndx, j, 1);
 
 				if(jtIndx == -1 || joIndx == -1){ continue;	}
 				if(std::find(checkTList.begin(), checkTList.end(), jtIndx) != checkTList.end())
@@ -4252,8 +4256,8 @@ void rxFlGLWindow::SetClusterInfo(const vector<int>& pList, const vector<int>& c
 			//TODO::不安定になるなら，layerが遠いほどbetaを下げる
 			for(j = 0; j < m_ice->GetPtoTIndx(icIndx); j++)
 			{
-				jtIndx = m_ice->GetPtoT(icIndx, j)[0];
-				joIndx = m_ice->GetPtoT(icIndx, j)[1];
+				jtIndx = m_ice->GetPtoT(icIndx, j, 0);
+				joIndx = m_ice->GetPtoT(icIndx, j, 1);
 
 				if(jtIndx == -1 || joIndx == -1){ continue;	}
 
@@ -4555,14 +4559,16 @@ void rxFlGLWindow::SearchReconstructTetra_Freeze(const vector<int>& pList, vecto
 
 		for(int j = 0; j < m_ice->GetPtoTIndx(ipIndx); j++)
 		{
-			int* jtlSet = m_ice->GetPtoT(ipIndx, j);
-			if(jtlSet[0] == -1 || jtlSet[1] == -1){	continue;	}
+			int jtIndx = m_ice->GetPtoT(ipIndx, j, 0);
+			int jcIndx = m_ice->GetPtoT(ipIndx, j, 1);
+
+			if(jtIndx == -1 || jcIndx == -1){	continue;	}
 
 			//if(std::find(tList.begin(), tList.end(), jtlSet[0]) != tList.end()){	continue;	}
-			if(m_ice->GetTFlag(jtlSet[0]))	{	continue;	}
-			else							{	m_ice->SetTFlag(jtlSet[0], true);	}
+			if(m_ice->GetTFlag(jtIndx))	{	continue;	}
+			else							{	m_ice->SetTFlag(jtIndx, true);	}
 
-			tList.push_back(jtlSet[0]);
+			tList.push_back(jtIndx);
 			lList.push_back(1);								//0か1かの判断はできないので1に合わせる．メモを参考に．
 		}
 	}
@@ -4647,9 +4653,9 @@ vector<int> rxFlGLWindow::GetNeighborDistanceIceParticles(int pIndx, int layer, 
 	//ある粒子が含まれている四面体全てを探索する
 	for(int i = 0; i < m_ice->GetPtoTIndx(pIndx); i++)
 	{
-		int* toList = m_ice->GetPtoT(pIndx, i);
-		int tIndx = toList[0];
-		int oIndx = toList[1];
+		int tIndx = m_ice->GetPtoT(pIndx, i, 0);
+		int oIndx = m_ice->GetPtoT(pIndx, i, 1);
+
 		if(tIndx == -1 || oIndx == -1) continue;
 
 		for(int j = 0; j < m_ice->GetTtoPIndx(tIndx); j++)

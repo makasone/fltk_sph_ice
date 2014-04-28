@@ -83,13 +83,12 @@ public:
 	void DeletePtoC(int pIndx, int lIndx);
 	void DeletePtoT(int pIndx, int lIndx);
 
-	int* GetPtoT(int pIndx, int lIndx);
-	int* GetPtoC(int pIndx, int lIndx);
 	int* GetCtoP(int cIndx, int lIndx);
 	int  GetTtoP(int tIndx, int lIndx);
 
 	//修正
 	int GetPtoC(int pIndx, int lIndx, int oIndx);
+	int GetPtoT(int pIndx, int lIndx, int oIndx);
 
 	int* GetNeighborTetra(int tIndx, int lIndx);
 
@@ -143,12 +142,9 @@ protected:
 	int m_iNeighborMax;							//近傍粒子の最大数
 
 	//とりあえず，ポインタは使わない
-	mk_Vector3D<int> m_mk3DiPtoC;				//粒子→クラスタ　何番目のクラスタ内で何番目なのかを判定　0番から始まるのに注意
-	mk_Vector2D<int> m_mk2DiCtoP;				//クラスタ→粒子　クラスタに所属する粒子を返す　粒子の接続情報
-
 	//粒子→
-	int*** m_pppiPtoC;							//粒子→クラスタ　何番目のクラスタ内で何番目なのかを判定　0番から始まるのに注意
-	int*** m_pppiPtoT;							//粒子→四面体
+	mk_Vector3D<int> m_mk3DiPtoC;				//粒子→クラスタ
+	mk_Vector3D<int> m_mk3DiPtoT;				//粒子→四面体
 
 	int*   m_piPtoCNum;							//粒子→クラスタの個数
 	int*   m_piPtoTNum;							//粒子→四面体の個数

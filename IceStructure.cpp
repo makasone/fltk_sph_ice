@@ -146,17 +146,16 @@ void IceStructure::ResetTFlag(int endNum)
 void IceStructure::InitTetraInfo()
 {
 	//粒子→四面体
-	m_pppiPtoT = new int**[m_iPNumMax];
+	m_mk3DiPtoT.SetSize(m_iPNumMax, m_iPtoTMax, 2);
 
 	for(int i = 0; i < m_iPNumMax; i++)
-	{
-		m_pppiPtoT[i] = new int*[m_iPtoTMax];
-		
+	{		
 		for(int j = 0; j < m_iPtoTMax; j++)
 		{
-			m_pppiPtoT[i][j] = new int[2];
-			m_pppiPtoT[i][j][0] = -1;
-			m_pppiPtoT[i][j][1] = -1;
+			for(int k = 0; k < 2; k++)
+			{
+				m_mk3DiPtoT(i, j, k) = -1;
+			}
 		}
 	}
 
@@ -191,20 +190,12 @@ void IceStructure::InitTetraInfo()
 void IceStructure::InitClusterInfo()
 {
 	//粒子→クラスタ
-	//m_pppiPtoC = new int**[m_iPNumMax];
 	m_mk3DiPtoC.SetSize(m_iPNumMax, m_iPtoCMax, 3);
 
 	for(int i = 0; i < m_iPNumMax; i++)
 	{
-		//m_pppiPtoC[i] = new int*[m_iPtoCMax];
-		
 		for(int j = 0; j < m_iPtoCMax; j++)
 		{
-			//m_pppiPtoC[i][j] = new int[3];
-			//m_pppiPtoC[i][j][0] = -1;				//[0] = クラスタ番号
-			//m_pppiPtoC[i][j][1] = -1;				//[1] = クラスタ内での番号
-			//m_pppiPtoC[i][j][2] = -1;				//[2] = layer番号
-
 			//[0] = クラスタ番号
 			//[1] = クラスタ内での番号
 			//[2] = layer番号
@@ -252,7 +243,7 @@ int IceStructure::GetPtoTFreeIndx(int pIndx)
 
 	for(int i = 0; i < m_iPtoTMax; i++)
 	{
-		if(GetPtoT(pIndx, i)[0] != -1 || GetPtoT(pIndx, i)[1] != -1){	continue;	}
+		if(GetPtoT(pIndx, i, 0) != -1 || GetPtoT(pIndx, i, 1) != -1){	continue;	}
 		freeIndx = i;	break;
 	}
 
@@ -314,8 +305,8 @@ void IceStructure::SetPtoT(int pIndx, int lIndx, int tIndx, int oIndx)
 		cout << "lIndx = " << lIndx << endl;
 	}
 
-	m_pppiPtoT[pIndx][lIndx][0] = tIndx;
-	m_pppiPtoT[pIndx][lIndx][1] = oIndx;
+	m_mk3DiPtoT(pIndx, lIndx, 0) = tIndx;
+	m_mk3DiPtoT(pIndx, lIndx, 1) = oIndx;
 }
 
 /*!
@@ -356,10 +347,6 @@ void IceStructure::SetPtoC(int pIndx, int lIndx, int cIndx, int oIndx, int layer
 		cout << m_iPtoCMax << "<" << lIndx << endl;
 		return;
 	}
-
-	//m_pppiPtoC[pIndx][lIndx][0] = cIndx;
-	//m_pppiPtoC[pIndx][lIndx][1] = oIndx;
-	//m_pppiPtoC[pIndx][lIndx][2] = layer;
 	
 	m_mk3DiPtoC(pIndx, lIndx, 0) = cIndx;
 	m_mk3DiPtoC(pIndx, lIndx, 1) = oIndx;
@@ -417,12 +404,15 @@ void IceStructure::SetNeighborTetra(int tIndx, int layer)
 		//探索
 		for(int j = 0; j < GetPtoTIndx(ipIndx); j++)
 		{
-			int* jtSet = GetPtoT(ipIndx, j);
-
-			if(jtSet[0] == -1 || jtSet[1] == -1 || jtSet[0] == tIndx){	continue;	}
+			if(GetPtoT(ipIndx, j, 0) == -1
+			|| GetPtoT(ipIndx, j, 1) == -1
+			|| GetPtoT(ipIndx, j, 0) == tIndx)
+			{	
+				continue;	
+			}
 
 			//同じクラスタを既に含んでいないかのチェック
-			if(CheckNeighborTetra(tIndx, jtSet[0]) != -1){	continue;	}
+			if(CheckNeighborTetra( tIndx, GetPtoT(ipIndx, j, 0) ) != -1){	continue;	}
 
 			//近傍クラスタの登録＋カウント
 			if(GetNTNum(tIndx) >= m_iNeighborMax)
@@ -432,7 +422,7 @@ void IceStructure::SetNeighborTetra(int tIndx, int layer)
 			}
 			else
 			{
-				m_pppiNeighborTetra[tIndx][GetNTNum(tIndx)][0] = jtSet[0];
+				m_pppiNeighborTetra[tIndx][GetNTNum(tIndx)][0] = GetPtoT(ipIndx, j, 0);
 				m_pppiNeighborTetra[tIndx][GetNTNum(tIndx)][1] = 1;
 				CountNT(tIndx);
 			}
@@ -465,11 +455,18 @@ void IceStructure::SetNeighborTetra(int tIndx, int layer)
 
 				for(int l = 0; l < GetPtoTIndx(kpIndx); l++)
 				{
-					int* ltSet = GetPtoT(kpIndx, l);
-					if(ltSet[0] == -1 || ltSet[1] == -1 || ltSet[0] == tIndx){	continue;	}
+					if(GetPtoT(kpIndx, j, 0) == -1 
+					|| GetPtoT(kpIndx, j, 1) == -1
+					|| GetPtoT(kpIndx, j, 0) == tIndx)
+					{
+						continue;
+					}
 
 					//同じ四面体を既に含んでいないかのチェック
-					if(CheckNeighborTetra(tIndx, ltSet[0]) != -1){	continue;	}
+					if(CheckNeighborTetra( tIndx, GetPtoT(kpIndx, j, 0) ) != -1)
+					{
+						continue;
+					}
 
 					//近傍クラスタの登録＋カウント
 					if(GetNTNum(tIndx) >= m_iNeighborMax)
@@ -480,7 +477,7 @@ void IceStructure::SetNeighborTetra(int tIndx, int layer)
 					else
 					{
 //						if(GetNTNum(tIndx) > 200 ) return;	//近傍四面体数の制限
-						m_pppiNeighborTetra[tIndx][GetNTNum(tIndx)][0] = ltSet[0];
+						m_pppiNeighborTetra[tIndx][GetNTNum(tIndx)][0] = GetPtoT(kpIndx, j, 0);
 						m_pppiNeighborTetra[tIndx][GetNTNum(tIndx)][1] = i;
 						CountNT(tIndx);
 					}
@@ -519,12 +516,15 @@ void IceStructure::SetNeighborTetraFromLayer(int tIndx, int searchLayer, int del
 		//探索
 		for(int j = 0; j < GetPtoTIndx(ipIndx); j++)
 		{
-			int* jtSet = GetPtoT(ipIndx, j);
-
-			if(jtSet[0] == -1 || jtSet[1] == -1 || jtSet[0] == tIndx){	continue;	}
+			if(GetPtoT(ipIndx, j, 0) == -1
+			|| GetPtoT(ipIndx, j, 1) == -1
+			|| GetPtoT(ipIndx, j, 0) == tIndx)
+			{
+				continue;
+			}
 
 			//同じクラスタを既に含んでいないかのチェック
-			if(CheckNeighborTetra(tIndx, jtSet[0]) != -1){	continue;	}
+			if(CheckNeighborTetra(tIndx, GetPtoT(ipIndx, j, 0)) != -1){	continue;	}
 
 			//近傍クラスタの登録＋カウント
 			if(GetNTNum(tIndx) >= m_iNeighborMax)
@@ -534,7 +534,7 @@ void IceStructure::SetNeighborTetraFromLayer(int tIndx, int searchLayer, int del
 			}
 			else
 			{
-				m_pppiNeighborTetra[tIndx][GetNTNum(tIndx)][0] = jtSet[0];
+				m_pppiNeighborTetra[tIndx][GetNTNum(tIndx)][0] = GetPtoT(ipIndx, j, 0);
 				m_pppiNeighborTetra[tIndx][GetNTNum(tIndx)][1] = 1;
 				CountNT(tIndx);
 			}
@@ -575,9 +575,14 @@ void IceStructure::SetNeighborTetraFromLayer(int tIndx, int searchLayer, int del
 				//粒子が所属している近傍四面体を探索
 				for(int l = 0; l < GetPtoTIndx(kpIndx); l++)
 				{
-					int* ltSet = GetPtoT(kpIndx, l);
-					if(ltSet[0] == -1 || ltSet[1] == -1 || ltSet[0] == tIndx){	continue;	}
-					if(CheckNeighborTetra(tIndx, ltSet[0]) != -1){	continue;	}	//同じ四面体を既に含んでいないかのチェック
+					if(GetPtoT(kpIndx, l, 0) == -1
+					|| GetPtoT(kpIndx, l, 1) == -1
+					|| GetPtoT(kpIndx, l, 0) == tIndx)
+					{
+						continue;
+					}
+
+					if(CheckNeighborTetra( tIndx, GetPtoT(kpIndx, l, 0) ) != -1){	continue;	}	//同じ四面体を既に含んでいないかのチェック
 
 					//近傍クラスタの登録＋カウント
 					if(GetNTNum(tIndx) >= m_iNeighborMax)
@@ -588,7 +593,7 @@ void IceStructure::SetNeighborTetraFromLayer(int tIndx, int searchLayer, int del
 					else
 					{
 //						if(GetNTNum(tIndx) > 200 ) return;	//近傍四面体数の制限
-						m_pppiNeighborTetra[tIndx][GetNTNum(tIndx)][0] = ltSet[0];
+						m_pppiNeighborTetra[tIndx][GetNTNum(tIndx)][0] = GetPtoT(kpIndx, l, 0);
 						m_pppiNeighborTetra[tIndx][GetNTNum(tIndx)][1] = i;
 						CountNT(tIndx);
 					}
@@ -604,10 +609,12 @@ void IceStructure::SetNeighborTetraFromLayer(int tIndx, int searchLayer, int del
  * 取得処理　粒子→四面体
  * @param[in] pIndx　粒子番号
  * @param[in] lIndx　粒子内番号
+ * @param[in] oIndx	0->クラスタの番号, 1->クラスタ内での粒子番号, 2->階層
  */
-int* IceStructure::GetPtoT(int pIndx, int lIndx)
+
+int IceStructure::GetPtoT(int pIndx, int lIndx, int oIndx)
 {
-	return m_pppiPtoT[pIndx][lIndx];
+	return m_mk3DiPtoT(pIndx, lIndx, oIndx);
 }
 
 /*!
@@ -622,23 +629,13 @@ int IceStructure::GetTtoP(int tIndx, int lIndx)
 
 /*!
  * 取得処理　粒子→クラスタ
- * @param[in] pIndx　粒子番号
- * @param[in] lIndx　粒子内番号
- */
-//int* IceStructure::GetPtoC(int pIndx, int lIndx)
-//{
-//	return m_pppiPtoC[pIndx][lIndx];
-//}
-
-/*!
- * 取得処理　粒子→クラスタ
  * @param[in] pIndx	粒子番号
  * @param[in] lIndx	粒子内番号
  * @param[in] oIndx	0->クラスタの番号, 1->クラスタ内での粒子番号, 2->階層
  */
-int IceStructure::GetPtoC(int pIndx, int lIndx, int m)
+int IceStructure::GetPtoC(int pIndx, int lIndx, int oIndx)
 {
-	return m_mk3DiPtoC(pIndx, lIndx, m);
+	return m_mk3DiPtoC(pIndx, lIndx, oIndx);
 }
 
 /*!
@@ -749,8 +746,10 @@ void IceStructure::DeletePtoT(int pIndx, int lIndx)
 		return;
 	}
 
-	m_pppiPtoT[pIndx][lIndx][0] = -1;
-	m_pppiPtoT[pIndx][lIndx][1] = -1;
+	for(int i = 0; i < 2; i++)
+	{
+		m_mk3DiPtoT(pIndx, lIndx, i) = -1;
+	}
 }
 
 /*!
@@ -760,8 +759,10 @@ void IceStructure::ClearPtoT(int pIndx)
 {
 	for(int i = 0; i < m_iPtoTMax; i++)
 	{
-		m_pppiPtoT[pIndx][i][0] = -1;
-		m_pppiPtoT[pIndx][i][1] = -1;
+		for(int j = 0; j < 2; j++)
+		{
+			m_mk3DiPtoT(pIndx, i, j) = -1;
+		}
 	}
 
 	m_piPtoTIndx[pIndx] = 0;
@@ -775,10 +776,6 @@ void IceStructure::ClearPtoC(int pIndx)
 {
 	for(int i = 0; i < m_iPtoCMax; i++)
 	{
-		//m_pppiPtoC[pIndx][i][0] = -1;
-		//m_pppiPtoC[pIndx][i][1] = -1;
-		//m_pppiPtoC[pIndx][i][2] = -1;
-
 		for(int j = 0; j < 3; j++)
 		{
 			m_mk3DiPtoC(pIndx, i, j) = -1;
@@ -884,8 +881,7 @@ void IceStructure::DebugPtoT(int pIndx)
 	
 	for(int i = 0; i < GetPtoTIndx(pIndx); i++)
 	{
-			int* coSet = GetPtoT(pIndx, i);
-			cout <<" c=" << coSet[0] << " o=" << coSet[1];
+		cout << " c=" << GetPtoT(pIndx, i, 0) << " o=" << GetPtoT(pIndx, i, 1);
 	}
 	cout << endl;
 }
@@ -896,13 +892,7 @@ void IceStructure::DebugPtoC(int pIndx)
 	
 	for(int i = 0; i < GetPtoCIndx(pIndx); i++)
 	{
-			//int* coSet = GetPtoC(pIndx, i);
-			//cout <<" c=" << coSet[0] << " o=" << coSet[1];
-
-			for(int j = 0; j < 3; j++)
-			{
-				cout << " c=" << GetPtoC(pIndx, i, j) << " o=" << GetPtoC(pIndx, i, j);
-			}
+		cout << " c=" << GetPtoC(pIndx, i, 0) << " o=" << GetPtoC(pIndx, i, 1);
 	}
 	cout << endl;
 
