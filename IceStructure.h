@@ -83,7 +83,6 @@ public:
 	void DeletePtoC(int pIndx, int lIndx);
 	void DeletePtoT(int pIndx, int lIndx);
 
-
 	int  GetTtoP(int tIndx, int lIndx);
 
 	//修正
@@ -91,7 +90,7 @@ public:
 	int GetPtoT(int pIndx, int lIndx, int oIndx);
 	int GetCtoP(int cIndx, int lIndx, int oIndx);
 
-	int* GetNeighborTetra(int tIndx, int lIndx);
+	int GetNeighborTetra(int tIndx, int lIndx, int oIndx);
 
 	void ClearPtoT(int pIndx);
 	void ClearPtoC(int pIndx);
@@ -142,7 +141,7 @@ protected:
 
 	int m_iNeighborMax;							//近傍粒子の最大数
 
-	//とりあえず，ポインタは使わない
+	//とりあえず，擬似多次元配列にポインタは使わない
 	//粒子→
 	mk_Vector3D<int> m_mk3DiPtoC;				//粒子→クラスタ
 	mk_Vector3D<int> m_mk3DiPtoT;				//粒子→四面体
@@ -155,7 +154,7 @@ protected:
 
 	//クラスタ→
 	mk_Vector3D<int> m_mk3DiCtoP;				//クラスタ→粒子　クラスタに所属する粒子を返す　粒子の接続情報
-	mk_Vector3D<int> m_mk3DiCtoT;				//クラスタ→四面体				
+	//mk_Vector3D<int> m_mk3DiCtoT;				//クラスタ→四面体
 
 	int*   m_piCtoPNum;							//クラスタ→粒子の個数
 	int*   m_piCtoTNum;							//クラスタ→四面体の個数
@@ -164,8 +163,8 @@ protected:
 	int*   m_piCtoTIndx;
 
 	//四面体→
-	int**  m_ppiTtoP;							//四面体→粒子
-	int*** m_pppiTtoC;							//四面体→クラスタ
+	mk_Vector2D<int> m_mk2DiTtoP;				//四面体→粒子
+	//mk_Vector3D<int> m_mk3DiTtoC;				//四面体→クラスタ
 
 	int*   m_piTtoPNum;							//四面体→粒子の個数
 	int*   m_piTtoCNum;							//四面体→クラスタの個数
@@ -174,7 +173,8 @@ protected:
 	int*   m_piTtoCIndx;
 
 	//近傍四面体
-	int*** m_pppiNeighborTetra;					//近傍四面体
+	mk_Vector3D<int> m_mk3DiNeighborTetra;		//近傍四面体
+
 	int*   m_piNTNum;							//各近傍四面体の個数
 
 	//探索用フラグ　未使用

@@ -2974,7 +2974,7 @@ void rxFlGLWindow::InitTetra()
 
 	m_iLayer = m_Scene.GetSphEnv().layer;
 	
-	m_ice = new IceStructure(4000, 4000, 12000);				//最大粒子数　最大クラスタ数　最大四面体数
+	m_ice = new IceStructure(5000, 5000, 18000);				//最大粒子数　最大クラスタ数　最大四面体数
 	m_ice->SetTetraNum(m_vviTetraList.size());					//現四面体数を登録
 
 	//各四面体に含まれる粒子数のカウント
@@ -3234,8 +3234,8 @@ void rxFlGLWindow::MakeCluster(int pIndx)
 
 		for(int j = 0; j < m_ice->GetNTNum(itIndx); j++)
 		{
-			int jtIndx = m_ice->GetNeighborTetra(itIndx, j)[0];
-			int jlIndx = m_ice->GetNeighborTetra(itIndx, j)[1];
+			int jtIndx = m_ice->GetNeighborTetra(itIndx, j, 0);
+			int jlIndx = m_ice->GetNeighborTetra(itIndx, j, 1);
 
 			if(jtIndx == -1 || jlIndx == -1){	continue;	}
 
@@ -3825,27 +3825,28 @@ void rxFlGLWindow::SearchReconstructTetra_Melt(const vector<int>& pList, vector<
 
 		for(int j = 0; j < m_ice->GetNTNum(itIndx); j++)
 		{
-			int* jtlSet = m_ice->GetNeighborTetra(itIndx, j);
+			int jtIndx = m_ice->GetNeighborTetra(itIndx, j, 0);
+			int jlIndx = m_ice->GetNeighborTetra(itIndx, j, 1);
 
 			//既に含まれているのなら，layerを比べて小さいほうを優先する
-			if(m_ice->GetTFlag(jtlSet[0]))
+			if(m_ice->GetTFlag(jtIndx))
 			{
-				vector<int>::iterator check = std::find(tList.begin(), tList.end(), jtlSet[0]);
+				vector<int>::iterator check = std::find(tList.begin(), tList.end(), jtIndx);
 
 				int layerIndx = check-tList.begin();
-				if(lList[layerIndx] > jtlSet[1])
+				if(lList[layerIndx] > jlIndx)
 				{
-					lList[layerIndx] = jtlSet[1];
+					lList[layerIndx] = jlIndx;
 				}
 				continue;
 			}
 			else
 			{
-				m_ice->SetTFlag(jtlSet[0], true);	
+				m_ice->SetTFlag(jtIndx, true);	
 			}
 
-			tList.push_back(jtlSet[0]);
-			lList.push_back(jtlSet[1]);
+			tList.push_back(jtIndx);
+			lList.push_back(jlIndx);
 		}
 	}
 }
@@ -4263,8 +4264,8 @@ void rxFlGLWindow::SetClusterInfo(const vector<int>& pList, const vector<int>& c
 
 				for(k = 0; k < m_ice->GetNTNum(jtIndx); k++)
 				{
-					ktIndx = m_ice->GetNeighborTetra(jtIndx, k)[0];
-					klIndx = m_ice->GetNeighborTetra(jtIndx, k)[1];
+					ktIndx = m_ice->GetNeighborTetra(jtIndx, k, 0);
+					klIndx = m_ice->GetNeighborTetra(jtIndx, k, 1);
 
 					if(ktIndx == -1 || klIndx == -1){	continue;	}
 					if(std::find(checkTList.begin(), checkTList.end(), ktIndx) != checkTList.end())
@@ -4581,27 +4582,28 @@ void rxFlGLWindow::SearchReconstructTetra_Freeze(const vector<int>& pList, vecto
 
 		for(int j = 0; j < m_ice->GetNTNum(itIndx); j++)
 		{
-			int* jtlSet = m_ice->GetNeighborTetra(itIndx, j);
+			int jtIndx = m_ice->GetNeighborTetra(itIndx, j, 0);
+			int jlIndx = m_ice->GetNeighborTetra(itIndx, j, 1);
 
 			//既に含まれているのなら，layerを比べて小さいほうを優先する
-			if(m_ice->GetTFlag(jtlSet[0]))
+			if(m_ice->GetTFlag(jtIndx))
 			{
-				vector<int>::iterator check = std::find(tList.begin(), tList.end(), jtlSet[0]);
+				vector<int>::iterator check = std::find(tList.begin(), tList.end(), jtIndx);
 
 				int layerIndx = check-tList.begin();
-				if(lList[layerIndx] > jtlSet[1])
+				if(lList[layerIndx] > jlIndx)
 				{
-					lList[layerIndx] = jtlSet[1];
+					lList[layerIndx] = jlIndx;
 				}
 				continue;
 			}
 			else
 			{
-				m_ice->SetTFlag(jtlSet[0], true);	
+				m_ice->SetTFlag(jtIndx, true);	
 			}
 
-			tList.push_back(jtlSet[0]);
-			lList.push_back(jtlSet[1]);
+			tList.push_back(jtIndx);
+			lList.push_back(jlIndx);
 		}
 	}
 }

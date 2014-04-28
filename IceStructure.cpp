@@ -74,22 +74,25 @@ IceStructure::IceStructure(int pNumMax, int cNumMax, int tNumMax)
 	}
 
 	//近傍四面体
-	m_pppiNeighborTetra = new int**[m_iTNumMax];
 	m_piNTNum = new int[m_iTNumMax];
 
 	m_iNeighborMax = m_iTNumMax*0.3;		//1331 layer2 0.3 layer3 0.75
 											//2197 layer2 0.3 layre3 0.3 layer4 0.4
 											//3375 layer2
+
+	m_mk3DiNeighborTetra.SetSize(m_iTNumMax, m_iNeighborMax, 2);
+
+
 	for(int i = 0; i < m_iTNumMax; i++)
 	{
 		m_piNTNum[i] = 0;
-		m_pppiNeighborTetra[i] = new int*[m_iNeighborMax];
 
 		for(int j = 0; j < m_iNeighborMax; j++)
 		{
-			m_pppiNeighborTetra[i][j] = new int[2];
-			m_pppiNeighborTetra[i][j][0] = -1;
-			m_pppiNeighborTetra[i][j][1] = -1;
+			for(int k = 0; k < 2; k++)
+			{
+				m_mk3DiNeighborTetra(i, j, k) = -1;
+			}
 		}
 	}
 
@@ -160,15 +163,13 @@ void IceStructure::InitTetraInfo()
 	}
 
 	//四面体→粒子
-	m_ppiTtoP = new int*[m_iTNumMax];
-
+	m_mk2DiTtoP.SetSize(m_iTNumMax, 4);
+	
 	for(int i = 0; i < m_iTNumMax; i++)
 	{
-		m_ppiTtoP[i] = new int[4];
-		
 		for(int j = 0; j < 4; j++)
 		{
-			m_ppiTtoP[i][j] = -1;
+			m_mk2DiTtoP(i, j) = -1;
 		}
 	}
 
@@ -324,7 +325,7 @@ void IceStructure::SetTtoP(int tIndx, vector<int>& pIndxList)
 
 	for(int i = 0; i < pIndxList.size(); i++)
 	{
-		m_ppiTtoP[tIndx][i] = pIndxList[i];
+		m_mk2DiTtoP(tIndx, i) = pIndxList[i];
 	}
 }
 
@@ -419,8 +420,8 @@ void IceStructure::SetNeighborTetra(int tIndx, int layer)
 			}
 			else
 			{
-				m_pppiNeighborTetra[tIndx][GetNTNum(tIndx)][0] = GetPtoT(ipIndx, j, 0);
-				m_pppiNeighborTetra[tIndx][GetNTNum(tIndx)][1] = 1;
+				m_mk3DiNeighborTetra(tIndx, GetNTNum(tIndx), 0) = GetPtoT(ipIndx, j, 0);
+				m_mk3DiNeighborTetra(tIndx, GetNTNum(tIndx), 1) = 1;
 				CountNT(tIndx);
 			}
 		}
@@ -436,7 +437,7 @@ void IceStructure::SetNeighborTetra(int tIndx, int layer)
 		//探索するクラスタをnowSizeとnowIndxで制限している
 		for(int j = nowIndx; j < nowSize; j++)
 		{
-			int jtIndx = GetNeighborTetra(tIndx, j)[0];			//近傍四面体のひとつ
+			int jtIndx = GetNeighborTetra(tIndx, j, 0);			//近傍四面体のひとつ
 			
 			//近傍四面体に含まれる粒子が他の四面体にも含まれている場合，その四面体を近傍として登録
 			for(int k = 0; k < GetTtoPIndx(jtIndx); k++)
@@ -474,8 +475,8 @@ void IceStructure::SetNeighborTetra(int tIndx, int layer)
 					else
 					{
 //						if(GetNTNum(tIndx) > 200 ) return;	//近傍四面体数の制限
-						m_pppiNeighborTetra[tIndx][GetNTNum(tIndx)][0] = GetPtoT(kpIndx, j, 0);
-						m_pppiNeighborTetra[tIndx][GetNTNum(tIndx)][1] = i;
+						m_mk3DiNeighborTetra(tIndx, GetNTNum(tIndx), 0) = GetPtoT(kpIndx, j, 0);
+						m_mk3DiNeighborTetra(tIndx, GetNTNum(tIndx), 1) = i;
 						CountNT(tIndx);
 					}
 				}
@@ -531,8 +532,8 @@ void IceStructure::SetNeighborTetraFromLayer(int tIndx, int searchLayer, int del
 			}
 			else
 			{
-				m_pppiNeighborTetra[tIndx][GetNTNum(tIndx)][0] = GetPtoT(ipIndx, j, 0);
-				m_pppiNeighborTetra[tIndx][GetNTNum(tIndx)][1] = 1;
+				m_mk3DiNeighborTetra(tIndx, GetNTNum(tIndx), 0) = GetPtoT(ipIndx, j, 0);
+				m_mk3DiNeighborTetra(tIndx, GetNTNum(tIndx), 1) = 1;
 				CountNT(tIndx);
 			}
 		}
@@ -553,7 +554,7 @@ void IceStructure::SetNeighborTetraFromLayer(int tIndx, int searchLayer, int del
 		//探索するクラスタをnowSizeとnowIndxで制限している
 		for(int j = nowIndx; j < nowSize; j++)
 		{
-			int jtIndx = GetNeighborTetra(tIndx, j)[0];				//近傍四面体のひとつ
+			int jtIndx = GetNeighborTetra(tIndx, j, 0);				//近傍四面体のひとつ
 			
 			//近傍四面体に含まれる粒子が他の四面体にも含まれている場合，その四面体を近傍として登録
 			//TODO::四面体→粒子→近傍四面体　ではなく，四面体→近傍四面体　とする
@@ -590,8 +591,8 @@ void IceStructure::SetNeighborTetraFromLayer(int tIndx, int searchLayer, int del
 					else
 					{
 //						if(GetNTNum(tIndx) > 200 ) return;	//近傍四面体数の制限
-						m_pppiNeighborTetra[tIndx][GetNTNum(tIndx)][0] = GetPtoT(kpIndx, l, 0);
-						m_pppiNeighborTetra[tIndx][GetNTNum(tIndx)][1] = i;
+						m_mk3DiNeighborTetra(tIndx, GetNTNum(tIndx), 0) = GetPtoT(kpIndx, l, 0);
+						m_mk3DiNeighborTetra(tIndx, GetNTNum(tIndx), 1) = i;
 						CountNT(tIndx);
 					}
 				}
@@ -621,7 +622,7 @@ int IceStructure::GetPtoT(int pIndx, int lIndx, int oIndx)
  */
 int IceStructure::GetTtoP(int tIndx, int lIndx)
 {
-	return m_ppiTtoP[tIndx][lIndx];
+	return m_mk2DiTtoP(tIndx, lIndx);
 }
 
 /*!
@@ -650,10 +651,11 @@ int IceStructure::GetCtoP(int cIndx, int lIndx, int oIndx)
  * 取得処理　四面体→近傍四面体
  * @param[in] tIndx　四面体番号
  * @param[in] lIndx　四面体内番号
+ * @param[in] oIndx 
  */
-int* IceStructure::GetNeighborTetra(int tIndx, int lIndx)
-{//	cout << __FUNCTION__ << endl;
-	return m_pppiNeighborTetra[tIndx][lIndx];
+int IceStructure::GetNeighborTetra(int tIndx, int lIndx, int oIndx)
+{
+	return m_mk3DiNeighborTetra(tIndx, lIndx, oIndx);
 }
 
 /*!
@@ -681,7 +683,7 @@ void IceStructure::DeleteTtoP(int tIndx, int lIndx)
 		return;
 	}
 
-	m_ppiTtoP[tIndx][lIndx] = -1;
+	m_mk2DiTtoP(tIndx, lIndx) = -1;
 }
 
 /*!
@@ -806,7 +808,7 @@ void IceStructure::ClearTtoP(int tIndx)
 {
 	for(int i = 0; i < m_piTtoPIndx[tIndx]; i++)
 	{
-		m_ppiTtoP[tIndx][i] = -1;
+		m_mk2DiTtoP(tIndx, i) = -1;
 	}
 
 	m_piTtoPIndx[tIndx] = 0;
@@ -822,8 +824,8 @@ void IceStructure::ClearNeighborTetra(int tIndx)
 {//	cout << __FUNCTION__ << endl;
 	for(int i = 0; i < m_piNTNum[tIndx]; i++)
 	{
-		m_pppiNeighborTetra[tIndx][i][0] = -1;
-		m_pppiNeighborTetra[tIndx][i][1] = -1;
+		m_mk3DiNeighborTetra(tIndx, i, 0) = -1;
+		m_mk3DiNeighborTetra(tIndx, i, 1) = -1;
 	}
 
 	m_piNTNum[tIndx] = 0;
@@ -837,10 +839,10 @@ void IceStructure::ClearNeighborTetraFromLayer(int tIndx, int layer)
 {
 	for(int i = m_piNTNum[tIndx]-1; 0 <=i ; i--)
 	{
-		if(m_pppiNeighborTetra[tIndx][i][1] >= layer)
+		if(m_mk3DiNeighborTetra(tIndx, i, 1) >= layer)
 		{
-			m_pppiNeighborTetra[tIndx][i][0] = -1;
-			m_pppiNeighborTetra[tIndx][i][1] = -1;
+			m_mk3DiNeighborTetra(tIndx, i, 0) = -1;
+			m_mk3DiNeighborTetra(tIndx, i, 1) = -1;
 			m_piNTNum[tIndx]--;
 		}
 		else
@@ -861,7 +863,7 @@ int IceStructure::CheckNeighborTetra(int tIndx, int checkTIndx)
 	
 	for(int k = 0; k < GetNTNum(tIndx); k++)
 	{
-		if(checkTIndx == GetNeighborTetra(tIndx, k)[0])
+		if(checkTIndx == GetNeighborTetra(tIndx, k, 0))
 		{
 			findIndx = k; break;
 		}
@@ -923,7 +925,7 @@ void IceStructure::DebugNeighborTetra(int tIndx)
 	cout << " num = " << GetNTNum(tIndx);
 	for(unsigned j = 0; j < GetNTNum(tIndx); j++)
 	{
-		cout << " NC=" << GetNeighborTetra(tIndx, j)[0] << " Ly=" << GetNeighborTetra(tIndx, j)[1];
+		cout << " NC=" << GetNeighborTetra(tIndx, j, 0) << " Ly=" << GetNeighborTetra(tIndx, j, 1);
 	}
 	cout << endl;
 }
