@@ -196,9 +196,7 @@ void IceStructure::InitClusterInfo()
 	{
 		for(int j = 0; j < m_iPtoCMax; j++)
 		{
-			//[0] = クラスタ番号
-			//[1] = クラスタ内での番号
-			//[2] = layer番号
+			//[0] = クラスタ番号，[1] = クラスタ内での番号，[2] = layer番号
 			for(int k = 0; k < 3; k++)
 			{
 				m_mk3DiPtoC(i, j, k) = -1;
@@ -207,17 +205,17 @@ void IceStructure::InitClusterInfo()
 	}
 
 	//クラスタ→粒子
-	m_pppiCtoP = new int**[m_iCNumMax];
+	m_mk3DiCtoP.SetSize(m_iCNumMax, m_iCtoPMax, 2);
 
 	for(int i = 0; i < m_iCNumMax; i++)
 	{
-		m_pppiCtoP[i] = new int*[m_iCtoPMax];
-
 		for(int j = 0; j < m_iCtoPMax; j++)
 		{
-			m_pppiCtoP[i][j] = new int[2];
-			m_pppiCtoP[i][j][0] = -1;				//[0] = 粒子番号
-			m_pppiCtoP[i][j][1] = -1;				//[1] = layer番号
+			//[0] = 粒子番号，[1] = layer番号
+			for(int k = 0; k < 2; k++)
+			{
+				m_mk3DiCtoP(i, j, k) = -1;
+			}
 		}
 	}
 
@@ -370,8 +368,8 @@ void IceStructure::SetCtoP(int cIndx, const vector<int>& pIndxList, int* pLayerL
 
 	for(int i = 0; i < pIndxList.size(); i++)
 	{
-		m_pppiCtoP[cIndx][i][0] = pIndxList[i];
-		m_pppiCtoP[cIndx][i][1] = pLayerList[i];
+		m_mk3DiCtoP(cIndx, i, 0) = pIndxList[i];
+		m_mk3DiCtoP(cIndx, i, 1) = pLayerList[i];
 	}
 }
 
@@ -381,8 +379,7 @@ void IceStructure::SetCtoP(int cIndx, const vector<int>& pIndxList, int* pLayerL
  * @param[in] layer　探索階層
  */
 void IceStructure::SetNeighborTetra(int tIndx, int layer)
-{	//	cout << __FUNCTION__ << endl;
-	
+{
 	/*	
 		ある四面体Aに含まれている粒子が，他の複数の四面体に含まれている場合，
 		その複数の四面体は四面体Aの近傍四面体となる
@@ -640,12 +637,13 @@ int IceStructure::GetPtoC(int pIndx, int lIndx, int oIndx)
 
 /*!
  * 取得処理　クラスタ→粒子
- * @param[in] cIndx　粒子番号
- * @param[in] lIndx　粒子内番号
+ * @param[in] cIndx クラスタ番号
+ * @param[in] lIndx クラスタ内粒子番号
+ * @param[in] oIndx 
  */
-int* IceStructure::GetCtoP(int cIndx, int lIndx)
+int IceStructure::GetCtoP(int cIndx, int lIndx, int oIndx)
 {
-	return m_pppiCtoP[cIndx][lIndx];
+	return m_mk3DiCtoP(cIndx, lIndx, oIndx);
 }
 
 /*!
@@ -793,8 +791,8 @@ void IceStructure::ClearCtoP(int cIndx)
 {
 	for(int i = 0; i < m_piCtoPIndx[cIndx]; i++)
 	{
-		m_pppiCtoP[cIndx][i][0] = -1;
-		m_pppiCtoP[cIndx][i][1] = -1;
+		m_mk3DiCtoP(cIndx, i, 0) = -1;
+		m_mk3DiCtoP(cIndx, i, 1) = -1;
 	}
 
 	m_piCtoPIndx[cIndx] = 0;
@@ -904,8 +902,7 @@ void IceStructure::DebugCtoP(int cIndx)
 
 	for(int i = 0; i < GetCtoPIndx(cIndx); i++)
 	{
-		int* plSet = GetCtoP(cIndx, i);
-		cout <<" p=" << plSet[0] << " l=" << plSet[1];
+		cout <<" p=" << GetCtoP(cIndx, i, 0) << " l=" << GetCtoP(cIndx, i, 1);
 	}
 	cout << endl;
 }

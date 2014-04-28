@@ -83,12 +83,13 @@ public:
 	void DeletePtoC(int pIndx, int lIndx);
 	void DeletePtoT(int pIndx, int lIndx);
 
-	int* GetCtoP(int cIndx, int lIndx);
+
 	int  GetTtoP(int tIndx, int lIndx);
 
 	//修正
 	int GetPtoC(int pIndx, int lIndx, int oIndx);
 	int GetPtoT(int pIndx, int lIndx, int oIndx);
+	int GetCtoP(int cIndx, int lIndx, int oIndx);
 
 	int* GetNeighborTetra(int tIndx, int lIndx);
 
@@ -153,8 +154,8 @@ protected:
 	int*   m_piPtoTIndx;
 
 	//クラスタ→
-	int***  m_pppiCtoP;							//クラスタ→粒子　クラスタに所属する粒子を返す　粒子の接続情報
-	int*** m_pppiCtoT;							//クラスタ→四面体
+	mk_Vector3D<int> m_mk3DiCtoP;				//クラスタ→粒子　クラスタに所属する粒子を返す　粒子の接続情報
+	mk_Vector3D<int> m_mk3DiCtoT;				//クラスタ→四面体				
 
 	int*   m_piCtoPNum;							//クラスタ→粒子の個数
 	int*   m_piCtoTNum;							//クラスタ→四面体の個数

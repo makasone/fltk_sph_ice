@@ -3337,8 +3337,8 @@ void rxFlGLWindow::StepCluster(double dt)
 
 			for(j = 0; j < m_ice->GetCtoPIndx(i); j++)
 			{
-				jpIndx = m_ice->GetCtoP(i, j)[0];										//‚Ç‚ÌŒÅ‘Ì‚©‚ç‚Ì—±Žq
-				jlIndx = m_ice->GetCtoP(i, j)[1];										//‰½‘w–Ú‚Ì—±Žq‚©
+				jpIndx = m_ice->GetCtoP(i, j, 0);								//‚Ç‚ÌŒÅ‘Ì‚©‚ç‚Ì—±Žq
+				jlIndx = m_ice->GetCtoP(i, j, 1);								//‰½‘w–Ú‚Ì—±Žq‚©
 				
 				if(jpIndx == -1 || jlIndx == -1){	continue;	}
 	
@@ -3359,7 +3359,7 @@ void rxFlGLWindow::StepCluster(double dt)
 		for(int i = 0; i < m_iClusteresNum; i++)
 		{
 			if(m_ice->GetPtoCNum(i) == 0){	continue;	}
-			m_sm_cluster[i]->Update();													//‰^“®ŒvŽZ
+			m_sm_cluster[i]->Update();											//‰^“®ŒvŽZ
 		}
 	}//#pragma omp parallel
 }
@@ -3935,7 +3935,7 @@ void rxFlGLWindow::UpdateInfo_Melt_PandC(const vector<int>& pList, const vector<
 	
 			for(j = 0; j < m_ice->GetCtoPIndx(icIndx); j++)
 			{
-				jpIndx = m_ice->GetCtoP(icIndx, j)[0];
+				jpIndx = m_ice->GetCtoP(icIndx, j, 0);
 				
 				if(jpIndx == -1){	continue;	}
 
@@ -3990,7 +3990,7 @@ void rxFlGLWindow::UpdateInfo_Melt_PandC(const vector<int>& pList, const vector<
 	
 			for(j = 0; j < m_ice->GetCtoPIndx(icIndx); j++)
 			{
-				jpIndx = m_ice->GetCtoP(icIndx, j)[0];
+				jpIndx = m_ice->GetCtoP(icIndx, j, 0);
 				
 				if(jpIndx == -1){	continue;	}
 
