@@ -742,7 +742,7 @@ bool rxSPH_GPU::Update(RXREAL dt, int step)
 			attr++;
 		}
 
-		//バグがあったので先生が修正
+		//追加：バグがあったので先生が修正
 		if(num){
 			SetArrayVBO(RX_POSITION, &m_hPos[DIM*start], start, num);
 			SetArrayVBO(RX_VELOCITY, &m_hVel[DIM*start], start, num);
@@ -899,17 +899,6 @@ bool rxSPH_GPU::Update(RXREAL dt, int step)
  */
 void rxSPH_GPU::searchNeighbors(void)
 {
-	//// 近傍探索高速化用グリッドデータの作成
-	//// 分割セルのハッシュを計算
-	//CuCalcHash(m_dCellData.dGridParticleHash, m_dCellData.dSortedIndex, m_dPos, m_dAttr, m_uNumParticles);
-
-	//// ハッシュに基づきパーティクルをソート
-	//CuSort(m_dCellData.dGridParticleHash, m_dCellData.dSortedIndex, m_uNumParticles);
-
-	//// パーティクル配列をソートされた順番に並び替え，
-	//// 各セルの始まりと終わりのインデックスを検索
-	//CuReorderDataAndFindCellStart(m_dCellData, m_dPos, m_dVel);
-
 	// GPU -> CPU
 	CuCopyArrayFromDevice(m_hSortedIndex, m_dCellData.dSortedIndex, 0, m_uNumParticles*sizeof(uint));
 	CuCopyArrayFromDevice(m_hGridParticleHash, m_dCellData.dGridParticleHash, 0, m_uNumParticles*sizeof(uint));

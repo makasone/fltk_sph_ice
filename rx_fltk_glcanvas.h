@@ -97,7 +97,10 @@ class rxSSMeshGPU;
 //#define CLUSTER_TETRA
 //#define CLUSTER_PARTICLE
 
-#define ICENUM	2197
+//#define ICENUM	2197	//13_13_13
+#define ICENUM	2646	//21_21_21 表面のみ
+//#define ICENUM	5046	//29_29_29 表面のみ
+//#define ICENUM	54			//3_3_3 表面のみ
 
 // 描画フラグ
 enum
@@ -525,12 +528,16 @@ protected:
 
 	void RenderSphScene(void);
 
+	//追加：：氷
+	void InitICE(void);
+
 	//追加：：熱処理
 	void InitHT(rxSPHConfig &sph_scene);
 	void StepHT(double dt);
 
 	//追加：：粒子ベース：：四面体
 	void InitTetra(void);
+	void DebugTetra(void);
 	void CountTetraHedra(int tIndx, vector<int>& pList);
 	void MakeTetraInfo(int tIndx, int* PtoTNum);
 	void MakeTetraInfo(int tIndx, vector<int> pList);
@@ -538,12 +545,13 @@ protected:
 	//追加：：粒子ベース：：クラスタ
 	void InitCluster(void);
 	void MakeCluster(int pIndx);
+	void MakeClusterFromNeight();
 	void StepCluster(double dt);
 	void StepCalcParam(double dt);
 	void StepInterpolation(double dt);
 
 	//追加：：粒子ベース：：固体情報（クラスタ情報）
-	void InitSolid(void);
+	void InitICE_Cluster(void);
 	void CountSolid(int cIndx);
 	void MakeClusterInfo(int cIndx, int* PtoCNum);
 	void MakeClusterInfo(int cIndx);
@@ -583,15 +591,6 @@ protected:
 
 	void AddVertexToCluster(int pIndx, int cIndx);
 
-	//追加：：四面体ベース：：各種情報登録
-	void MakeCluster(vector<int> pList);
-	void MakeClusterCalc(int cIndx);
-	void MakeClusterInfo_Connect(int cIndx, const vector<int>& pList, int* pCountList);
-	void MakeClusterInfo_Connect(int cIndx);
-	void MakeClusterInfo_Calc(int cIndx, const vector<int>& pList, int* pCountList, int* pLayerList);
-	void MakeClusterInfo_Calc(int cIndx);
-	void MakeCalcToConnectInfo(int cIndx);
-
 	//追加：：四面体ベース：：氷構造
 	void InitICE(rxSPHConfig &sph_scene);
 	void InitICE_Layer(rxSPHConfig &sph_scene);
@@ -628,6 +627,7 @@ protected:
 
 	//追加：：四面体作成のための処理
 	void MakeTetrahedra();
+	void MakeTetrahedraOnlySurface();
 	void MakeFreezeTetrahedra(const vector<int>& pList, vector<int>& tList);
 	void MakeFreezeTetrahedra_OnlyFreezeParticle(const vector<int>& pList, vector<int>& tList);
 	void AddFreezeTetrahedra(const vector<int>& pList, vector<int>& tList);

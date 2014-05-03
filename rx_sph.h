@@ -569,6 +569,8 @@ public:
 	~rxSPH_GPU();
 
 	// パーティクル半径
+	//追加：
+	void SetEffectiveRadius(float r){	m_params.EffectiveRadius = r;	}
 	float GetEffectiveRadius(){ return m_params.EffectiveRadius; }
 	
 	// 近傍パーティクル

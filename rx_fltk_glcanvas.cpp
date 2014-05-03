@@ -488,10 +488,11 @@ void rxFlGLWindow::InitGL(void)
 	m_ice = 0;
 
 	//追加	初期化処理
-	//InitHT(m_Scene);		// 熱処理初期化
-	//InitTetra();
-	//InitCluster();
-	//InitSolid();
+	InitHT(m_Scene);		//熱処理初期化
+	InitICE();				//氷初期化
+//	InitTetra();			//四面体初期化
+	InitCluster();			//クラスタ初期化
+	InitICE_Cluster();		//粒子とクラスタの関係情報を初期化
 
 	// GLSLのコンパイル
 	g_glslPointSprite = CreateGLSL(ps_vs, ps_fs, "point sprite");
@@ -1288,15 +1289,13 @@ void rxFlGLWindow::Idle(void)
 		StepHT(m_fDt);						//熱処理
 
 		//粒子ベース
-		StepSolid_Melt(m_fDt);
-		StepSolid_Freeze(m_fDt);
+		StepSolid_Melt(m_fDt);				//融解処理
+		StepSolid_Freeze(m_fDt);			//凝固処理
 
-		//RXTIMER("Cluster_start");
 		//StepCalcParam(m_fDt);				//温度による線形補間係数決定　中間状態あり
 		StepCluster(m_fDt);					//クラスタの計算
 
 		StepInterpolation(m_fDt);			//液体と固体の運動を線形補間
-		//RXTIMER("Cluster_end");
 	}
 
 	//
@@ -2663,10 +2662,8 @@ void rxFlGLWindow::StepPS(double dt)
 		// シミュレーションステップを進める
 		m_pPS->Update((RXREAL)dt, m_iCurrentStep);
 
-//		cout << __FUNCTION__ << "check start" <<endl;
 		//追加：粒子数をチェックして，各情報を更新
 		UpdateInfo();
-//		cout << __FUNCTION__ << "check end" <<endl;
 	}
 }
 
@@ -2890,68 +2887,24 @@ void rxFlGLWindow::Collision(Vec3 &p, Vec3 &np, Vec3 &v, int obj)
 	//}
 }
 
+
+//-------------------------------------------------------------------------------------------------------------
+//　物体情報
+//-------------------------------------------------------------------------------------------------------------
 /*!
- * クラスタ作成　接続クラスタ，計算クラスタ（初期）の両方
- * @param[in] pList	クラスタを構成する粒子リスト
+ * 物体情報の初期化
  */
-void rxFlGLWindow::MakeCluster(vector<int> pList)
-{//	cout << __FUNCTION__ << endl;
-	// Shape Matchingの設定　パラメータ読み込み
-	rxSPHEnviroment sph_env = m_Scene.GetSphEnv();
-	RXREAL *p = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
+void rxFlGLWindow::InitICE(void)
+{	cout << __FUNCTION__ << endl;
 
-	//接続情報クラスタ
-	m_sm_connects.push_back(new Ice_SM(m_iClusteresNum));
-	m_sm_connects[m_iClusteresNum]->SetSimulationSpace(-sph_env.boundary_ext, sph_env.boundary_ext);
-	m_sm_connects[m_iClusteresNum]->SetTimeStep(sph_env.smTimeStep);
-	m_sm_connects[m_iClusteresNum]->SetCollisionFunc(0);
-	m_sm_connects[m_iClusteresNum]->SetStiffness(1.0, 0.0);
+	m_iLayer = m_Scene.GetSphEnv().layer;
 
-	for(unsigned i = 0; i < pList.size(); i++)
-	{
-		int pIndx = pList[i];
-
-		m_sm_connects[m_iClusteresNum]->AddVertex( Vec3( p[pIndx*4+0], p[pIndx*4+1], p[pIndx*4+2] ), 1.0, pIndx );
-		m_sm_connects[m_iClusteresNum]->SetAlphas(i, 1.0);
-		m_sm_connects[m_iClusteresNum]->SetBetas (i, 0.0);
-	}
-
-	//計算処理クラスタ
-	m_sm_calcs.push_back(new Ice_SM(m_iClusteresNum));
-	m_sm_calcs[m_iClusteresNum]->SetSimulationSpace(-sph_env.boundary_ext, sph_env.boundary_ext);
-	m_sm_calcs[m_iClusteresNum]->SetTimeStep(sph_env.smTimeStep);
-	m_sm_calcs[m_iClusteresNum]->SetCollisionFunc(0);
-	m_sm_calcs[m_iClusteresNum]->SetStiffness(1.0, 0.0);
-
-	//これだとできる
-	//つまり，SM法でなく数値に問題がある
-	//m_sm_calcs[cIndx]->AddVertex(Vec3( -0.1, 0.05, -0.1 ), 0.01, 0);
-	//m_sm_calcs[cIndx]->AddVertex(Vec3(  0.1, 0.05, -0.1 ), 0.01, 1);
-	//m_sm_calcs[cIndx]->AddVertex(Vec3( -0.1, 0.25, -0.1 ), 0.01, 2);
-	//m_sm_calcs[cIndx]->AddVertex(Vec3( -0.1, 0.05,  0.1 ), 0.01, 3);
-
-	//これ以下だとできない
-	//ある値以下になると，うまく行列が求められないみたい
-	//m_sm_calcs[cIndx]->AddVertex(Vec3( -0.1, 0.05, -0.1 )*0.5, 1.0, 0);
-	//m_sm_calcs[cIndx]->AddVertex(Vec3(  0.1, 0.05, -0.1 )*0.5, 1.0, 1);
-	//m_sm_calcs[cIndx]->AddVertex(Vec3( -0.1, 0.25, -0.1 )*0.5, 1.0, 2);
-	//m_sm_calcs[cIndx]->AddVertex(Vec3( -0.1, 0.05,  0.1 )*0.5, 1.0, 3);
-	//massも関係しているので注意．上記だと，mass!=1.0のとき．
-	
-	for( unsigned i = 0; i < pList.size(); i++ )
-	{
-		int pIndx = pList[i];
-
-		m_sm_calcs[m_iClusteresNum]->AddVertex( Vec3( p[pIndx*4+0], p[pIndx*4+1], p[pIndx*4+2] ), 1.0, pIndx );
-		m_sm_calcs[m_iClusteresNum]->SetAlphas(i, 1.0);
-		m_sm_calcs[m_iClusteresNum]->SetBetas (i, 0.0);
-		m_sm_calcs[m_iClusteresNum]->SetLayer(i, 0);
-	}
-
-	m_iClusteresNum++;
-	if(m_ice == 0)	return;
-	m_ice->SetClusterNum(m_iClusteresNum);
+	//m_ice = new IceStructure(5000, 5000, 26000);				//粒子数4913個の場合のパラメータ
+	//m_ice = new IceStructure(2500, 2500, 12000);				//最大粒子数　最大クラスタ数　最大四面体数
+	m_ice = new IceStructure(6000, 6000, 1);					//表面粒子のみの場合
+	m_ice->SetParticleNum(ICENUM);								//粒子数の登録
 }
+
 
 //-------------------------------------------------------------------------------------------------------------
 //　四面体情報
@@ -2962,13 +2915,10 @@ void rxFlGLWindow::MakeCluster(vector<int> pList)
 void rxFlGLWindow::InitTetra()
 {	cout << __FUNCTION__ << endl;
 	MakeTetrahedra();											//tetgenを利用した四面体作成
-//	Load_ELE_File("test.1.ele");								//eleファイルを読み込み，リストを作成
+//	MakeTetrahedraOnlySurface();								//表面粒子によるテスト版
 
-	m_iLayer = m_Scene.GetSphEnv().layer;
-	
-	//m_ice = new IceStructure(5000, 5000, 26000);				//粒子数4913個の場合のパラメータ
-	m_ice = new IceStructure(2500, 2500, 12000);				//最大粒子数　最大クラスタ数　最大四面体数
-	
+//	Load_ELE_File("test.1.ele");								//eleファイルを読み込み，リストを作成
+		
 	m_ice->SetTetraNum(m_vviTetraList.size());					//現四面体数を登録
 
 	//各四面体に含まれる粒子数のカウント
@@ -2995,37 +2945,42 @@ void rxFlGLWindow::InitTetra()
 	}
 	delete[] PtoTNum;
 
-//	RXTIMER("SetNeighborTetra Start");
-
 	//近傍四面体データ登録
 	for(unsigned i = 0; i < m_vviTetraList.size(); i++)
 	{
 		m_ice->SetNeighborTetra(i, m_iLayer);
 	}
 
-//	RXTIMER("SetNeighborTetra End");
-
 	m_iTetraNum = m_vviTetraList.size();
 	m_iTetraNumNum = m_iTetraNum;		//デバッグ用
 
 	//デバッグ
+	//DebugTetra();
+}
+
+/*!
+ * 四面体情報のデバッグ
+ * @param[in]
+ */
+void rxFlGLWindow::DebugTetra()
+{
 	//四面体→粒子
-	//for(unsigned i = 0; i < m_vviTetraList.size(); i++ )
-	//{
-	//	m_ice->DebugTtoP(i);
-	//}
+	for(unsigned i = 0; i < m_vviTetraList.size(); i++ )
+	{
+		m_ice->DebugTtoP(i);
+	}
 
 	//粒子→四面体
-	//for(int i = 0; i < m_pPS->GetNumParticles(); i++)
-	//{
-	//	m_ice->DebugPtoT(i);
-	//}
+	for(int i = 0; i < m_pPS->GetNumParticles(); i++)
+	{
+		m_ice->DebugPtoT(i);
+	}
 
 	//近傍四面体
-	//for(unsigned i = 0; i < m_vviTetraList.size(); i++ )
-	//{
-	//	m_ice->DebugNeighborTetra(i);
-	//}
+	for(unsigned i = 0; i < m_vviTetraList.size(); i++ )
+	{
+		m_ice->DebugNeighborTetra(i);
+	}
 }
 
 /*!
@@ -3125,12 +3080,6 @@ void rxFlGLWindow::MakeTetraInfo(int tIndx, vector<int> pList)
  */
 void rxFlGLWindow::InitCluster()
 {	cout << __FUNCTION__ << endl;
-	//パーティクルの初期位置情報を登録
-	//m_pPS->SetParticlesToCell(	m_pPS->GetParticle(), 
-	//							m_pPS->GetNumParticles(), 
-	//							((RXSPH*)m_pPS)->GetEffectiveRadius()/1.25
-	//						);													//影響半径の半分の領域で粒子を取得
-	//vector<vector<rxNeigh>>& neights = ((RXSPH*)m_pPS)->GetNeights();			//近傍粒子を取得
 
 	//変数の初期化
 	for( vector<Ice_SM*>::iterator it = m_sm_cluster.begin(); it != m_sm_cluster.end(); ++it )
@@ -3144,28 +3093,32 @@ void rxFlGLWindow::InitCluster()
 		m_fIntrps.push_back( 1.0f-(m_ht->getTemps()[i] / m_ht->getTempMax()) );	//線形補間係数
 	}
 	
-	//四面体リストを元に，粒子毎にクラスタ作成
+	//クラスタ作成
 	m_iClusteresNum = 0;														//クラスタ数
 
-	for(int i = 0; i < ICENUM; i++)
-	{
-		// Shape Matchingの設定　パラメータ読み込み
-		rxSPHEnviroment sph_env = m_Scene.GetSphEnv();
+	////パターン１：四面体リストを元に，粒子毎にクラスタ作成
+	//for(int i = 0; i < ICENUM; i++)
+	//{
+	//	// Shape Matchingの設定　パラメータ読み込み
+	//	rxSPHEnviroment sph_env = m_Scene.GetSphEnv();
 
-		//クラスタ初期化
-		m_sm_cluster.push_back(new Ice_SM(m_iClusteresNum));
-		m_sm_cluster[m_iClusteresNum]->SetSimulationSpace(-sph_env.boundary_ext, sph_env.boundary_ext);
-		m_sm_cluster[m_iClusteresNum]->SetTimeStep(sph_env.smTimeStep);
-		m_sm_cluster[m_iClusteresNum]->SetCollisionFunc(0);
-		m_sm_cluster[m_iClusteresNum]->SetStiffness(1.0, 0.0);
+	//	//クラスタ初期化
+	//	m_sm_cluster.push_back(new Ice_SM(m_iClusteresNum));
+	//	m_sm_cluster[m_iClusteresNum]->SetSimulationSpace(-sph_env.boundary_ext, sph_env.boundary_ext);
+	//	m_sm_cluster[m_iClusteresNum]->SetTimeStep(sph_env.smTimeStep);
+	//	m_sm_cluster[m_iClusteresNum]->SetCollisionFunc(0);
+	//	m_sm_cluster[m_iClusteresNum]->SetStiffness(1.0, 0.0);
 
-		MakeCluster(i);
+	//	//四面体リストを元に，粒子毎にクラスタ作成
+	//	MakeCluster(i);
 
-		m_iClusteresNum++;
-	}
+	//	m_iClusteresNum++;
+	//}
+
+	//近傍情報のみでクラスタ作成
+	MakeClusterFromNeight();
 
 	//TODO::粒子質量を下げる　浮力を生むため
-//	m_pPS->getmass
 
 	m_ice->SetClusterNum(m_iClusteresNum);				//クラスタ数の登録
 	m_iShowClusterIndx = m_iClusteresNum;
@@ -3249,6 +3202,48 @@ void rxFlGLWindow::MakeCluster(int pIndx)
 				m_sm_cluster[pIndx]->SetLayer (pNum, jlIndx);
 			}
 		}
+	}
+}
+
+/*!
+ * 近傍情報のみによるクラスタ作成
+ * @param[in]
+ */
+void rxFlGLWindow::MakeClusterFromNeight()
+{
+	//初期化のために影響半径を広くしてみる
+	float radius = ((RXSPH*)m_pPS)->GetEffectiveRadius();
+	((RXSPH*)m_pPS)->SetEffectiveRadius(radius * 10.5f);
+	StepPS(m_fDt);																//一度タイムステップを勧めないと，近傍粒子が取得されないみたい
+	((RXSPH*)m_pPS)->SetEffectiveRadius(radius);
+	
+	vector<vector<rxNeigh>>& neights = ((RXSPH*)m_pPS)->GetNeights();			//近傍粒子を取得
+	RXREAL *p = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
+
+	rxSPHEnviroment sph_env = m_Scene.GetSphEnv();								// Shape Matchingの設定　パラメータ読み込み
+
+	for(int i = 0; i < ICENUM; i++)
+	{
+		//クラスタ初期化
+		m_sm_cluster.push_back(new Ice_SM(m_iClusteresNum));
+		m_sm_cluster[m_iClusteresNum]->SetSimulationSpace(-sph_env.boundary_ext, sph_env.boundary_ext);
+		m_sm_cluster[m_iClusteresNum]->SetTimeStep(sph_env.smTimeStep);
+		m_sm_cluster[m_iClusteresNum]->SetCollisionFunc(0);
+		m_sm_cluster[m_iClusteresNum]->SetStiffness(1.0, 0.0);
+
+		//近傍粒子をクラスタに追加
+		for(int id_np = 0; id_np < neights[i].size(); id_np++)
+		{
+			int np_pIndx = neights[i][id_np].Idx;
+			int pNum = m_sm_cluster[m_iClusteresNum]->GetNumVertices();
+
+			m_sm_cluster[m_iClusteresNum]->AddVertex( Vec3(p[np_pIndx*4+0], p[np_pIndx*4+1], p[np_pIndx*4+2] ), 1.0, np_pIndx);
+			m_sm_cluster[m_iClusteresNum]->SetAlphas(pNum, 1.0);
+			m_sm_cluster[m_iClusteresNum]->SetBetas (pNum, 0.0);
+			m_sm_cluster[m_iClusteresNum]->SetLayer (pNum, 0);
+		}
+
+		m_iClusteresNum++;
 	}
 }
 
@@ -3351,7 +3346,7 @@ void rxFlGLWindow::StepCluster(double dt)
 	{
 	#pragma omp for
 		for(int i = 0; i < m_iClusteresNum; i++)
-		{
+		{	
 			if(m_ice->GetPtoCNum(i) == 0){	continue;	}
 			m_sm_cluster[i]->Update();											//運動計算
 		}
@@ -3456,10 +3451,8 @@ void rxFlGLWindow::StepInterpolation(double dt)
 /*! 
  * 固体構造の初期化
  */
-void rxFlGLWindow::InitSolid()
+void rxFlGLWindow::InitICE_Cluster()
 {//	cout << __FUNCTION__ << endl;
-
-	m_ice->SetParticleNum(ICENUM);	//粒子数の登録
 
 	//カウント
 	for(int i = 0; i < ICENUM; i++)
@@ -3489,16 +3482,16 @@ void rxFlGLWindow::InitSolid()
 	//TODO::クラスタと四面体の関連情報の登録
 
 
-	////デバッグ
-	//for(int i = 0; i < m_iClusteresNum; i++)
-	//{
-	//	m_ice->DebugCtoP(i);
-	//}
-
-	//for(int i = 0; i < m_pPS->GetNumParticles(); i++)
-	//{
-	//	m_ice->DebugPtoC(i);
-	//}
+	//デバッグ
+//	for(int i = 0; i < m_iClusteresNum; i++)
+//	{
+//		m_ice->DebugCtoP(i);
+//	}
+//
+//	for(int i = 0; i < m_pPS->GetNumParticles(); i++)
+//	{
+//		m_ice->DebugPtoC(i);
+//	}
 }
 
 /*!
@@ -5112,7 +5105,141 @@ void rxFlGLWindow::Load_ELE_File(string name)
  * ファイルは src/fltk_sph_turb/bin　に作られる．
  */
 void rxFlGLWindow::MakeTetrahedra()
-{	cout << "MakeTetrahedra" << endl;
+{	cout << __FUNCTION__ << endl;
+	tetgenio in, out;	// 入力メッシュと出力四面体メッシュ
+	RXREAL *p = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
+
+	// ポリゴン頂点インデックスのスタート(0スタートか1スタート)
+	in.firstnumber = 1;
+
+	// メッシュ頂点の設定
+//	in.numberofpoints = m_pPS->GetNumParticles();
+	in.numberofpoints = ICENUM;
+	in.pointlist = new double[in.numberofpoints*3];
+	for(int i = 0; i < in.numberofpoints; ++i){
+		for(int j = 0; j < 3; ++j){
+			//粒子位置情報の登録
+			in.pointlist[3*i+j] = (double)p[DIM*i+j];
+		}
+	}
+
+	// ポリゴンの設定
+	int n = pow( in.numberofpoints, 1.0/3.0 ) + 0.5;	//立方体の１辺の頂点数
+	if( n == 1 ){	cout << "error::n == 1" << endl;	}
+
+	//各ポリゴンの頂点番号を計算
+	//格子状に配置された粒子で作られる面を作っている．
+	//格子の内部に存在する面も考慮する必要があるのでややこしくなっている．
+	vector<vector<int>> poligonList;
+	int poligonNum = 0;
+
+	//上下面
+	for( int k = 0; k < n; k++ ){
+		for( int i = 1; i < n; i++ ){
+			for( int j = 1; j < n; j++ ){
+				vector<int> list;
+				list.push_back(k*n*n+(i-1)*n+j);
+				list.push_back(k*n*n+(i-1)*n+j+1);
+				list.push_back(k*n*n+(i-1)*n+j+1+n);
+				list.push_back(k*n*n+(i-1)*n+j+n);
+				poligonList.push_back(list);
+	}}}
+
+	//左右面
+	for( int k = 0; k < n; k++ ){
+		for( int i = 1; i < n; i++ ){
+			for( int j = 1; j < n; j++ ){
+				vector<int> list;
+				list.push_back(k+(i-1)*n*n+(j-1)*n+1);
+				list.push_back(k+(i-1)*n*n+(j-1)*n+1+n);
+				list.push_back(k+i*n*n+(j-1)*n+1+n);
+				list.push_back(k+i*n*n+(j-1)*n+1);
+				poligonList.push_back(list);
+	}}}
+
+	//前後面
+	for( int k = 0; k < n; k++ ){
+		for( int i = 1; i < n; i++ ){
+			for( int j = 1; j < n; j++ ){
+				vector<int> list;
+				list.push_back(k*n+(i-1)*n*n+j);
+				list.push_back(k*n+(i-1)*n*n+j+1);
+				list.push_back(k*n+(i-1)*n*n+j+1+n*n);
+				list.push_back(k*n+(i-1)*n*n+j+n*n);
+				poligonList.push_back(list);
+	}}}
+
+	in.numberoffacets = (n-1) * (n-1) * n * 3;				//面の総数 (一辺の頂点数-1)の2乗*(一辺の頂点数)*（軸の数）
+	in.facetlist = new tetgenio::facet[in.numberoffacets];
+	in.facetmarkerlist = new int[in.numberoffacets];
+
+	for(int i = 0; i < in.numberoffacets; ++i){
+		tetgenio::facet *f = &in.facetlist[i];
+
+		// ポリゴンリスト
+		f->numberofpolygons = 1;
+		f->polygonlist = new tetgenio::polygon[f->numberofpolygons];
+
+		// hole(穴)リスト
+		f->numberofholes = 0;
+		f->holelist = NULL;
+
+		// ポリゴン頂点インデックス
+		tetgenio::polygon *p = &f->polygonlist[0];
+
+		p->numberofvertices = 4;
+		p->vertexlist = new int[p->numberofvertices];
+		for(int j = 0; j < p->numberofvertices; ++j)
+		{
+			p->vertexlist[j] = poligonList[i][j];
+		}
+
+		in.facetmarkerlist[i] =  1;	//??
+	}
+
+	// 入力メッシュ情報をファイルにダンプ
+	//in.save_poly("test_poly");	// test.poly
+	
+	// 第一引数は，"p":PLC読み込み，"q":quality mesh generation(qの後にquality boundを数値で指定)，
+	// "a":最大体積制限(aの後に体積を数値で指定)
+	tetgenbehavior b;
+//	if(!b.parse_commandline("-pq1.414a0.1n")){
+	if(!b.parse_commandline("-pn")){
+		terminatetetgen(0);
+	}
+
+	tetrahedralize(&b, &in, &out);				// 四面体メッシュ生成
+
+	//std::cout << " the number of node   : "    << out.numberofpoints << endl;
+	//std::cout << " the number of element   : " << out.numberoftetrahedra << endl;
+	//std::cout << " the number of face  : "     << out.numberoftrifaces << endl;
+
+	// 出力メッシュ情報をファイルにダンプ
+//	out.save_elements("test_out");	// .ele
+
+	// 出力四面体頂点番号を配列に格納
+	int nelem = out.numberoftetrahedra;
+	int nc = out.numberofcorners;
+	for(int i = 0; i < nelem; ++i)
+	{
+		vector<int> list;
+		for(int j = 0; j < nc; ++j)
+		{
+			int pIndx = out.tetrahedronlist[nc*i+j]-out.firstnumber;
+			list.push_back(pIndx);
+		}
+		m_vviTetraList.push_back( list );
+	}
+
+//	delete[] in.pointlist;	//必要？
+}
+
+/*!
+ * tetgenを用いて点群の位置情報，メッシュ情報から初期の四面体構造を作成.
+ * ファイルは src/fltk_sph_turb/bin　に作られる．
+ */
+void rxFlGLWindow::MakeTetrahedraOnlySurface()
+{	cout << __FUNCTION__ << endl;
 	tetgenio in, out;	// 入力メッシュと出力四面体メッシュ
 	RXREAL *p = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
 
@@ -5234,9 +5361,8 @@ void rxFlGLWindow::MakeTetrahedra()
 		}
 		m_vviTetraList.push_back( list );
 	}
-
-//	delete[] in.pointlist;	//必要？
 }
+
 
 /*!
  * 粒子情報から四面体を作成
@@ -5248,54 +5374,6 @@ void rxFlGLWindow::MakeTetrahedra()
  */
 void rxFlGLWindow::MakeFreezeTetrahedra(const vector<int>& pList, vector<int>& tList)
 {
-	//tetgenを用いた四面体作成
-//	tetgenio in, out;	// 入力メッシュと出力四面体メッシュ
-//	RXREAL *p = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
-//
-//	// ポリゴン頂点インデックスのスタート(0スタートか1スタート)
-//	in.firstnumber = 1;
-//
-//	// メッシュ頂点の設定
-////	in.numberofpoints = m_pPS->GetNumParticles();
-//	in.numberofpoints = ICENUM;
-//	in.pointlist = new double[in.numberofpoints*3];
-//	for(int i = 0; i < in.numberofpoints; ++i){
-//		for(int j = 0; j < 3; ++j){
-//			in.pointlist[3*i+j] = (double)p[DIM*i+j];
-//		}
-//	}
-//
-//	// 第一引数は，"p":PLC読み込み，"q":quality mesh generation(qの後にquality boundを数値で指定)，
-//	// "a":最大体積制限(aの後に体積を数値で指定)
-//	tetgenbehavior b;
-////	if(!b.parse_commandline("-pq1.414a0.1n")){
-//	if(!b.parse_commandline("-pn")){
-//		terminatetetgen(0);
-//	}
-//
-//	tetrahedralize(&b, &in, &out);				// 四面体メッシュ生成
-//
-//	//std::cout << " the number of node   : "    << out.numberofpoints << endl;
-//	//std::cout << " the number of element   : " << out.numberoftetrahedra << endl;
-//	//std::cout << " the number of face  : "     << out.numberoftrifaces << endl;
-//
-//	// 出力メッシュ情報をファイルにダンプ
-////	out.save_elements("test_out");	// .ele
-//
-//	// 出力四面体頂点番号を配列に格納
-//	int nelem = out.numberoftetrahedra;
-//	int nc = out.numberofcorners;
-//	for(int i = 0; i < nelem; ++i)
-//	{
-//		vector<int> list;
-//		for(int j = 0; j < nc; ++j)
-//		{
-//			int pIndx = out.tetrahedronlist[nc*i+j]-out.firstnumber;
-//			list.push_back(pIndx);
-//		}
-//		m_vviTetraList.push_back( list );
-//	}
-
 	RXREAL *p = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
 	vector<vector<rxNeigh>>& neights = ((RXSPH*)m_pPS)->GetNeights();		//近傍粒子を取得
 
