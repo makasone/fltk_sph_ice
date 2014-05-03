@@ -252,14 +252,6 @@ public:
 
 	}
 
-	/*!
-	 * 追加：：熱処理に関するパラメータ初期設定をファイルから読み込む
-	 */
-	void SetHeatParames(string *names, string *values, int n, string header)
-	{
-
-	}
-
 	//! 液体 : 箱形
 	void SetLiquidBox(string *names, string *values, int n, string header)
 	{
@@ -275,6 +267,7 @@ public:
 		RXCOUT << "set liquid box : " << cen << ", " << ext << ", " << vel << endl;
 	}
 
+	//! 追加？　未実装
 	//! 液体 : 球
 	void SetLiquidSphere(string *names, string *values, int n, string header)
 	{
@@ -288,6 +281,21 @@ public:
 		}
 		//m_pPS->AddSphere(-1, cen, rad, vel, -1);
 		RXCOUT << "set liquid sphere : " << cen << ", " << rad << endl;
+	}
+
+	//! 追加：液体：箱形：表面のみ
+	void SetLiquidBoxSurface(string *names, string *values, int n, string header)
+	{
+		bool rel = (header.find("(r)") != string::npos);
+		Vec3 cen(0.0), ext(0.0), vel(0.0);
+		for(int i = 0; i < n; ++i){
+			if(names[i] == "cen")      GetValueFromString(cen, values[i], rel, m_pPS->GetCen(), 0.5*m_pPS->GetDim());
+			else if(names[i] == "ext") GetValueFromString(ext, values[i], rel, Vec3(0.0), 0.5*m_pPS->GetDim());
+			else if(names[i] == "vel") GetValueFromString(vel, values[i], false);
+		}
+		
+		m_pPS->AddBoxSurface(-1, cen, ext, vel, 2*m_pPS->GetParticleRadius());
+		RXCOUT << "set liquid box surface : " << cen << ", " << ext << ", " << vel << endl;
 	}
 
 	//! 液体流入 : 線分
@@ -453,6 +461,8 @@ public:
 		cfg->SetHeaderFunc("inlet line (r)",	boost::bind(&rxSPHConfig::SetInletLine, this, _1, _2, _3, _4));
 		cfg->SetHeaderFunc("mesh grid",			boost::bind(&rxSPHConfig::SetMeshBoundary, this, _1, _2, _3, _4));
 		cfg->SetHeaderFunc("mesh grid (r)",		boost::bind(&rxSPHConfig::SetMeshBoundary, this, _1, _2, _3, _4));
+		//追加：物体表面のみに粒子を配置
+		cfg->SetHeaderFunc("liquid box surface(r)",		boost::bind(&rxSPHConfig::SetLiquidBoxSurface, this, _1, _2, _3, _4));
 		if(!(cfg->Load(m_strCurrentScene))){
 			RXCOUT << "Failed to open the " << m_strCurrentScene << " file!" << endl;
 			ok = false;

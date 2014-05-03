@@ -259,6 +259,171 @@ void rxParticleSystemBase::AddBox(int start, Vec3 cen, Vec3 ext, Vec3 vel, RXREA
 
 	SetColorVBO(m_iColorType);
 }
+
+/*!箱の表面のみに並べた粒子の追加
+ * @param[in] start
+ * @param[in] cen
+ * @param[in] ext
+ * @param[in] vel
+ * @param[in] spacing	影響半径の2倍
+ * @param[in] attr = 0
+
+ * エッジ部分は存在しない
+ */
+void rxParticleSystemBase::AddBoxSurface(int start, Vec3 cen, Vec3 ext, Vec3 vel, RXREAL spacing, int attr)
+{
+	uint index = 0;
+	if(start < 0){
+		index = m_uNumParticles;
+		start = m_uNumParticles;
+	}
+	else{
+		index = start;
+	}
+
+	uint count = 0;
+	bool over = false;
+
+	srand((unsigned)time(NULL));
+
+	//軸ごとの粒子配置数 x軸ならsx*2+1個の粒子が置かれる 
+	int sx = (int)(ext[0]/spacing)-1;
+	int sy = (int)(ext[1]/spacing)-1;
+	int sz = (int)(ext[2]/spacing)-1;
+	RXREAL jitter = spacing*0.001f;
+
+	//X軸壁面
+	//プラス側
+	for(int z = -sz; z <= sz; ++z){
+		for(int y = -sy; y <= sy; ++y){
+			RXREAL dx[3];
+			dx[0] = (sx+1)*spacing;
+			dx[1] = y*spacing;
+			dx[2] = z*spacing;
+
+			//粒子配置
+			over = SetParticle(index, count, dx, cen, vel, jitter, attr);
+		}
+	}
+
+	//マイナス側
+	for(int z = -sz; z <= sz; ++z){
+		for(int y = -sy; y <= sy; ++y){
+			RXREAL dx[3];
+			dx[0] = -(sx+1)*spacing;
+			dx[1] = y*spacing;
+			dx[2] = z*spacing;
+
+			//粒子配置
+			over = SetParticle(index, count, dx, cen, vel, jitter, attr);
+		}
+	}
+
+	//Y軸壁面
+	//プラス側
+	for(int z = -sz; z <= sz; ++z){
+		for(int x = -sx; x <= sx; ++x){
+			RXREAL dx[3];
+			dx[0] = x*spacing;
+			dx[1] = (sy+1)*spacing;
+			dx[2] = z*spacing;
+
+			//粒子配置
+			over = SetParticle(index, count, dx, cen, vel, jitter, attr);
+		}
+	}
+
+	//マイナス側
+	for(int z = -sz; z <= sz; ++z){
+		for(int x = -sx; x <= sx; ++x){
+			RXREAL dx[3];
+			dx[0] = x*spacing;
+			dx[1] = -(sy+1)*spacing;
+			dx[2] = z*spacing;
+
+			//粒子配置
+			over = SetParticle(index, count, dx, cen, vel, jitter, attr);
+		}
+	}
+
+
+	//Z軸壁面
+	//プラス側
+	for(int y = -sy; y <= sy; ++y){
+		for(int x = -sx; x <= sx; ++x){
+			RXREAL dx[3];
+			dx[0] = x*spacing;
+			dx[1] = y*spacing;
+			dx[2] = (sz+1)*spacing;
+
+			//粒子配置
+			over = SetParticle(index, count, dx, cen, vel, jitter, attr);
+		}
+	}
+
+	//マイナス側
+	for(int y = -sy; y <= sy; ++y){
+		for(int x = -sx; x <= sx; ++x){
+			RXREAL dx[3];
+			dx[0] = x*spacing;
+			dx[1] = y*spacing;
+			dx[2] = -(sz+1)*spacing;
+
+			//粒子配置
+			over = SetParticle(index, count, dx, cen, vel, jitter, attr);
+		}
+	}
+
+	RXCOUT << "num : " << count << endl;
+
+	if(over){
+		m_uNumParticles = m_uMaxParticles;
+	}
+	else{
+		m_uNumParticles += count;
+	}
+
+	//SetArrayVBO(RX_POSITION, m_hPos, start, count);
+	//SetArrayVBO(RX_VELOCITY, m_hVel, start, count);
+	SetArrayVBO(RX_POSITION, m_hPos, 0, m_uNumParticles);
+	SetArrayVBO(RX_VELOCITY, m_hVel, 0, m_uNumParticles);
+
+	SetParticlesToCell();
+
+	SetColorVBO(m_iColorType);
+}
+
+/*!
+ * 粒子配置
+ * @param[in] x,y,z
+ * 
+ */
+bool rxParticleSystemBase::SetParticle(uint& index, uint&count, RXREAL dx[3], Vec3& cen, Vec3& vel, RXREAL jitter, int attr)
+{
+	////粒子数の制限
+	if(index >= m_uMaxParticles){
+		index = 0;
+		return true;
+	}
+
+	//粒子パラメータ　位置・速度
+	for(uint j = 0; j < 3; ++j){
+		m_hPos[DIM*index+j] = cen[j]+dx[j]+(RX_FRAND()*2.0f-1.0f)*jitter;
+		m_hVel[DIM*index+j] = vel[j];
+	}
+	if(DIM == 4){
+		m_hPos[DIM*index+3] = 0.0f;
+		m_hVel[DIM*index+3] = 0.0f;
+	}
+	m_hAttr[index] = attr;
+	
+	index++;
+	count++;
+	
+	return false;
+}
+
+
 /*!
  * 液体パーティクルの流入ラインをシーンに追加
  * @param[in] line  流入ライン

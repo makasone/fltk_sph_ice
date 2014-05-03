@@ -487,11 +487,11 @@ void rxFlGLWindow::InitGL(void)
 	m_ht = 0;
 	m_ice = 0;
 
-	//追加
-	InitHT(m_Scene);		// 熱処理初期化
-	InitTetra();
-	InitCluster();
-	InitSolid();
+	//追加	初期化処理
+	//InitHT(m_Scene);		// 熱処理初期化
+	//InitTetra();
+	//InitCluster();
+	//InitSolid();
 
 	// GLSLのコンパイル
 	g_glslPointSprite = CreateGLSL(ps_vs, ps_fs, "point sprite");
@@ -2966,7 +2966,9 @@ void rxFlGLWindow::InitTetra()
 
 	m_iLayer = m_Scene.GetSphEnv().layer;
 	
-	m_ice = new IceStructure(5000, 5000, 26000);				//最大粒子数　最大クラスタ数　最大四面体数
+	//m_ice = new IceStructure(5000, 5000, 26000);				//粒子数4913個の場合のパラメータ
+	m_ice = new IceStructure(2500, 2500, 12000);				//最大粒子数　最大クラスタ数　最大四面体数
+	
 	m_ice->SetTetraNum(m_vviTetraList.size());					//現四面体数を登録
 
 	//各四面体に含まれる粒子数のカウント

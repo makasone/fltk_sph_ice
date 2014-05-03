@@ -297,6 +297,13 @@ public:
 
 	void AddSphere(int start, RXREAL *pos, RXREAL *vel, int r, RXREAL spacing, int attr = 0);
 	void AddBox(int start, Vec3 cen, Vec3 dim, Vec3 vel, RXREAL spacing, int attr = 0);
+
+	//追加：粒子を表面に配置
+	void AddBoxSurface(int start, Vec3 cen, Vec3 dim, Vec3 vel, RXREAL spacing, int attr = 0);
+
+	//追加：粒子配置
+	bool SetParticle(uint& indx, uint& count, RXREAL dx[3], Vec3& cen, Vec3& vel, RXREAL jitter, int attr);
+
 	int  AddLine(rxInletLine line);
 
 	RXREAL SetColorVBOFromArray(RXREAL *hVal, int d, bool use_max = true, RXREAL vmax = 1.0);
