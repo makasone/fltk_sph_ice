@@ -255,6 +255,7 @@
     <ClCompile Include="rx_particle_on_surf.cpp" />
     <ClCompile Include="rx_wavelet_noise.cpp" />
     <ClCompile Include="ShapeMatching.cpp" />
+    <ClCompile Include="Surf_SM.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\common\shared\inc\rx_timer.h" />
@@ -285,6 +286,7 @@
     <ClInclude Include="rx_particle_on_surf.h" />
     <ClInclude Include="rx_wavelet_noise.h" />
     <ClInclude Include="ShapeMatching.h" />
+    <ClInclude Include="Surf_SM.h" />
     <ClInclude Include="tetgen.h" />
     <ClInclude Include="UtilityScript\mk_Vector2D.h" />
     <ClInclude Include="UtilityScript\mk_Vector3D.h" />

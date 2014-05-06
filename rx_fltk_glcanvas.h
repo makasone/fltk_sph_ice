@@ -48,6 +48,7 @@
 #include "Ice_SM.h"
 #include "IceStructure.h"
 #include "tetgen.h"
+#include <UtilityScript\mk_Vector2D.h>
 
 #include <omp.h>
 #include <fstream>
@@ -98,9 +99,9 @@ class rxSSMeshGPU;
 //#define CLUSTER_PARTICLE
 
 //#define ICENUM	2197	//13_13_13
-#define ICENUM	2646	//21_21_21 表面のみ
+//#define ICENUM	2646	//21_21_21 表面のみ
 //#define ICENUM	5046	//29_29_29 表面のみ
-//#define ICENUM	54			//3_3_3 表面のみ
+#define ICENUM	54			//3_3_3 表面のみ
 
 // 描画フラグ
 enum
@@ -274,10 +275,10 @@ public:
 	HeatTransfar *m_ht;
 	vector<float> m_fIntrps;		//SPH法とSM法の線形補間のパラメータ配列　各パーティクルごとに適用してやる
 
-	Vec2 m_ht_vStartPoint;
-	Vec2 m_ht_vEndPoint;
+	Vec2 m_ht_vStartPoint;			//矩形内の粒子温度を上げるための始点
+	Vec2 m_ht_vEndPoint;			//終点
 
-	bool m_ht_bRectFlag;
+	bool m_ht_bRectFlag;			//矩形内温度変化機能を利用するかのフラグ
 
 	vector<int> m_ht_vSelectedVertices;
 
@@ -523,6 +524,9 @@ protected:
 	
 	//追加：氷用
 	void DrawSolidSurface(void);
+
+	//追加：高速化パス
+	void DrawFastPath(RXREAL *prts, RXREAL *vels, int n, int d, double *c0, double *c1, double len = 0.1);
 
 	void SetParticleColorType(int type, int change = 0);
 

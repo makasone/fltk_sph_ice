@@ -3,6 +3,9 @@
 //(i,j)でイテレータに触れると便利！
 //完全に破棄したいなら，かっこ悪いけどポインタで作ってdeleteするしかない．
 
+#ifndef _MK_VECTOR2D_
+#define _MK_VECTOR2D_
+
 #include <vector>
 using namespace std;
 
@@ -63,3 +66,5 @@ private:
 	int mSizeX;
 	int mSizeY;
 };
+
+#endif

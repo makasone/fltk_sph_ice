@@ -111,6 +111,9 @@
     <ClCompile Include="IceStructure.cpp">
       <Filter>IceStructure Files</Filter>
     </ClCompile>
+    <ClCompile Include="Surf_SM.cpp">
+      <Filter>SM Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="rx_sph.h">
@@ -205,6 +208,9 @@
     </ClInclude>
     <ClInclude Include="UtilityScript\mk_Vector3D.h">
       <Filter>UnilityScript</Filter>
+    </ClInclude>
+    <ClInclude Include="Surf_SM.h">
+      <Filter>SM Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -1915,30 +1915,7 @@ void rxFlGLWindow::OnMenuParticleColor(double val, string label)
 		//
 		//　追加：クラスタの表示切り替え
 		//四面体ベース版
-		//while(m_ice->GetCtoPNum(m_iShowClusterIndx) == 0)
-		{
-			m_iShowClusterIndx++;
-		}
-
-		//if( (unsigned)m_iShowClusterIndx > m_sm_calcs.size() )
-		//{
-		//	m_iShowClusterIndx = 0;
-		//}
-		//else if( m_iShowClusterIndx < 0 )
-		//{
-		//	m_iShowClusterIndx = 0;
-		//}
-
-		//cout << "ClusterCountUp :: m_iShowClusterIndx = " << m_iShowClusterIndx << endl;
-
-		//if( m_iShowClusterIndx != m_sm_calcs.size() && m_iShowClusterIndx >= 0)
-		//{
-		//	cout << "Calc :: Indxes :: " << endl;
-		//	for( int i = 0; i < m_sm_calcs[m_iShowClusterIndx]->GetNumVertices(); i++ )
-		//	{
-		//		cout << "                  i = " << i << " pIndx = " << m_sm_calcs[m_iShowClusterIndx]->GetParticleIndx(i) << endl;
-		//	}
-		//}
+		m_iShowClusterIndx++;
 
 		if( m_iShowClusterIndx > m_iClusteresNum )
 		{
@@ -1963,12 +1940,19 @@ void rxFlGLWindow::OnMenuParticleColor(double val, string label)
 		StepParticleColor();
 	}
 
-	//追加　表面氷粒子
+	//追加　表面氷粒子　未実装
 	else if(label.find("Edge") != string::npos){
 		((RXSPH*)m_pPS)->DetectSurfaceParticles();
 		SetParticleColorType(rxParticleSystemBase::RX_RAMP);
 //		m_pPS->SetColorType(rxParticleSystemBase::RX_EDGE);
 		m_iColorType = rxParticleSystemBase::RX_EDGE;
+	}
+	//追加　高速化用パス
+	else if(label.find("FAST_PATH") != string::npos){
+		((RXSPH*)m_pPS)->DetectSurfaceParticles();
+		SetParticleColorType(rxParticleSystemBase::RX_ICE_FAST_PATH);
+		m_iColorType = rxParticleSystemBase::RX_ICE_FAST_PATH;
+		StepParticleColor();
 	}
 	else if(label.find("Surface") != string::npos){
 		((RXSPH*)m_pPS)->DetectSurfaceParticles();
@@ -2896,6 +2880,7 @@ void rxFlGLWindow::Collision(Vec3 &p, Vec3 &np, Vec3 &v, int obj)
  */
 void rxFlGLWindow::InitICE(void)
 {	cout << __FUNCTION__ << endl;
+	RXREAL *p = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
 
 	m_iLayer = m_Scene.GetSphEnv().layer;
 
@@ -2903,6 +2888,8 @@ void rxFlGLWindow::InitICE(void)
 	//m_ice = new IceStructure(2500, 2500, 12000);				//最大粒子数　最大クラスタ数　最大四面体数
 	m_ice = new IceStructure(6000, 6000, 1);					//表面粒子のみの場合
 	m_ice->SetParticleNum(ICENUM);								//粒子数の登録
+
+	m_ice->MakePath(p, 100);									//高速化のためのパス作成
 }
 
 
@@ -3115,7 +3102,7 @@ void rxFlGLWindow::InitCluster()
 	//	m_iClusteresNum++;
 	//}
 
-	//近傍情報のみでクラスタ作成
+	//パターン２：近傍情報のみでクラスタ作成
 	MakeClusterFromNeight();
 
 	//TODO::粒子質量を下げる　浮力を生むため
@@ -3213,7 +3200,7 @@ void rxFlGLWindow::MakeClusterFromNeight()
 {
 	//初期化のために影響半径を広くしてみる
 	float radius = ((RXSPH*)m_pPS)->GetEffectiveRadius();
-	((RXSPH*)m_pPS)->SetEffectiveRadius(radius * 10.5f);
+	((RXSPH*)m_pPS)->SetEffectiveRadius(radius * 2.0f);
 	StepPS(m_fDt);																//一度タイムステップを勧めないと，近傍粒子が取得されないみたい
 	((RXSPH*)m_pPS)->SetEffectiveRadius(radius);
 	
@@ -4730,26 +4717,6 @@ void rxFlGLWindow::StepParticleColor()
 	//接続クラスタ
 	else if( m_iColorType == rxParticleSystemBase::RX_ICE_CONNECT )
 	{
-		//クラスタにより接続関係にある粒子で線を引く
-		//RXREAL *p = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
-		//for(unsigned i = 0; i < m_sm_connects.size(); i++ )
-		//{
-		//	for( int j = 0; j < m_sm_connects[i]->GetNumVertices()-1; j++ )
-		//	{
-		//		int jpIndx = m_sm_connects[i]->GetParticleIndx(j);
-		//		for( int k = j+1; k < m_sm_connects[i]->GetNumVertices(); k++ )
-		//		{
-		//			int kpIndx = m_sm_connects[i]->GetParticleIndx(k);
-		//			glBegin(GL_LINES);
-		//				glColor3dv(Vec3(0.8, 0.8, 1.0).data);
-		//				glVertex3d(p[jpIndx*DIM+0], p[jpIndx*DIM+1], p[jpIndx*DIM+2]);
-		//				glColor3dv(Vec3(0.0, 0.0, 1.0).data);
-		//				glVertex3d(p[kpIndx*DIM+0], p[kpIndx*DIM+1], p[kpIndx*DIM+2]);
-		//			glEnd();
-		//		}
-		//	}
-		//}
-
 		//クラスタにより接続関係にある粒子に色をつける
 		//配列の全要素を初期化しないと，描画がおかしくなるのに注意．
 		float* tempColor = new float[m_pPS->GetNumParticles()];
@@ -4819,26 +4786,6 @@ void rxFlGLWindow::StepParticleColor()
 	//計算クラスタ
 	else if( m_iColorType == rxParticleSystemBase::RX_ICE_CALC )
 	{
-		//クラスタにより接続関係にある粒子で線を引く
-		//RXREAL *p = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
-		//for(unsigned i = 0; i < m_sm_connects.size(); i++ )
-		//{
-		//	for( int j = 0; j < m_sm_connects[i]->GetNumVertices()-1; j++ )
-		//	{
-		//		int jpIndx = m_sm_connects[i]->GetParticleIndx(j);
-		//		for( int k = j+1; k < m_sm_connects[i]->GetNumVertices(); k++ )
-		//		{
-		//			int kpIndx = m_sm_connects[i]->GetParticleIndx(k);
-		//			glBegin(GL_LINES);
-		//				glColor3dv(Vec3(0.8, 0.8, 1.0).data);
-		//				glVertex3d(p[jpIndx*DIM+0], p[jpIndx*DIM+1], p[jpIndx*DIM+2]);
-		//				glColor3dv(Vec3(0.0, 0.0, 1.0).data);
-		//				glVertex3d(p[kpIndx*DIM+0], p[kpIndx*DIM+1], p[kpIndx*DIM+2]);
-		//			glEnd();
-		//		}
-		//	}
-		//}
-
 		//クラスタにより接続関係にある粒子に色をつける
 		//配列の全要素を初期化しないと，描画がおかしくなるのに注意．
 		float* tempColor = new float[m_pPS->GetNumParticles()];
@@ -4894,12 +4841,25 @@ void rxFlGLWindow::StepParticleColor()
 			for( int j = 0; j < m_sm_cluster[m_iShowClusterIndx]->GetNumVertices(); j++ )
 			{
 				int jpIndx = m_sm_cluster[m_iShowClusterIndx]->GetParticleIndx(j);
-				tempColor[jpIndx] = 700.0f;
+
+				//クラスタと対になる粒子の色は変える
+				if(m_iShowClusterIndx == jpIndx)
+				{
+					tempColor[jpIndx] = 666.0f;
+				}
+				else
+				{
+					tempColor[jpIndx] = 700.0f;
+				}
 			}
 		}
 
 		m_pPS->SetColorVBOFromArray( tempColor, 1, false, 1.5f * m_ht->getTempMax() );
 		delete[] tempColor;
+	}		
+	//高速化用パス
+	else if( m_iColorType == rxParticleSystemBase::RX_ICE_FAST_PATH )
+	{
 	}
 }
 
@@ -5679,6 +5639,31 @@ void rxFlGLWindow::DrawParticleVector(RXREAL *prts, RXREAL *vels, int n, int d, 
 	glEnd();
 }
 
+
+//追加
+/*!
+ * パーティクル速度をGL_LINESで描画
+ * @param[in] prts パーティクル位置
+ * @param[in] vels パーティクル速度
+ * @param[in] n パーティクル数
+ * @param[in] d 配列のステップ
+ * @param[in] len 線の長さ
+ */
+void rxFlGLWindow::DrawFastPath(RXREAL *prts, RXREAL *vels, int n, int d, double *c0, double *c1, double len)
+{//	RXCOUT << __FUNCTION__ << endl;
+	glBegin(GL_LINE_STRIP);
+		int k = 0;
+		glColor3dv(c0);
+
+		for(int i = 0; i < n; ++i)
+		{
+			glVertex3d(prts[k], prts[k+1], prts[k+2]);
+			k += d;
+		}
+	glEnd();
+}
+
+
 /*!
  * パーティクルをGL_POINTSで描画
  *  - VBOがあれば用いる
@@ -6190,6 +6175,23 @@ void rxFlGLWindow::RenderSphScene(void)
 			DrawParticleVector(p, v, pnum, DIM, Vec3(1.0, 0.8, 0.8).data, Vec3(1.0, 0.0, 0.0).data, norm(dim)*m_fVScale*0.02);
 		}
 	}
+
+	//
+	//高速化用パス
+	//
+	if(m_iColorType == rxParticleSystemBase::RX_ICE_FAST_PATH)
+	{
+		RXREAL *p = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
+		RXREAL *v = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_VELOCITY);
+
+		if(p && v){
+			glDisable(GL_LIGHTING);
+			glLineWidth(3.0);
+			glColor3d(0.0, 1.0, 1.0);
+			DrawFastPath(p, v, pnum, DIM, Vec3(0.8, 0.8, 1.0).data, Vec3(0.0, 0.0, 1.0).data, norm(dim)*m_fVScale);
+		}
+	}
+
 }
 
 

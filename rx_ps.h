@@ -102,11 +102,13 @@ public:
 		RX_RAMP, 
 		RX_NONE, 
 
-		RX_TEMP,		//熱処理のために新しく追加　温度
-		RX_SHPMTCHNG,	//クラスタの計算のために新しく追加　クラスタ計算
-		RX_ICE_CONNECT,	//接続クラスタの判別のために追加　氷塊
-		RX_ICE_CALC,	//計算クラスタの判別のために追加　氷塊
-		RX_EDGE,		//表面氷粒子取得のために追加　氷塊
+		//追加
+		RX_TEMP,			//熱処理のために新しく追加　温度
+		RX_SHPMTCHNG,		//クラスタの計算のために新しく追加　クラスタ計算
+		RX_ICE_CONNECT,		//接続クラスタの判別のために追加　氷塊
+		RX_ICE_CALC,		//計算クラスタの判別のために追加　氷塊
+		RX_EDGE,			//表面氷粒子取得のために追加　氷塊
+		RX_ICE_FAST_PATH,	//高速計算用のパスのために追加
 
 		RX_PSDATA_END, 
 	};

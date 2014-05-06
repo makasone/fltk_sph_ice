@@ -16,9 +16,9 @@
 #include <vector>
 #include <algorithm>
 
-//#include "rx_matrix.h"
 #include <UtilityScript\mk_Vector2D.h>
 #include <UtilityScript\mk_Vector3D.h>
+#include <Surf_SM.h>
 
 using namespace std;
 
@@ -27,6 +27,8 @@ class IceStructure
 public:
 	IceStructure(int pNum, int cNum, int tNum);
 	~IceStructure(void);
+
+	void MakePath(const float* pos, int size);		//パス作成
 
 	void SetParticleNum(int pNum){	m_iPNum = pNum; }		//現在の粒子数
 	void SetClusterNum(int cNum){	m_iCNum = cNum; }		//現在のクラスタ数
@@ -79,19 +81,20 @@ public:
 	void SetNeighborTetra(int tIndx, int layer);
 	void SetNeighborTetraFromLayer(int tIndx, int searchLayer, int deleteLayer);
 
+	//削除
 	void DeleteTtoP(int tIndx, int lIndx);
 	void DeletePtoC(int pIndx, int lIndx);
 	void DeletePtoT(int pIndx, int lIndx);
 
 	int  GetTtoP(int tIndx, int lIndx);
 
-	//修正
 	int GetPtoC(int pIndx, int lIndx, int oIndx);
 	int GetPtoT(int pIndx, int lIndx, int oIndx);
 	int GetCtoP(int cIndx, int lIndx, int oIndx);
 
 	int GetNeighborTetra(int tIndx, int lIndx, int oIndx);
 
+	//初期化
 	void ClearPtoT(int pIndx);
 	void ClearPtoC(int pIndx);
 	void ClearCtoP(int cIndx);
@@ -100,6 +103,7 @@ public:
 	void ClearNeighborTetra(int tIndx);
 	void ClearNeighborTetraFromLayer(int tIndx, int layer);
 
+	//判定
 	int  CheckNeighborTetra(int tIndx, int checkTIndx);
 
 	//デバッグ
@@ -177,11 +181,15 @@ protected:
 
 	int*   m_piNTNum;							//各近傍四面体の個数
 
+	//高速計算用モジュール
+	Surf_SM m_SurfSm;
+
 	//探索用フラグ　未使用
 	bool* m_pbPFlag;							//粒子
 	bool* m_pbCFlag;							//クラスタ
 	bool* m_pbTFlag;							//四面体
 
+	//未使用
 	vector<vector<int>>	m_vviEdgeToCluster;					//辺→クラスタ	ある辺がどのクラスタに所属しているか　必ず１個以上
 	vector<vector<int>>	m_vviEdgeToParticle;				//辺→粒子　　　ある辺がどの粒子を接続しているか　　　必ず２個
 
