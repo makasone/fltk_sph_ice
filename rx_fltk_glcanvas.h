@@ -102,6 +102,7 @@ class rxSSMeshGPU;
 //#define ICENUM	2646	//21_21_21 表面のみ
 //#define ICENUM	5046	//29_29_29 表面のみ
 #define ICENUM	54			//3_3_3 表面のみ
+//#define ICENUM	6			//1_1_1 表面のみ
 
 // 描画フラグ
 enum

@@ -15,6 +15,8 @@
 #include <vector>
 #include <algorithm>
 
+#include <Ice_SM.h>
+
 #include "rx_utility.h"
 #include "rx_matrix.h"
 
@@ -29,21 +31,33 @@ using namespace std;
 class Surf_SM
 {
 private:
-	mk_Vector2D<Vec3>		m_vvvec_PrfxPos;		//パスごとの，現在の位置情報のためのprefixSum
-	mk_Vector2D<rxMatrix3>	m_vvmat_PrfxApq;		//パスごとの，変形行列のためのprefixSum　（完全な変形行列Apqではないよ　詳しくは論文を参照）
+	mk_Vector2D<Vec3>		m_mk2Dvec3_PrfxPos;		//パスごとの，現在の位置情報のためのprefixSum
+	mk_Vector2D<rxMatrix3>	m_mk2Dmat3_PrfxApq;		//パスごとの，変形行列のためのprefixSum　（完全な変形行列Apqではないよ　詳しくは論文を参照）
 	
-	mk_Vector2D<int>	m_mk2DiPTHoPRT;				//パス→粒子
-	vector<int>			m_viPRTtoPTH;				//粒子→パス　粒子は１つのパスにしか属さない
+	mk_Vector2D<int>		m_mk2DiPTHtoPRT;		//パス→粒子
+	mk_Vector2D<int>		m_mk2DiPRTtoPTH;		//粒子→パス　パス番号，パス内番号　粒子は１つのパスにしか属さない
+
+	vector<Vec3> m_vvec3OrgPos;						//粒子の初期位置	初期情報だけ保存しておく
+	//vector<Vec3> m_vvec3OrgCm;						//クラスタの初期重心	融解・凝固時には更新
 
 public:
-	void MakePath(const float* pos, int num, int size);						//パス作成
+	void MakePath(const float* pos, int prtNum, int pthSize);	//パス作成
 
-	void CalcPrefixSum();							//PrefixSumの計算
+	void CalcPrefixSumPos(const float* pos);	//重心　PrefixSumの計算
+	void CalcPrefixSumApq(const float* pos);			//変形行列　PrefixSumの計算
+	
+	void SetPathDataApq();
 
-	Vec3 GetPos();									//ある範囲における位置ベクトルの総和を返す
+	void InitOrgPos(const float* pos, int pNum);
+
+	Vec3 GetPos();									//ある範囲における重心ベクトルの総和を返す
 	rxMatrix3 GetApq();								//ある範囲における変形行列の総和を返す
 
 	int GetPath(int path, int indx);				//パスに所属する粒子番号を返す　パス番号，順番
+
+	//デバッグ
+	void DebugPathDataPos();
+	void DebugPathDataApq();
 };
 
 #endif

@@ -25,6 +25,9 @@ protected:
 	vector<double> m_dAlphas;			//!< stiffnessパラメータ[0,1] (速度計算に使用)
 	vector<double> m_dBetas;			//!< deformationパラメータ[0,1]
 
+	Vec3 m_vec3Cm;						//クラスタの重心
+	rxMatrix3	m_mtrx3Apq;				//変形行列
+
 	vector<int> m_iLayeres;
 
 	vector<int> m_iLinearDeformation;	//!< Linear/Quadratic deformation切り替えフラグ
@@ -56,6 +59,10 @@ public:
 
 	double GetAlphas(int indx){	return m_dAlphas[indx];	}
 	double GetBetas (int indx){	return m_dBetas[indx];	}
+
+	Vec3 GetCm(void){		return m_vec3Cm;	}
+
+	rxMatrix3 GetApq(void){	return m_mtrx3Apq;	}
 
 	int GetLayer(int indx){	return m_iLayeres[indx];	}
 

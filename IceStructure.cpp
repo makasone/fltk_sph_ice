@@ -293,9 +293,7 @@ int IceStructure::GetPtoCFreeIndx(int pIndx)
 //-------------------------------------------作成----------------------------------------
 void IceStructure::MakePath(const float* pos, int size)
 {
-	//モジュールにまる投げ
-	m_SurfSm.MakePath(pos, m_iPNum, size);		//パス作成
-	m_SurfSm.CalcPrefixSum();					//計算
+	m_SurfSm.MakePath(pos, m_iPNum, size);		//パス作成　まるなげ
 }
 
 //-------------------------------------------作成----------------------------------------

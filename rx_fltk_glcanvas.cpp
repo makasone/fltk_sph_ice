@@ -2880,7 +2880,6 @@ void rxFlGLWindow::Collision(Vec3 &p, Vec3 &np, Vec3 &v, int obj)
  */
 void rxFlGLWindow::InitICE(void)
 {	cout << __FUNCTION__ << endl;
-	RXREAL *p = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
 
 	m_iLayer = m_Scene.GetSphEnv().layer;
 
@@ -2888,8 +2887,6 @@ void rxFlGLWindow::InitICE(void)
 	//m_ice = new IceStructure(2500, 2500, 12000);				//最大粒子数　最大クラスタ数　最大四面体数
 	m_ice = new IceStructure(6000, 6000, 1);					//表面粒子のみの場合
 	m_ice->SetParticleNum(ICENUM);								//粒子数の登録
-
-	m_ice->MakePath(p, 100);									//高速化のためのパス作成
 }
 
 
@@ -3200,7 +3197,7 @@ void rxFlGLWindow::MakeClusterFromNeight()
 {
 	//初期化のために影響半径を広くしてみる
 	float radius = ((RXSPH*)m_pPS)->GetEffectiveRadius();
-	((RXSPH*)m_pPS)->SetEffectiveRadius(radius * 2.0f);
+	((RXSPH*)m_pPS)->SetEffectiveRadius(radius * 10.0f);
 	StepPS(m_fDt);																//一度タイムステップを勧めないと，近傍粒子が取得されないみたい
 	((RXSPH*)m_pPS)->SetEffectiveRadius(radius);
 	
@@ -3319,10 +3316,11 @@ void rxFlGLWindow::StepCluster(double dt)
 				if(jpIndx == -1 || jlIndx == -1){	continue;	}
 	
 				m_sm_cluster[i]->SetCurrentPos	( j, Vec3(p[jpIndx*4+0], p[jpIndx*4+1], p[jpIndx*4+2]) );	//これをなくすと，粒子の関連を保ちつつ位置が変わる．
+				m_sm_cluster[i]->SetVelocity	( j, Vec3(v[jpIndx*4+0], v[jpIndx*4+1], v[jpIndx*4+2]) );	//速度は未更新	これを更新すると，変になる
+
 	//			m_sm_cluster[i]->SetOriginalPos	( j, m_sm_connects[cIndx]->GetOriginalPos(oIndx) );			//これをなくすと追加がうまくいく笑
 	//			m_sm_cluster[i]->SetGoalPos		( j, Vec3(p[jpIndx*4+0], p[jpIndx*4+1], p[jpIndx*4+2]) );
 	//			m_sm_cluster[i]->SetNewPos		( j, Vec3(p[jpIndx*4+0], p[jpIndx*4+1], p[jpIndx*4+2]) );
-				m_sm_cluster[i]->SetVelocity	( j, Vec3(v[jpIndx*4+0], v[jpIndx*4+1], v[jpIndx*4+2]) );	//速度は未更新	これを更新すると，変になる
 	//			m_sm_cluster[i]->parames[j].alpha = m_sm_connects[cIndx]->parames[oIndx].alpha;
 			}
 		}
@@ -3467,6 +3465,11 @@ void rxFlGLWindow::InitICE_Cluster()
 	delete[] PtoCNum;
 
 	//TODO::クラスタと四面体の関連情報の登録
+
+	RXREAL *p = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
+
+	m_ice->MakePath(p, ICENUM);			//高速化のためのパス作成
+
 
 
 	//デバッグ
@@ -6184,7 +6187,8 @@ void rxFlGLWindow::RenderSphScene(void)
 		RXREAL *p = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
 		RXREAL *v = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_VELOCITY);
 
-		if(p && v){
+		if(p && v)
+		{
 			glDisable(GL_LIGHTING);
 			glLineWidth(3.0);
 			glColor3d(0.0, 1.0, 1.0);

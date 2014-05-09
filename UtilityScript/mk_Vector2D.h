@@ -40,6 +40,16 @@ public:
 		return mVector;
 	}
 
+	int GetSizeX()
+	{
+		return mSizeX;
+	}
+
+	int GetSizeY()
+	{
+		return mSizeY;
+	}
+
 	//‰‰ŽZŽq
 	Type& operator()(int indx0, int indx1)
 	{
