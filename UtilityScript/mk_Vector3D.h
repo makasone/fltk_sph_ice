@@ -41,6 +41,21 @@ public:
 		return mVector;
 	}
 
+	int GetSizeX()
+	{
+		return mSizeX;
+	}
+
+	int GetSizeY()
+	{
+		return mSizeY;
+	}
+
+	int GetSizeZ()
+	{
+		return mSizeZ;
+	}
+
 	//‰‰ŽZŽq
 	//Y‚Å˜A‘±‚³‚¹‚Ä‚¢‚é.
 	Type& operator()(int X, int Y, int Z)

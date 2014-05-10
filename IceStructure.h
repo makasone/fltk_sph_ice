@@ -28,7 +28,7 @@ public:
 	IceStructure(int pNum, int cNum, int tNum);
 	~IceStructure(void);
 
-	void MakePath(const float* pos, int size);		//パス作成
+	void InitPath(const float* pos, const vector<Ice_SM*> iceSM, int size);	//パス作成
 
 	void SetParticleNum(int pNum){	m_iPNum = pNum; }		//現在の粒子数
 	void SetClusterNum(int cNum){	m_iCNum = cNum; }		//現在のクラスタ数
@@ -37,6 +37,8 @@ public:
 	int GetParticleNum(void){		return m_iPNum;	}
 	int GetClusterNum(void){		return m_iCNum;	}
 	int GetTetraNum(void){			return m_iTNum;	}
+
+	int GetCtoPMax(void){			return m_iCtoPMax;	}
 
 	void InitTetraInfo();											//四面体情報のメモリ確保
 	void InitClusterInfo();											//クラスタ情報のメモリ確保
@@ -131,8 +133,8 @@ protected:
 	int m_iPNumMax;								//最大粒子数
 	int m_iPNum;								//現在の粒子数
 	
-	int m_iPtoCMax;								//粒子がクラスタに所属する最大数　connectはcalcの半分でいい
-	int m_iCtoPMax;								//クラスタが含む粒子の最大数　　　connectは最大４で固定	
+	int m_iPtoCMax;								//粒子がクラスタに所属する最大数
+	int m_iCtoPMax;								//クラスタが含む粒子の最大数
 
 	int m_iTNumMax;
 	int m_iTNum;

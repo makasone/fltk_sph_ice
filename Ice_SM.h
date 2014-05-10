@@ -74,7 +74,7 @@ public:
 	int GetVolumeFlags(int indx){	return m_iVolumeConservation[indx]; }
 
 	bool CheckIndx(int pIndx);
-
+	int	 SearchIndx(int pIndx);
 
 
 	//デバッグ

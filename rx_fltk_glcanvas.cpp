@@ -3197,7 +3197,7 @@ void rxFlGLWindow::MakeClusterFromNeight()
 {
 	//初期化のために影響半径を広くしてみる
 	float radius = ((RXSPH*)m_pPS)->GetEffectiveRadius();
-	((RXSPH*)m_pPS)->SetEffectiveRadius(radius * 10.0f);
+	((RXSPH*)m_pPS)->SetEffectiveRadius(radius * 2.0f);
 	StepPS(m_fDt);																//一度タイムステップを勧めないと，近傍粒子が取得されないみたい
 	((RXSPH*)m_pPS)->SetEffectiveRadius(radius);
 	
@@ -3468,7 +3468,7 @@ void rxFlGLWindow::InitICE_Cluster()
 
 	RXREAL *p = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
 
-	m_ice->MakePath(p, ICENUM);			//高速化のためのパス作成
+	m_ice->InitPath(p, m_sm_cluster, ICENUM);			//高速化のためのパス作成
 
 
 

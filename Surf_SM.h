@@ -17,6 +17,8 @@
 
 #include <Ice_SM.h>
 
+class IceStructure;
+
 #include "rx_utility.h"
 #include "rx_matrix.h"
 
@@ -37,27 +39,29 @@ private:
 	mk_Vector2D<int>		m_mk2DiPTHtoPRT;		//パス→粒子
 	mk_Vector2D<int>		m_mk2DiPRTtoPTH;		//粒子→パス　パス番号，パス内番号　粒子は１つのパスにしか属さない
 
+	mk_Vector3D<int>		m_mk3DiPTHandPrfxSet;	//各クラス多における，パスとprefixSumの番地セット[0]：始点　[1]：終点　prefixSum番地のみでいい　path番号は粒子から経由して取得できる
+
 	vector<Vec3> m_vvec3OrgPos;						//粒子の初期位置	初期情報だけ保存しておく
-	//vector<Vec3> m_vvec3OrgCm;						//クラスタの初期重心	融解・凝固時には更新
+	//vector<Vec3> m_vvec3OrgCm;					//クラスタの初期重心	融解・凝固時には更新
 
 public:
-	void MakePath(const float* pos, int prtNum, int pthSize);	//パス作成
+	void InitPath(const float* pos, const vector<Ice_SM*> iceSM, IceStructure* strct, int pthSize);	//パス作成
+	void InitOrgPos(const float* pos, int pNum);
+	void InitPathPrfxIndxSet(const vector<Ice_SM*> iceSM, IceStructure* strct);	//どのパスのどの部分が必要なのか，をクラスタごとに計算
+	
+	void SetPathDataApq();							
 
 	void CalcPrefixSumPos(const float* pos);	//重心　PrefixSumの計算
 	void CalcPrefixSumApq(const float* pos);			//変形行列　PrefixSumの計算
-	
-	void SetPathDataApq();
 
-	void InitOrgPos(const float* pos, int pNum);
-
-	Vec3 GetPos();									//ある範囲における重心ベクトルの総和を返す
-	rxMatrix3 GetApq();								//ある範囲における変形行列の総和を返す
-
-	int GetPath(int path, int indx);				//パスに所属する粒子番号を返す　パス番号，順番
+	Vec3		GetPos();									//ある範囲における重心ベクトルの総和を返す
+	rxMatrix3	GetApq();								//ある範囲における変形行列の総和を返す
+	int			GetPath(int path, int indx);				//パスに所属する粒子番号を返す　パス番号，順番
 
 	//デバッグ
 	void DebugPathDataPos();
 	void DebugPathDataApq();
+	void DebugPathPrfxIndxSet();
 };
 
 #endif

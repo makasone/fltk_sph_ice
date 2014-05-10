@@ -84,6 +84,15 @@ bool Ice_SM::CheckIndx(int pIndx)
 	return true;
 }
 
+int	Ice_SM::SearchIndx(int pIndx)
+{
+	vector<int>::iterator check = find( m_iParticleIndxes.begin(), m_iParticleIndxes.end(), pIndx);
+
+	if( check == m_iParticleIndxes.end() )	return -1;
+
+	return m_iParticleIndxes.size() - (m_iParticleIndxes.end() - check);
+}
+
 /*!
  * Shape Matching法
  *  - 目標位置を計算して，m_vNewPosをその位置に近づける
