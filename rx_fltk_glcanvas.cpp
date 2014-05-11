@@ -3197,7 +3197,7 @@ void rxFlGLWindow::MakeClusterFromNeight()
 {
 	//初期化のために影響半径を広くしてみる
 	float radius = ((RXSPH*)m_pPS)->GetEffectiveRadius();
-	((RXSPH*)m_pPS)->SetEffectiveRadius(radius * 2.0f);
+	((RXSPH*)m_pPS)->SetEffectiveRadius(radius * 5.0f);
 	StepPS(m_fDt);																//一度タイムステップを勧めないと，近傍粒子が取得されないみたい
 	((RXSPH*)m_pPS)->SetEffectiveRadius(radius);
 	
@@ -3300,6 +3300,9 @@ void rxFlGLWindow::StepCluster(double dt)
 	RXREAL *p = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
 	RXREAL *v = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_VELOCITY);
 
+	//prefixSumの更新
+	m_ice->UpdatePrefixSum(p, v);
+
 	//クラスタの数値更新　位置・速度
 	#pragma omp parallel
 	{
@@ -3310,18 +3313,18 @@ void rxFlGLWindow::StepCluster(double dt)
 
 			for(j = 0; j < m_ice->GetCtoPIndx(i); j++)
 			{
-				jpIndx = m_ice->GetCtoP(i, j, 0);								//どの固体からの粒子
-				jlIndx = m_ice->GetCtoP(i, j, 1);								//何層目の粒子か
+				jpIndx = m_ice->GetCtoP(i, j, 0);							//どの固体からの粒子
+				jlIndx = m_ice->GetCtoP(i, j, 1);							//何層目の粒子か
 				
 				if(jpIndx == -1 || jlIndx == -1){	continue;	}
 	
 				m_sm_cluster[i]->SetCurrentPos	( j, Vec3(p[jpIndx*4+0], p[jpIndx*4+1], p[jpIndx*4+2]) );	//これをなくすと，粒子の関連を保ちつつ位置が変わる．
 				m_sm_cluster[i]->SetVelocity	( j, Vec3(v[jpIndx*4+0], v[jpIndx*4+1], v[jpIndx*4+2]) );	//速度は未更新	これを更新すると，変になる
 
-	//			m_sm_cluster[i]->SetOriginalPos	( j, m_sm_connects[cIndx]->GetOriginalPos(oIndx) );			//これをなくすと追加がうまくいく笑
-	//			m_sm_cluster[i]->SetGoalPos		( j, Vec3(p[jpIndx*4+0], p[jpIndx*4+1], p[jpIndx*4+2]) );
-	//			m_sm_cluster[i]->SetNewPos		( j, Vec3(p[jpIndx*4+0], p[jpIndx*4+1], p[jpIndx*4+2]) );
-	//			m_sm_cluster[i]->parames[j].alpha = m_sm_connects[cIndx]->parames[oIndx].alpha;
+				//m_sm_cluster[i]->SetOriginalPos	( j, m_sm_connects[cIndx]->GetOriginalPos(oIndx) );			//これをなくすと追加がうまくいく笑
+				//m_sm_cluster[i]->SetGoalPos		( j, Vec3(p[jpIndx*4+0], p[jpIndx*4+1], p[jpIndx*4+2]) );
+				//m_sm_cluster[i]->SetNewPos		( j, Vec3(p[jpIndx*4+0], p[jpIndx*4+1], p[jpIndx*4+2]) + Vec3(v[jpIndx*4+0], v[jpIndx*4+1], v[jpIndx*4+2]) * 0.01 );
+				//m_sm_cluster[i]->parames[j].alpha = m_sm_connects[cIndx]->parames[oIndx].alpha;
 			}
 		}
 	}//#pragma omp parallel
@@ -3333,7 +3336,9 @@ void rxFlGLWindow::StepCluster(double dt)
 		for(int i = 0; i < m_iClusteresNum; i++)
 		{	
 			if(m_ice->GetPtoCNum(i) == 0){	continue;	}
-			m_sm_cluster[i]->Update();											//運動計算
+
+			m_sm_cluster[i]->SetNowCm(m_ice->GetCmSum(i, p));				//重心の更新
+			m_sm_cluster[i]->Update();										//運動計算
 		}
 	}//#pragma omp parallel
 }
@@ -3425,9 +3430,6 @@ void rxFlGLWindow::StepInterpolation(double dt)
 	//SPHのデータの更新　位置・速度
 	m_pPS->SetArrayVBO(rxParticleSystemBase::RX_POSITION, p, 0, m_pPS->GetNumParticles());
 	m_pPS->SetArrayVBO(rxParticleSystemBase::RX_VELOCITY, v, 0, m_pPS->GetNumParticles());
-	
-	p = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
-	v = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_VELOCITY);
 }
 
 //------------------------------------------------------------------------------------------------------------
@@ -3467,8 +3469,9 @@ void rxFlGLWindow::InitICE_Cluster()
 	//TODO::クラスタと四面体の関連情報の登録
 
 	RXREAL *p = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
+	RXREAL *v = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_VELOCITY);
 
-	m_ice->InitPath(p, m_sm_cluster, ICENUM);			//高速化のためのパス作成
+	m_ice->InitPath(p, v, m_sm_cluster, ICENUM);			//高速化のためのパス作成
 
 
 

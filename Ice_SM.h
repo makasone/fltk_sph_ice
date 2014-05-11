@@ -25,7 +25,9 @@ protected:
 	vector<double> m_dAlphas;			//!< stiffnessパラメータ[0,1] (速度計算に使用)
 	vector<double> m_dBetas;			//!< deformationパラメータ[0,1]
 
-	Vec3 m_vec3Cm;						//クラスタの重心
+	Vec3 m_vec3OrgCm;					//初期のクラスタの重心
+	Vec3 m_vec3NowCm;					//現在のクラスタの重心
+
 	rxMatrix3	m_mtrx3Apq;				//変形行列
 
 	vector<int> m_iLayeres;
@@ -45,11 +47,16 @@ public:
 
 	void ShapeMatching(double dt);
 	void Update();
+	void calExternalForces(double dt);
+	void integrate(double dt);
 
 	void SetAlphas(int indx, int alpha){ m_dAlphas[indx] = alpha;	}
 	void SetBetas (int indx, int beta){	m_dBetas[indx] = beta;		}
 
 	void SetLayer(int indx, int layer){	m_iLayeres[indx] = layer;	}
+
+	void SetNowCm(Vec3 nowCm){	m_vec3NowCm = nowCm;	}
+	void SetApq(rxMatrix3 Apq){	m_mtrx3Apq = Apq;	}
 
 	void SetLinerFalg(int indx, int flag){	m_iLinearDeformation[indx] = flag; }
 	void SetVolumeFlag(int indx, int flag){	m_iVolumeConservation[indx] = flag;}
@@ -60,7 +67,7 @@ public:
 	double GetAlphas(int indx){	return m_dAlphas[indx];	}
 	double GetBetas (int indx){	return m_dBetas[indx];	}
 
-	Vec3 GetCm(void){		return m_vec3Cm;	}
+	Vec3 GetCm(void){		return m_vec3NowCm;	}
 
 	rxMatrix3 GetApq(void){	return m_mtrx3Apq;	}
 

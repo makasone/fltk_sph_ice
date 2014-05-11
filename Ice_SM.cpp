@@ -35,6 +35,21 @@ void Ice_SM::AddVertex(const Vec3 &pos, double mass, int pIndx)
 
 	m_iLinearDeformation.push_back(0);
 	m_iVolumeConservation.push_back(0);
+
+	//重心の更新
+	Vec3 cm_org(0.0);		// 重心
+	double massSum = 0.0;	// 総質量
+	m_vec3OrgCm = Vec3(0.0);
+
+	// 重心座標の計算
+	for(int i = 0; i < m_iNumVertices;++i){
+		double m = m_vMass[i];
+		//if(m_vFix[i]) m *= 300.0;	// 固定点の質量を大きくする
+		massSum += m;
+		cm_org += m_vOrgPos[i]*m;
+	}
+
+	m_vec3OrgCm = cm_org/massSum;
 }
 
 void Ice_SM::Remove(int indx)
@@ -102,21 +117,20 @@ int	Ice_SM::SearchIndx(int pIndx)
 void Ice_SM::ShapeMatching(double dt)
 {
 	if(m_iNumVertices <= 1) return;
-//	cout << "Ice_SM::shape" << endl;
+
 	Vec3 cm(0.0), cm_org(0.0);	// 重心
-	double mass = 0.0f;	// 総質量
+	double mass = 0.0;	// 総質量
 
 	// 重心座標の計算
 	for(int i = 0; i < m_iNumVertices;++i){
 		double m = m_vMass[i];
-		if(m_vFix[i]) m *= 300.0;	// 固定点の質量を大きくする
+		if(m_vFix[i]){	/*m *= 300.0;*/ m *= 1.0f;	}	// 固定点の質量を大きくする
 		mass += m;
-		cm += m_vNewPos[i]*m;
-		cm_org += m_vOrgPos[i]*m;
 	}
-	cm /= mass;
-	cm_org /= mass;
-	                                                                                                                                                                                                                                                                          
+
+	cm = m_vec3NowCm / mass;
+	cm_org = m_vec3OrgCm;
+
 	rxMatrix3 Apq(0.0), Aqq(0.0);
 	Vec3 p, q;
 
@@ -292,13 +306,70 @@ void Ice_SM::ShapeMatching(double dt)
 
 	}
 }
+
+
+/*!
+ * 外力
+ *  - 重力と境界壁からの力の影響
+ * @param[in] dt タイムステップ幅
+ */
+void Ice_SM::calExternalForces(double dt)
+{
+	// 重力の影響を付加，速度を反映
+	for(int i = 0; i < m_iNumVertices; ++i){
+		if(m_vFix[i]) continue;
+		//m_vVel[i] += m_v3Gravity*dt;
+		m_vNewPos[i] = m_vCurPos[i]+m_vVel[i]*dt;
+		m_vGoalPos[i] = m_vOrgPos[i];
+	}
+
+	// 境界壁の影響
+	double res = 0.5;	// 反発係数
+	for(int i = 0; i < m_iNumVertices; ++i){
+		//if(m_vFix[i]) continue;
+		//Vec3 &p = m_vCurPos[i];
+		//Vec3 &np = m_vNewPos[i];
+		//Vec3 &v = m_vVel[i];
+		//if(np[0] < m_v3Min[0] || np[0] > m_v3Max[0]){
+		//	np[0] = p[0]-v[0]*dt*res;
+		//	np[1] = p[1];
+		//	np[2] = p[2];
+		//}
+		//if(np[1] < m_v3Min[1] || np[1] > m_v3Max[1]){
+		//	np[1] = p[1]-v[1]*dt*res;
+		//	np[0] = p[0];
+		//	np[2] = p[2];
+		//}
+		//if(np[2] < m_v3Min[2] || np[2] > m_v3Max[2]){
+		//	np[2] = p[2]-v[2]*dt*res;
+		//	np[0] = p[0];
+		//	np[1] = p[1];
+		//}
+		//clamp(m_vNewPos[i]);
+	}
+}
+
+/*!
+ * 速度と位置の更新
+ *  - 新しい位置と現在の位置座標から速度を算出
+ * @param[in] dt タイムステップ幅
+ */
+void Ice_SM::integrate(double dt)
+{
+	double dt1 = 1.0/dt;
+	for(int i = 0; i < m_iNumVertices; ++i){
+		m_vVel[i] = (m_vNewPos[i]-m_vCurPos[i])*dt1;
+		m_vCurPos[i] = m_vNewPos[i];
+	}
+}
+
 /*!
  * シミュレーションステップを進める
  */
 void Ice_SM::Update()
 {//	cout << "Ice_update" << endl;
+	//calCollision(m_dDt);
 	calExternalForces(m_dDt);
-	calCollision(m_dDt);
 	ShapeMatching(m_dDt);
 	integrate(m_dDt);
 }

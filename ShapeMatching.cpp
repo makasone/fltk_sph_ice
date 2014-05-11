@@ -139,6 +139,7 @@ void rxShapeMatching::calExternalForces(double dt)
 		clamp(m_vNewPos[i]);
 	}
 }
+
 void rxShapeMatching::calCollision(double dt)
 {
 	// 他のオブジェクトとの衝突

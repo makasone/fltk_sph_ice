@@ -28,22 +28,24 @@ public:
 	IceStructure(int pNum, int cNum, int tNum);
 	~IceStructure(void);
 
-	void InitPath(const float* pos, const vector<Ice_SM*> iceSM, int size);	//パス作成
+	//初期化
+	void InitTetraInfo();									//四面体情報のメモリ確保
+	void InitClusterInfo();									//クラスタ情報のメモリ確保
+	
+	void InitPath(const float* pos, const float* vel, const vector<Ice_SM*> iceSM, int size);	//パス作成
+
+	void UpdatePrefixSum(const float* pos, const float* vel);
 
 	void SetParticleNum(int pNum){	m_iPNum = pNum; }		//現在の粒子数
 	void SetClusterNum(int cNum){	m_iCNum = cNum; }		//現在のクラスタ数
 	void SetTetraNum(int tNum){		m_iTNum = tNum;	}		//現在の四面体数
 
-	int GetParticleNum(void){		return m_iPNum;	}
-	int GetClusterNum(void){		return m_iCNum;	}
-	int GetTetraNum(void){			return m_iTNum;	}
+	int GetParticleNum(void){	return m_iPNum;	}
+	int GetClusterNum(void){	return m_iCNum;	}
+	int GetTetraNum(void){		return m_iTNum;	}
 
-	int GetCtoPMax(void){			return m_iCtoPMax;	}
-
-	void InitTetraInfo();											//四面体情報のメモリ確保
-	void InitClusterInfo();											//クラスタ情報のメモリ確保
-
-	int  GetPtoCMax(void){	return m_iPtoCMax;	}
+	int GetCtoPMax(void){	return m_iCtoPMax;	}
+	int GetPtoCMax(void){	return m_iPtoCMax;	}
 
 	void CountPtoC(int pIndx){	m_piPtoCNum[pIndx]++;	}
 	void CountPtoT(int pIndx){	m_piPtoTNum[pIndx]++;	}
@@ -73,6 +75,8 @@ public:
 
 	int  GetPtoTFreeIndx(int pIndx);
 	int  GetPtoCFreeIndx(int pIndx);
+
+	Vec3 GetCmSum(int cIndx, const float* pos);
 
 	void SetPtoT(int pIndx, int lIndx, int tIndx, int oIndx);				//粒子が属する四面体の登録　　粒子番号，粒子内順序，四面体番号，四面体内順序
 	void SetPtoC(int pIndx, int lIndx, int cIndx, int oIndx, int layer);	//粒子が属するクラスタの登録　粒子番号，粒子内順序，クラスタ番号，クラスタ内順序

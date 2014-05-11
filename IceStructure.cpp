@@ -288,12 +288,17 @@ int IceStructure::GetPtoCFreeIndx(int pIndx)
 	return freeIndx;
 }
 
+Vec3 IceStructure::GetCmSum(int cIndx, const float* pos)
+{
+	return m_SurfSm.ClacCmSum(cIndx, pos);
+}
+
 //-------------------------------------------取得----------------------------------------
 
 //-------------------------------------------作成----------------------------------------
-void IceStructure::InitPath(const float* pos, const vector<Ice_SM*> iceSM, int size)
+void IceStructure::InitPath(const float* pos, const float* vel, const vector<Ice_SM*> iceSM, int size)
 {
-	m_SurfSm.InitPath(pos, iceSM, this, size);		//パス作成　まるなげ
+	m_SurfSm.InitPath(pos, vel, iceSM, this, size);		//パス作成　まるなげ
 }
 
 //--------------------------------------------作成-------------------------------------------
@@ -618,6 +623,12 @@ void IceStructure::SetNeighborTetraFromLayer(int tIndx, int searchLayer, int del
 		nowIndx = nowSize;											//次のループ開始時のスタート番号を更新
 	}
 }
+
+void IceStructure::UpdatePrefixSum(const float* pos, const float* vel)
+{
+	m_SurfSm.UpdatePrefixSum(pos, vel);
+}
+
 //-------------------------------------------書き込み----------------------------------------
 
 /*!

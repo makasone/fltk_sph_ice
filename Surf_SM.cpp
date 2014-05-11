@@ -18,8 +18,11 @@
  * @param[in]
  * @param[in]
  */
-void Surf_SM::InitPath(const float* pos, const vector<Ice_SM*> iceSM, IceStructure* strct, int pthSize)
+void Surf_SM::InitPath(const float* pos, const float* vel, const vector<Ice_SM*> iceSM, IceStructure* strct, int pthSize)
 {	cout << __FUNCTION__ << endl;
+
+	m_strct = strct;
+
 	//まずは，立方体の表面で試すために適当なパスを作ってみる．
 	//なぜかだめとされている１本のパスでやってみる．
 	//
@@ -57,10 +60,10 @@ void Surf_SM::InitPath(const float* pos, const vector<Ice_SM*> iceSM, IceStructu
 
 	//prefixSumを初期化
 	m_mk2Dvec3_PrfxPos.SetSize(pthNum, prtNum);	//位置
-	CalcPrefixSumPos(pos);
+	UpdatePrefixSumPos(pos, vel);
 	
 	m_mk2Dmat3_PrfxApq.SetSize(pthNum, prtNum);	//変形行列
-	CalcPrefixSumApq(pos);
+	UpdatePrefixSumApq(pos);
 
 	//どのパスのどの部分が必要なのか，をクラスタごとに計算
 	InitPathPrfxIndxSet(iceSM, strct);
@@ -169,59 +172,58 @@ void Surf_SM::InitPathPrfxIndxSet(const vector<Ice_SM*> iceSM, IceStructure* str
 }
 
 
-
-
-
-
+void Surf_SM::UpdatePrefixSum(const float* p, const float* v)
+{
+	UpdatePrefixSumPos(p, v);
+	UpdatePrefixSumApq(p);
+}
 
 //重心のprefix sum
 //簡易化のために質量が一定としている
-void Surf_SM::CalcPrefixSumPos(const float* p)
-{	cout << __FUNCTION__ << endl;
+void Surf_SM::UpdatePrefixSumPos(const float* p, const float* v)
+{//	cout << __FUNCTION__ << endl;
 	
 	//パスの数×パスに含まれる最大粒子数　だけ繰り返す
 	for(int indxX = 0; indxX < m_mk2DiPTHtoPRT.GetSizeX(); indxX++)
 	{
-		Vec3 preVec = Vec3(0.0f, 0.0f, 0.0f);
-		float massSum = 0.0f;
+		Vec3 preVec = Vec3(0.0, 0.0, 0.0);
 
 		for(int indxY = 0; indxY < m_mk2DiPTHtoPRT.GetSizeY(); indxY++)
 		{
 			//TODO:末尾は必ず-1であることを想定している
 			//TODO:穴あきの場合もあるので，パスに所属する粒子数とかも保存したほうがいいかも
 			int pIndx = m_mk2DiPTHtoPRT(indxX, indxY);
-			float mass = 1.0f;		//とりあえず1.0fで固定
+			double mass = 1.0;		//とりあえず1.0fで固定
 
 			if(pIndx == -1)
 			{
 				break;
 			}
 
-			massSum += mass;
-
-			m_mk2Dvec3_PrfxPos(indxX, indxY) = Vec3(p[pIndx*4+0], p[pIndx*4+1], p[pIndx*4+2]) * mass + preVec;
-			//m_mk2Dvec3_PrfxPos(indxX, indxY) = m_mk2Dvec3_PrfxPos(indxX, indxY) / massSum;
+			m_mk2Dvec3_PrfxPos(indxX, indxY) = Vec3(p[pIndx*4+0], p[pIndx*4+1], p[pIndx*4+2]) * mass
+				+ (Vec3(v[pIndx*4+0], v[pIndx*4+1], v[pIndx*4+2])/* + Vec3(0.0, -9.81, 0.0)*0.01*/ ) * 0.01
+				+ preVec;
 			preVec = m_mk2Dvec3_PrfxPos(indxX, indxY);
 		}
 	}
 }
 
 //変形行列（moment matrix）Apqのprefix sum
-void Surf_SM::CalcPrefixSumApq(const float *pos)
-{	cout << __FUNCTION__ << endl;
+void Surf_SM::UpdatePrefixSumApq(const float *pos)
+{//	cout << __FUNCTION__ << endl;
 
 	//パスの数×パスに含まれる最大粒子数　だけ繰り返す
 	for(int indxX = 0; indxX < m_mk2DiPTHtoPRT.GetSizeX(); indxX++)
 	{
-		rxMatrix3 preMat(0.0f);
-		float massSum = 0.0f;
+		rxMatrix3 preMat(0.0);
+		double massSum = 0.0;
 
 		for(int indxY = 0; indxY < m_mk2DiPTHtoPRT.GetSizeY(); indxY++)
 		{
 			//TODO:末尾は必ず-1であることを想定している
 			//TODO:穴あきの場合もあるので，パスに所属する粒子数とかも保存したほうがいいかも
 			int pIndx = m_mk2DiPTHtoPRT(indxX, indxY);
-			float mass = 1.0f;		//とりあえず1.0fで固定
+			double mass = 1.0;		//とりあえず1.0fで固定
 
 			if(pIndx == -1)
 			{
@@ -249,6 +251,42 @@ void Surf_SM::CalcPrefixSumApq(const float *pos)
 		}
 	}
 }
+//重心の総和を返す
+Vec3 Surf_SM::ClacCmSum(int cIndx, const float* p)
+{	//cout << __FUNCTION__ << " start" << endl;
+	Vec3 cmSum(0.0);
+
+	//各クラスタ毎に用意したデータセットを使って重心を求める
+	for(int iprt = 0; iprt < m_strct->GetClusterNum(); iprt++)
+	{
+		int prtIndx = m_strct->GetCtoP(cIndx, iprt, 0);
+		int pthIndx = m_mk2DiPRTtoPTH(prtIndx, 0);
+		int start	= m_mk3DiPTHandPrfxSet(cIndx, iprt, 0);
+		int end		= m_mk3DiPTHandPrfxSet(cIndx, iprt, 1);
+
+		if(start == -1 || end == -1){	break;	}
+
+		cmSum += CalcCmFromPrfxSm(pthIndx, start, end)/* + Vec3(p[start*4+0], p[start*4+1], p[start*4+2])*/;
+	}
+
+	return cmSum;
+}
+
+//prfixSumから値を返す
+Vec3 Surf_SM::CalcCmFromPrfxSm(int path, int start, int end)
+{	//cout << __FUNCTION__ << endl;
+	if(start == 0)
+	{
+		return m_mk2Dvec3_PrfxPos(path, end);
+	}
+	else
+	{
+		return m_mk2Dvec3_PrfxPos(path, end) - m_mk2Dvec3_PrfxPos(path, start-1);
+	}
+}
+
+
+
 
 
 //--------------------------------------------------------デバッグ-------------------------------------------
