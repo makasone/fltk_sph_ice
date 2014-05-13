@@ -12,6 +12,10 @@
 #define _ICE_SM_
 
 #include "ShapeMatching.h"
+#include <time.h>
+#include <sys/timeb.h>
+//#include <windows.h> // これと下のヘッダーはマルチメディアタイマーに必要です
+//#include <mmsystem.h> // winmm.lib をリンクするのを忘れずに
 
 using namespace std;
 
@@ -28,7 +32,8 @@ protected:
 	Vec3 m_vec3OrgCm;					//初期のクラスタの重心
 	Vec3 m_vec3NowCm;					//現在のクラスタの重心
 
-	rxMatrix3	m_mtrx3Apq;				//変形行列
+	rxMatrix3	m_mtrx3Apq;				//変形行列Apq
+	rxMatrix3	m_mtrx3AqqInv;			//変形行列Aqqの逆行列	前計算可能
 
 	vector<int> m_iLayeres;
 
@@ -68,6 +73,7 @@ public:
 	double GetBetas (int indx){	return m_dBetas[indx];	}
 
 	Vec3 GetCm(void){		return m_vec3NowCm;	}
+	Vec3 GetOrgCm(void){	return m_vec3OrgCm;	}
 
 	rxMatrix3 GetApq(void){	return m_mtrx3Apq;	}
 

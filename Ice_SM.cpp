@@ -12,7 +12,7 @@
 
 Ice_SM::Ice_SM(int obj) : rxShapeMatching(obj)
 {
-	
+	m_mtrx3Apq = rxMatrix3(0.0);
 }
 
 /*!
@@ -37,7 +37,6 @@ void Ice_SM::AddVertex(const Vec3 &pos, double mass, int pIndx)
 	m_iVolumeConservation.push_back(0);
 
 	//重心の更新
-	Vec3 cm_org(0.0);		// 重心
 	double massSum = 0.0;	// 総質量
 	m_vec3OrgCm = Vec3(0.0);
 
@@ -46,10 +45,29 @@ void Ice_SM::AddVertex(const Vec3 &pos, double mass, int pIndx)
 		double m = m_vMass[i];
 		//if(m_vFix[i]) m *= 300.0;	// 固定点の質量を大きくする
 		massSum += m;
-		cm_org += m_vOrgPos[i]*m;
+		m_vec3OrgCm += m_vOrgPos[i]*m;
+	}
+	m_vec3OrgCm /= massSum;
+
+	//変形行列Aqqの更新
+	Vec3 p, q;
+	for(int i = 0; i < m_iNumVertices; ++i)
+	{
+		q = m_vOrgPos[i]-m_vec3OrgCm;
+		double m = m_vMass[i];
+
+		m_mtrx3AqqInv(0,0) += m*q[0]*q[0];
+		m_mtrx3AqqInv(0,1) += m*q[0]*q[1];
+		m_mtrx3AqqInv(0,2) += m*q[0]*q[2];
+		m_mtrx3AqqInv(1,0) += m*q[1]*q[0];
+		m_mtrx3AqqInv(1,1) += m*q[1]*q[1];
+		m_mtrx3AqqInv(1,2) += m*q[1]*q[2];
+		m_mtrx3AqqInv(2,0) += m*q[2]*q[0];
+		m_mtrx3AqqInv(2,1) += m*q[2]*q[1];
+		m_mtrx3AqqInv(2,2) += m*q[2]*q[2];
 	}
 
-	m_vec3OrgCm = cm_org/massSum;
+	m_mtrx3AqqInv = m_mtrx3AqqInv.Inverse();
 }
 
 void Ice_SM::Remove(int indx)
@@ -118,7 +136,13 @@ void Ice_SM::ShapeMatching(double dt)
 {
 	if(m_iNumVertices <= 1) return;
 
+	//clock_t oldTime, newTime;
+	//oldTime = clock();
+	//cout << "計測開始" << endl;
+
 	Vec3 cm(0.0), cm_org(0.0);	// 重心
+	Vec3 p(0.0), q(0.0);
+	rxMatrix3 Apq(0.0), Aqq(0.0);
 	double mass = 0.0;	// 総質量
 
 	// 重心座標の計算
@@ -126,47 +150,21 @@ void Ice_SM::ShapeMatching(double dt)
 		double m = m_vMass[i];
 		if(m_vFix[i]){	/*m *= 300.0;*/ m *= 1.0f;	}	// 固定点の質量を大きくする
 		mass += m;
+		//cm += m_vNewPos[i]*m;
 	}
+	//cm /= mass;
 
 	cm = m_vec3NowCm / mass;
 	cm_org = m_vec3OrgCm;
-
-	rxMatrix3 Apq(0.0), Aqq(0.0);
-	Vec3 p, q;
-
-	// Apq = Σmpq^T
-	// Aqq = Σmqq^T
-	for(int i = 0; i < m_iNumVertices; ++i){
-		p = m_vNewPos[i]-cm;
-		q = m_vOrgPos[i]-cm_org;
-		double m = m_vMass[i];
-
-		Apq(0,0) += m*p[0]*q[0];
-		Apq(0,1) += m*p[0]*q[1];
-		Apq(0,2) += m*p[0]*q[2];
-		Apq(1,0) += m*p[1]*q[0];
-		Apq(1,1) += m*p[1]*q[1];
-		Apq(1,2) += m*p[1]*q[2];
-		Apq(2,0) += m*p[2]*q[0];
-		Apq(2,1) += m*p[2]*q[1];
-		Apq(2,2) += m*p[2]*q[2];
-
-		Aqq(0,0) += m*q[0]*q[0];
-		Aqq(0,1) += m*q[0]*q[1];
-		Aqq(0,2) += m*q[0]*q[2];
-		Aqq(1,0) += m*q[1]*q[0];
-		Aqq(1,1) += m*q[1]*q[1];
-		Aqq(1,2) += m*q[1]*q[2];
-		Aqq(2,0) += m*q[2]*q[0];
-		Aqq(2,1) += m*q[2]*q[1];
-		Aqq(2,2) += m*q[2]*q[2];
-	}
+	
+	Apq = m_mtrx3Apq;
+	Aqq = m_mtrx3AqqInv;
 
 	//Apqの行列式を求め，反転するかを判定
 	//不安定な場合が多いので×
-	if( Apq.Determinant() < 0.0 && m_iNumVertices >= 4)
-	{
-//		cout << "before det < 0" << endl;
+	//if( Apq.Determinant() < 0.0 && m_iNumVertices >= 4)
+	//{
+		//cout << "before det < 0" << endl;
 		//１　符号を反転
 		//Apq(0,2) = -Apq(0,2);
 		//Apq(1,2) = -Apq(1,2);
@@ -185,7 +183,7 @@ void Ice_SM::ShapeMatching(double dt)
 		//tmp = Apq(2,2);
 		//Apq(2,2) = Apq(2,1);
 		//Apq(2,1) = tmp;
-	}
+	//}
 
 	rxMatrix3 R, S;
 	PolarDecomposition(Apq, R, S);
@@ -193,7 +191,8 @@ void Ice_SM::ShapeMatching(double dt)
 	if(m_bLinearDeformation){
 		// Linear Deformations
 		rxMatrix3 A;
-		A = Apq*Aqq.Inverse();	// A = Apq*Aqq^-1
+		//A = Apq*Aqq.Inverse();	// A = Apq*Aqq^-1
+		A = Apq*Aqq;	// A = Apq*Aqq^-1
 
 		// 体積保存のために√(det(A))で割る
 		if(m_bVolumeConservation){
@@ -303,8 +302,10 @@ void Ice_SM::ShapeMatching(double dt)
 			m_vGoalPos[i] += cm;
 			m_vNewPos[i] += (m_vGoalPos[i]-m_vNewPos[i])*m_dAlphas[i];
 		}
-
 	}
+
+	//newTime = clock();
+	//cout << "計測終了::" << (double)(newTime - oldTime)/CLOCKS_PER_SEC << endl;
 }
 
 

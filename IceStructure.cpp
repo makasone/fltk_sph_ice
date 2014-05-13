@@ -288,9 +288,14 @@ int IceStructure::GetPtoCFreeIndx(int pIndx)
 	return freeIndx;
 }
 
-Vec3 IceStructure::GetCmSum(int cIndx, const float* pos)
+const Vec3 IceStructure::GetCmSum(int cIndx)
 {
-	return m_SurfSm.ClacCmSum(cIndx, pos);
+	return m_SurfSm.CalcCmSum(cIndx);
+}
+
+const rxMatrix3 IceStructure::GetApqSum(int cIndx)
+{
+	return m_SurfSm.CalcApqSum(cIndx);
 }
 
 //-------------------------------------------éÊìæ----------------------------------------
@@ -624,9 +629,9 @@ void IceStructure::SetNeighborTetraFromLayer(int tIndx, int searchLayer, int del
 	}
 }
 
-void IceStructure::UpdatePrefixSum(const float* pos, const float* vel)
+void IceStructure::UpdatePrefixSum()
 {
-	m_SurfSm.UpdatePrefixSum(pos, vel);
+	m_SurfSm.UpdatePrefixSum();
 }
 
 //-------------------------------------------èëÇ´çûÇ›----------------------------------------

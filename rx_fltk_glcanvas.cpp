@@ -1292,9 +1292,10 @@ void rxFlGLWindow::Idle(void)
 		StepSolid_Melt(m_fDt);				//融解処理
 		StepSolid_Freeze(m_fDt);			//凝固処理
 
+RXTIMER("cluster start");
 		//StepCalcParam(m_fDt);				//温度による線形補間係数決定　中間状態あり
 		StepCluster(m_fDt);					//クラスタの計算
-
+RXTIMER("cluster end");
 		StepInterpolation(m_fDt);			//液体と固体の運動を線形補間
 	}
 
@@ -3301,7 +3302,7 @@ void rxFlGLWindow::StepCluster(double dt)
 	RXREAL *v = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_VELOCITY);
 
 	//prefixSumの更新
-	m_ice->UpdatePrefixSum(p, v);
+	m_ice->UpdatePrefixSum();
 
 	//クラスタの数値更新　位置・速度
 	#pragma omp parallel
@@ -3329,6 +3330,26 @@ void rxFlGLWindow::StepCluster(double dt)
 		}
 	}//#pragma omp parallel
 
+	clock_t oldTime, newTime;
+	//oldTime = clock();
+	//cout << "計測開始1" << endl;
+	//クラスタのパラメータ更新
+	#pragma omp parallel
+	{
+	#pragma omp for
+	for(int i = 0; i < m_iClusteresNum; i++)
+	{	
+		if(m_ice->GetPtoCNum(i) == 0){	continue;	}
+
+		m_sm_cluster[i]->SetNowCm(m_ice->GetCmSum(i));				//重心の更新
+		m_sm_cluster[i]->SetApq(m_ice->GetApqSum(i));				//変形行列の更新
+	}
+	}
+	//newTime = clock();
+	//cout << "計測終了1::" << (double)(newTime - oldTime)/CLOCKS_PER_SEC << endl;
+	
+	oldTime = clock();
+	cout << "計測開始2" << endl;
 	//クラスタの運動処理
 	#pragma omp parallel
 	{
@@ -3337,13 +3358,16 @@ void rxFlGLWindow::StepCluster(double dt)
 		{	
 			if(m_ice->GetPtoCNum(i) == 0){	continue;	}
 
-			m_sm_cluster[i]->SetNowCm(m_ice->GetCmSum(i, p));				//重心の更新
-			m_sm_cluster[i]->Update();										//運動計算
+			//m_sm_cluster[i]->SetNowCm(m_ice->GetCmSum(i));			//重心の更新
+			//m_sm_cluster[i]->SetApq(m_ice->GetApqSum(i));				//変形行列の更新
+			m_sm_cluster[i]->Update();									//運動計算
 		}
 	}//#pragma omp parallel
+	newTime = clock();
+	cout << "計測終了2::" << (double)(newTime - oldTime)/CLOCKS_PER_SEC << endl;
 }
 
-/* 
+/*
  * 液体運動と固体運動の線形補間と反映
  */
 void rxFlGLWindow::StepInterpolation(double dt)
@@ -3473,18 +3497,16 @@ void rxFlGLWindow::InitICE_Cluster()
 
 	m_ice->InitPath(p, v, m_sm_cluster, ICENUM);			//高速化のためのパス作成
 
-
-
 	//デバッグ
-//	for(int i = 0; i < m_iClusteresNum; i++)
-//	{
-//		m_ice->DebugCtoP(i);
-//	}
-//
-//	for(int i = 0; i < m_pPS->GetNumParticles(); i++)
-//	{
-//		m_ice->DebugPtoC(i);
-//	}
+	//for(int i = 0; i < m_iClusteresNum; i++)
+	//{
+	//	m_ice->DebugCtoP(i);
+	//}
+
+	//for(int i = 0; i < m_pPS->GetNumParticles(); i++)
+	//{
+	//	m_ice->DebugPtoC(i);
+	//}
 }
 
 /*!

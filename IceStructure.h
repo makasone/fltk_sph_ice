@@ -34,7 +34,7 @@ public:
 	
 	void InitPath(const float* pos, const float* vel, const vector<Ice_SM*> iceSM, int size);	//パス作成
 
-	void UpdatePrefixSum(const float* pos, const float* vel);
+	void UpdatePrefixSum();
 
 	void SetParticleNum(int pNum){	m_iPNum = pNum; }		//現在の粒子数
 	void SetClusterNum(int cNum){	m_iCNum = cNum; }		//現在のクラスタ数
@@ -76,7 +76,8 @@ public:
 	int  GetPtoTFreeIndx(int pIndx);
 	int  GetPtoCFreeIndx(int pIndx);
 
-	Vec3 GetCmSum(int cIndx, const float* pos);
+	const Vec3		GetCmSum(int cIndx);
+	const rxMatrix3	GetApqSum(int cIndx);
 
 	void SetPtoT(int pIndx, int lIndx, int tIndx, int oIndx);				//粒子が属する四面体の登録　　粒子番号，粒子内順序，四面体番号，四面体内順序
 	void SetPtoC(int pIndx, int lIndx, int cIndx, int oIndx, int layer);	//粒子が属するクラスタの登録　粒子番号，粒子内順序，クラスタ番号，クラスタ内順序

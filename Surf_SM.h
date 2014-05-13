@@ -42,28 +42,29 @@ private:
 	mk_Vector3D<int>		m_mk3DiPTHandPrfxSet;	//各クラス多における，パスとprefixSumの番地セット[0]：始点　[1]：終点　prefixSum番地のみでいい　path番号は粒子から経由して取得できる
 
 	vector<Vec3> m_vvec3OrgPos;						//粒子の初期位置	初期情報だけ保存しておく
-	//float* m_pos;									//粒子の現在地へのポインタ
-	//vector<Vec3> m_vvec3OrgCm;					//クラスタの初期重心	融解・凝固時には更新
+	vector<Vec3> m_vvec3OrgCm;						//クラスタの初期重心
+
+	const float* m_fPos;									//粒子の位置へのポインタ
+	const float* m_fVel;									//粒子の速度へのポインタ
 
 	IceStructure* m_strct;
+	vector<Ice_SM*> m_iceSM;
 
 public:
 	void InitPath(const float* pos, const float* vel, const vector<Ice_SM*> iceSM, IceStructure* strct, int pthSize);	//パス作成
-	void InitOrgPos(const float* pos, int pNum);
 	void InitPathPrfxIndxSet(const vector<Ice_SM*> iceSM, IceStructure* strct);	//どのパスのどの部分が必要なのか，をクラスタごとに計算
-	
-	void SetPathDataApq();				
+	void InitOrgPos(int prtNum);
+	void InitOrgCm();
 
-	void UpdatePrefixSum(const float* p, const float* vel);
-	void UpdatePrefixSumPos(const float* pos, const float* vel);		//重心　PrefixSumの計算
-	void UpdatePrefixSumApq(const float* pos);		//変形行列　PrefixSumの計算
+	void UpdatePrefixSum();
+	void UpdatePrefixSumPos();		//重心　PrefixSumの計算
+	void UpdatePrefixSumApq();		//変形行列　PrefixSumの計算
 	
-	Vec3 ClacCmSum(int cIndx, const float* pos);						//prefixSumからクラスタの重心を計算して返す
-	Vec3 CalcCmFromPrfxSm(int path, int start, int end);
+	const Vec3 CalcCmSum(int cIndx);								//prefixSumからクラスタの重心を計算して返す
+	const Vec3 CalcCmFromPrfxSm(int path, int start, int end);
 
-	Vec3		GetPos();							//ある範囲における重心ベクトルの総和を返す
-	rxMatrix3	GetApq();							//ある範囲における変形行列の総和を返す
-	int			GetPath(int path, int indx);		//パスに所属する粒子番号を返す　パス番号，順番
+	const rxMatrix3 CalcApqSum(int cIndx);
+	const rxMatrix3 CalcApqFromPrfxSm(int path, int start, int end);
 
 	//デバッグ
 	void DebugPathDataPos();
