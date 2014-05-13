@@ -12,10 +12,9 @@
 #define _ICE_SM_
 
 #include "ShapeMatching.h"
+#include "QueryCounter.h"
+
 #include <time.h>
-#include <sys/timeb.h>
-//#include <windows.h> // これと下のヘッダーはマルチメディアタイマーに必要です
-//#include <mmsystem.h> // winmm.lib をリンクするのを忘れずに
 
 using namespace std;
 

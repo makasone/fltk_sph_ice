@@ -139,26 +139,24 @@ void Ice_SM::ShapeMatching(double dt)
 	//clock_t oldTime, newTime;
 	//oldTime = clock();
 	//cout << "計測開始" << endl;
+	
+	//QueryCounter qc;
+	//qc.Start();
+	//cout << "計測開始" << endl;
 
 	Vec3 cm(0.0), cm_org(0.0);	// 重心
 	Vec3 p(0.0), q(0.0);
-	rxMatrix3 Apq(0.0), Aqq(0.0);
+
 	double mass = 0.0;	// 総質量
 
 	// 重心座標の計算
 	for(int i = 0; i < m_iNumVertices;++i){
-		double m = m_vMass[i];
-		if(m_vFix[i]){	/*m *= 300.0;*/ m *= 1.0f;	}	// 固定点の質量を大きくする
-		mass += m;
-		//cm += m_vNewPos[i]*m;
+		//if(m_vFix[i]){	/*m *= 300.0;*/ m *= 1.0f;	}	// 固定点の質量を大きくする
+		mass += m_vMass[i];
 	}
-	//cm /= mass;
 
 	cm = m_vec3NowCm / mass;
 	cm_org = m_vec3OrgCm;
-	
-	Apq = m_mtrx3Apq;
-	Aqq = m_mtrx3AqqInv;
 
 	//Apqの行列式を求め，反転するかを判定
 	//不安定な場合が多いので×
@@ -186,13 +184,13 @@ void Ice_SM::ShapeMatching(double dt)
 	//}
 
 	rxMatrix3 R, S;
-	PolarDecomposition(Apq, R, S);
+	PolarDecomposition(m_mtrx3Apq, R, S);
 
 	if(m_bLinearDeformation){
 		// Linear Deformations
 		rxMatrix3 A;
 		//A = Apq*Aqq.Inverse();	// A = Apq*Aqq^-1
-		A = Apq*Aqq;	// A = Apq*Aqq^-1
+		A = m_mtrx3Apq*m_mtrx3AqqInv;	// A = Apq*Aqq^-1
 
 		// 体積保存のために√(det(A))で割る
 		if(m_bVolumeConservation){
@@ -306,6 +304,8 @@ void Ice_SM::ShapeMatching(double dt)
 
 	//newTime = clock();
 	//cout << "計測終了::" << (double)(newTime - oldTime)/CLOCKS_PER_SEC << endl;
+
+	//cout << "計測終了::" << qc.End() << endl;
 }
 
 

@@ -212,6 +212,9 @@
     <ClInclude Include="Surf_SM.h">
       <Filter>SM Files</Filter>
     </ClInclude>
+    <ClInclude Include="QueryCounter.h">
+      <Filter>UnilityScript</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="bin\sph_scene_1.cfg">

@@ -50,7 +50,7 @@
 #include "tetgen.h"
 #include <UtilityScript\mk_Vector2D.h>
 #include <time.h>
-
+#include "QueryCounter.h"
 
 #include <omp.h>
 #include <fstream>

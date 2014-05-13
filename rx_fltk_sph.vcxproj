@@ -262,6 +262,7 @@
     <ClInclude Include="HeatTransfar.h" />
     <ClInclude Include="IceStructure.h" />
     <ClInclude Include="Ice_SM.h" />
+    <ClInclude Include="QueryCounter.h" />
     <ClInclude Include="rx_cuda_utils.h" />
     <ClInclude Include="rx_fltk_glcanvas.h" />
     <ClInclude Include="rx_fltk_widgets.h" />

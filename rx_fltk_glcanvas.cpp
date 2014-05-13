@@ -3333,6 +3333,7 @@ void rxFlGLWindow::StepCluster(double dt)
 	clock_t oldTime, newTime;
 	//oldTime = clock();
 	//cout << "計測開始1" << endl;
+
 	//クラスタのパラメータ更新
 	#pragma omp parallel
 	{
@@ -3345,11 +3346,17 @@ void rxFlGLWindow::StepCluster(double dt)
 		m_sm_cluster[i]->SetApq(m_ice->GetApqSum(i));				//変形行列の更新
 	}
 	}
+
 	//newTime = clock();
 	//cout << "計測終了1::" << (double)(newTime - oldTime)/CLOCKS_PER_SEC << endl;
 	
-	oldTime = clock();
-	cout << "計測開始2" << endl;
+	//QueryCounter qc;
+	//qc.Start();
+	//cout << "計測開始" << endl;
+
+	//oldTime = clock();
+	//cout << "計測開始2" << endl;
+
 	//クラスタの運動処理
 	#pragma omp parallel
 	{
@@ -3357,14 +3364,22 @@ void rxFlGLWindow::StepCluster(double dt)
 		for(int i = 0; i < m_iClusteresNum; i++)
 		{	
 			if(m_ice->GetPtoCNum(i) == 0){	continue;	}
-
+			
+			QueryCounter iqc;
+			cout << "計測開始 " << i << endl;
+			iqc.Start();
 			//m_sm_cluster[i]->SetNowCm(m_ice->GetCmSum(i));			//重心の更新
 			//m_sm_cluster[i]->SetApq(m_ice->GetApqSum(i));				//変形行列の更新
 			m_sm_cluster[i]->Update();									//運動計算
+			double end = iqc.End() / 100;
+			cout << "計測終了 " << i << " :: " << end << endl;
 		}
 	}//#pragma omp parallel
-	newTime = clock();
-	cout << "計測終了2::" << (double)(newTime - oldTime)/CLOCKS_PER_SEC << endl;
+	
+	//cout << "計測終了::" << qc.End() << endl;
+
+	//newTime = clock();
+	//cout << "計測終了2::" << (double)(newTime - oldTime)/CLOCKS_PER_SEC << endl;
 }
 
 /*
