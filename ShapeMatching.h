@@ -55,6 +55,7 @@ protected:
 	
 	//追加
 	rxMatrix3 m_mtrxBeforeU;		//前フレームでの直交行列　warm startという高速化手法
+	rxMatrix3 m_mtrxBeforeATA;
 
 	double m_dAlpha;				//!< stiffnessパラメータ[0,1] (速度計算に使用)
 	double m_dBeta;					//!< deformationパラメータ[0,1]
@@ -287,6 +288,7 @@ inline void PolarDecomposition(const rxMatrix3 &A, rxMatrix3 &R, rxMatrix3 &S)
 
 /*!
  * 極分解で回転行列と対称行列に分解 A=RS
+ * warm startあり	1フレーム目は単位行列　効果があったかは不明
  * @param[in] A 入力行列
  * @param[out] R 回転行列(直交行列 R^-1 = R^T)
  * @param[out] S 対称行列
@@ -298,21 +300,15 @@ inline void PolarDecomposition(const rxMatrix3 &A, rxMatrix3 &R, rxMatrix3 &S, r
 	// S = (A^T A)^(1/2)を求める
 	rxMatrix3 ATA;
 	// (A^T A)の計算
-	ATA = A.Transpose()*A;
+	//warm start	1フレーム目は単位行列
+	ATA = bfrU.Transpose()*A.Transpose()*A*bfrU;
 
 	R.makeIdentity();
-
-	rxMatrix3 U;
-
-	//warm start	1フレーム目は単位行列
-	U = bfrU;
 
 	// (A^T A)を固有値分解して対角行列と直交行列を求める
 	// M^(1/2) = U^T M' U 
 	//  M = (A^T A), M':対角行列の平方根を取ったもの, U:直交行列, 
-	EigenJacobiMethod(&ATA, &U, 3);
-
-	bfrU = U;
+	EigenJacobiMethod(&ATA, &bfrU, 3);
 
 	// 対角行列の平方根をとって，逆行列計算のために逆数にしておく
 	real l0 = (ATA(0,0) <= 0.0) ? 0.0 : 1.0/sqrt(ATA(0,0));
@@ -321,15 +317,15 @@ inline void PolarDecomposition(const rxMatrix3 &A, rxMatrix3 &R, rxMatrix3 &S, r
 
 	// U^T M' U の逆行列計算
 	rxMatrix3 S1;
-	S1(0,0) = l0*U(0,0)*U(0,0) + l1*U(0,1)*U(0,1) + l2*U(0,2)*U(0,2);
-	S1(0,1) = l0*U(0,0)*U(1,0) + l1*U(0,1)*U(1,1) + l2*U(0,2)*U(1,2);
-	S1(0,2) = l0*U(0,0)*U(2,0) + l1*U(0,1)*U(2,1) + l2*U(0,2)*U(2,2);
+	S1(0,0) = l0*bfrU(0,0)*bfrU(0,0) + l1*bfrU(0,1)*bfrU(0,1) + l2*bfrU(0,2)*bfrU(0,2);
+	S1(0,1) = l0*bfrU(0,0)*bfrU(1,0) + l1*bfrU(0,1)*bfrU(1,1) + l2*bfrU(0,2)*bfrU(1,2);
+	S1(0,2) = l0*bfrU(0,0)*bfrU(2,0) + l1*bfrU(0,1)*bfrU(2,1) + l2*bfrU(0,2)*bfrU(2,2);
 	S1(1,0) = S1(0,1);
-	S1(1,1) = l0*U(1,0)*U(1,0) + l1*U(1,1)*U(1,1) + l2*U(1,2)*U(1,2);
-	S1(1,2) = l0*U(1,0)*U(2,0) + l1*U(1,1)*U(2,1) + l2*U(1,2)*U(2,2);
+	S1(1,1) = l0*bfrU(1,0)*bfrU(1,0) + l1*bfrU(1,1)*bfrU(1,1) + l2*bfrU(1,2)*bfrU(1,2);
+	S1(1,2) = l0*bfrU(1,0)*bfrU(2,0) + l1*bfrU(1,1)*bfrU(2,1) + l2*bfrU(1,2)*bfrU(2,2);
 	S1(2,0) = S1(0,2);
 	S1(2,1) = S1(1,2);
-	S1(2,2) = l0*U(2,0)*U(2,0) + l1*U(2,1)*U(2,1) + l2*U(2,2)*U(2,2);
+	S1(2,2) = l0*bfrU(2,0)*bfrU(2,0) + l1*bfrU(2,1)*bfrU(2,1) + l2*bfrU(2,2)*bfrU(2,2);
 
 	R = A*S1;	// R = A S^-1
 	S = R.Transpose()*A; // S = R^-1 A = R^T A

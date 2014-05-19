@@ -16,7 +16,7 @@ const float* Ice_SM::s_pfPrtVel;
 Ice_SM::Ice_SM(int obj) : rxShapeMatching(obj)
 {
 	m_mtrx3Apq = rxMatrix3(0.0);
-	m_mtrxBeforeU = rxMatrix3::Identity();
+	m_mtrxBeforeU.makeIdentity();
 }
 
 /*!
