@@ -30,6 +30,7 @@ protected:
 
 	Vec3 m_vec3OrgCm;					//初期のクラスタの重心
 	Vec3 m_vec3NowCm;					//現在のクラスタの重心
+	//vector<Vec3> m_vvec3OrgQ;			//初期の位置-重心
 
 	rxMatrix3	m_mtrx3Apq;				//変形行列Apq
 	rxMatrix3	m_mtrx3AqqInv;			//変形行列Aqqの逆行列	前計算可能
@@ -39,6 +40,9 @@ protected:
 	vector<int> m_iLinearDeformation;	//!< Linear/Quadratic deformation切り替えフラグ
 	vector<int> m_iVolumeConservation;	//!< 変形時の体積保存性(√det(A)で割るかどうか)
 
+	static const float* s_pfPrtPos;		//読み込み専用
+	static const float* s_pfPrtVel;		//読み込み専用
+
 	//ここに辺と面を持たせる
 		//bounds壁にぶつかったときの反発力
 		//allowFlip反転を許すかのフラグ　いらない？
@@ -46,6 +50,11 @@ protected:
 public:
 	Ice_SM(int obj);
 	~Ice_SM();
+
+	static void SetParticlePosAndVel(const float* pos, const float* vel)
+	{
+		s_pfPrtPos = pos;	s_pfPrtVel = vel;
+	}
 
 	void AddVertex(const Vec3 &pos, double mass, int pIndx);
 

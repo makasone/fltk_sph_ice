@@ -10,9 +10,13 @@
 
 #include "Ice_SM.h"
 
+const float* Ice_SM::s_pfPrtPos;
+const float* Ice_SM::s_pfPrtVel;
+
 Ice_SM::Ice_SM(int obj) : rxShapeMatching(obj)
 {
 	m_mtrx3Apq = rxMatrix3(0.0);
+	m_mtrxBeforeU = rxMatrix3::Identity();
 }
 
 /*!
@@ -68,6 +72,13 @@ void Ice_SM::AddVertex(const Vec3 &pos, double mass, int pIndx)
 	}
 
 	m_mtrx3AqqInv = m_mtrx3AqqInv.Inverse();
+
+	////Qの追加
+	//m_vvec3OrgQ.resize(m_iNumVertices);
+	//for(int i = 0; i < m_iNumVertices;++i)
+	//{
+	//	m_vvec3OrgQ[i] = m_vOrgPos[i]-m_vec3OrgCm;
+	//}
 }
 
 void Ice_SM::Remove(int indx)
@@ -136,13 +147,7 @@ void Ice_SM::ShapeMatching(double dt)
 {
 	if(m_iNumVertices <= 1) return;
 
-	//clock_t oldTime, newTime;
-	//oldTime = clock();
-	//cout << "計測開始" << endl;
-	
-	//QueryCounter qc;
-	//qc.Start();
-	//cout << "計測開始" << endl;
+	QueryCounter qc;
 
 	Vec3 cm(0.0), cm_org(0.0);	// 重心
 	Vec3 p(0.0), q(0.0);
@@ -182,17 +187,24 @@ void Ice_SM::ShapeMatching(double dt)
 		//Apq(2,2) = Apq(2,1);
 		//Apq(2,1) = tmp;
 	//}
+	
+	//cout << "計測開始1" << endl;
+	//qc.Start();
 
 	rxMatrix3 R, S;
+	//PolarDecomposition(m_mtrx3Apq, R, S, m_mtrxBeforeU);
 	PolarDecomposition(m_mtrx3Apq, R, S);
 
-	if(m_bLinearDeformation){
+	//double end1 = qc.End()/*/100*/;
+
+	if(m_bLinearDeformation)
+	{
 		// Linear Deformations
 		rxMatrix3 A;
 		//A = Apq*Aqq.Inverse();	// A = Apq*Aqq^-1
-		A = m_mtrx3Apq*m_mtrx3AqqInv;	// A = Apq*Aqq^-1
+		A = m_mtrx3Apq * m_mtrx3AqqInv;	// A = Apq*Aqq^-1
 
-		// 体積保存のために√(det(A))で割る
+		//体積保存のために√(det(A))で割る
 		if(m_bVolumeConservation){
 			double det = fabs(A.Determinant());
 			if(det > RX_FEQ_EPS){
@@ -202,15 +214,27 @@ void Ice_SM::ShapeMatching(double dt)
 			}
 		}
 
+		//cout << "計測開始2" << endl;
+		//qc.Start();
+
 		// 目標座標を計算し，現在の頂点座標を移動
-		for(int i = 0; i < m_iNumVertices; ++i){
+		for(int i = 0; i < m_iNumVertices; ++i)
+		{
 			if(m_vFix[i]) continue;
 			// 回転行列Rの代わりの行列RL=βA+(1-β)Rを計算
-			rxMatrix3 RL = m_dBetas[i]*A+(1.0-m_dBetas[i])*R;
+			//rxMatrix3 RL = m_dBetas[i]*A+(1.0-m_dBetas[i])*R;
+			//q = m_vOrgPos[i]-cm_org;
+			//m_vGoalPos[i] = RL*q+cm;
+			//m_vNewPos[i] += (m_vGoalPos[i]-m_vNewPos[i])*m_dAlphas[i];
+
 			q = m_vOrgPos[i]-cm_org;
-			m_vGoalPos[i] = RL*q+cm;
+			m_vGoalPos[i] = R*q+cm;
+			//m_vGoalPos[i] = R*m_vvec3OrgQ[i]+cm;
 			m_vNewPos[i] += (m_vGoalPos[i]-m_vNewPos[i])*m_dAlphas[i];
 		}
+		//double end2 = qc.End()/*/100*/;
+		//cout << "計測終了1::" << end1 << endl;
+		//cout << "計測終了2::" << end2 << endl;
 	}
 	else{
 		// Quadratic Deformations
@@ -302,10 +326,6 @@ void Ice_SM::ShapeMatching(double dt)
 		}
 	}
 
-	//newTime = clock();
-	//cout << "計測終了::" << (double)(newTime - oldTime)/CLOCKS_PER_SEC << endl;
-
-	//cout << "計測終了::" << qc.End() << endl;
 }
 
 
@@ -320,7 +340,13 @@ void Ice_SM::calExternalForces(double dt)
 	for(int i = 0; i < m_iNumVertices; ++i){
 		if(m_vFix[i]) continue;
 		//m_vVel[i] += m_v3Gravity*dt;
-		m_vNewPos[i] = m_vCurPos[i]+m_vVel[i]*dt;
+
+		//m_vNewPos[i] = m_vCurPos[i]+m_vVel[i]*dt;
+		int pIndx = m_iParticleIndxes[i];
+
+		m_vNewPos[i] = 
+					Vec3(s_pfPrtPos[pIndx*4+0], s_pfPrtPos[pIndx*4+1], s_pfPrtPos[pIndx*4+2])
+					+ Vec3(s_pfPrtVel[pIndx*4+0], s_pfPrtVel[pIndx*4+1], s_pfPrtVel[pIndx*4+2]) * dt;
 		m_vGoalPos[i] = m_vOrgPos[i];
 	}
 
@@ -358,8 +384,11 @@ void Ice_SM::calExternalForces(double dt)
 void Ice_SM::integrate(double dt)
 {
 	double dt1 = 1.0/dt;
-	for(int i = 0; i < m_iNumVertices; ++i){
-		m_vVel[i] = (m_vNewPos[i]-m_vCurPos[i])*dt1;
+	for(int i = 0; i < m_iNumVertices; ++i)
+	{
+		int pIndx = m_iParticleIndxes[i];
+		m_vVel[i] =
+			(m_vNewPos[i]-Vec3(s_pfPrtPos[pIndx*4+0], s_pfPrtPos[pIndx*4+1], s_pfPrtPos[pIndx*4+2]))*dt1;
 		m_vCurPos[i] = m_vNewPos[i];
 	}
 }

@@ -2677,6 +2677,9 @@ void rxFlGLWindow::UpdateInfo()
 	//融解の場合は，一切凝固が行われないとして追加しない
 	//return;
 
+	RXREAL *p = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
+	RXREAL *v = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_VELOCITY);
+
 	//クラスタ
 	rxSPHEnviroment sph_env = m_Scene.GetSphEnv();				// Shape Matchingの設定　パラメータ読み込み
 	for(int i = beforeSize; i < nowSize; i++)
@@ -3204,8 +3207,11 @@ void rxFlGLWindow::MakeClusterFromNeight()
 	
 	vector<vector<rxNeigh>>& neights = ((RXSPH*)m_pPS)->GetNeights();			//近傍粒子を取得
 	RXREAL *p = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
+	RXREAL *v = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_VELOCITY);
 
 	rxSPHEnviroment sph_env = m_Scene.GetSphEnv();								// Shape Matchingの設定　パラメータ読み込み
+
+	Ice_SM::SetParticlePosAndVel(p, v);
 
 	for(int i = 0; i < ICENUM; i++)
 	{
@@ -3271,7 +3277,7 @@ void rxFlGLWindow::StepCalcParam(double dt)
 	{
 		//if( m_fIntrps.size() <= (unsigned)i )					continue;				//存在しない場合は戻る　四面体ベースのみ
 		if( m_ice->GetPtoCNum(i) == 0)							continue;
-		if( m_ht->getPhase(i) == 2 || m_ht->getPhase(i) == -2 ) continue;				//中間状態出ない場合は戻る
+		if( m_ht->getPhase(i) == 2 || m_ht->getPhase(i) == -2 ) continue;				//中間状態でない場合は戻る
 
 		m_fIntrps[i] = 1.0f - (m_ht->getTemps()[i] / m_ht->getTempMax());				//温度で決定　こっちのほうが自然
 //		m_fIntrps[i] = 1.0f - (g_ht->getTemps()[i] / g_ht->getLatentHeat());			//熱量で決定
@@ -3298,41 +3304,15 @@ void rxFlGLWindow::StepCluster(double dt)
 	int* coSet = 0;
 	Vec3 pos,vel,veltemp;
 	
-	RXREAL *p = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
+	//RXREAL *p = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
 	RXREAL *v = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_VELOCITY);
+
+	//QueryCounter qc;
+	//cout << "計測開始" << endl;
+	//qc.Start();
 
 	//prefixSumの更新
 	m_ice->UpdatePrefixSum();
-
-	//クラスタの数値更新　位置・速度
-	#pragma omp parallel
-	{
-	#pragma omp for private(j, jpIndx, jlIndx)
-		for(int i = 0; i < m_iClusteresNum; i++)
-		{
-			if(m_ice->GetPtoCNum(i) == 0){	continue;	}
-
-			for(j = 0; j < m_ice->GetCtoPIndx(i); j++)
-			{
-				jpIndx = m_ice->GetCtoP(i, j, 0);							//どの固体からの粒子
-				jlIndx = m_ice->GetCtoP(i, j, 1);							//何層目の粒子か
-				
-				if(jpIndx == -1 || jlIndx == -1){	continue;	}
-	
-				m_sm_cluster[i]->SetCurrentPos	( j, Vec3(p[jpIndx*4+0], p[jpIndx*4+1], p[jpIndx*4+2]) );	//これをなくすと，粒子の関連を保ちつつ位置が変わる．
-				m_sm_cluster[i]->SetVelocity	( j, Vec3(v[jpIndx*4+0], v[jpIndx*4+1], v[jpIndx*4+2]) );	//速度は未更新	これを更新すると，変になる
-
-				//m_sm_cluster[i]->SetOriginalPos	( j, m_sm_connects[cIndx]->GetOriginalPos(oIndx) );			//これをなくすと追加がうまくいく笑
-				//m_sm_cluster[i]->SetGoalPos		( j, Vec3(p[jpIndx*4+0], p[jpIndx*4+1], p[jpIndx*4+2]) );
-				//m_sm_cluster[i]->SetNewPos		( j, Vec3(p[jpIndx*4+0], p[jpIndx*4+1], p[jpIndx*4+2]) + Vec3(v[jpIndx*4+0], v[jpIndx*4+1], v[jpIndx*4+2]) * 0.01 );
-				//m_sm_cluster[i]->parames[j].alpha = m_sm_connects[cIndx]->parames[oIndx].alpha;
-			}
-		}
-	}//#pragma omp parallel
-
-	clock_t oldTime, newTime;
-	//oldTime = clock();
-	//cout << "計測開始1" << endl;
 
 	//クラスタのパラメータ更新
 	#pragma omp parallel
@@ -3346,16 +3326,13 @@ void rxFlGLWindow::StepCluster(double dt)
 		m_sm_cluster[i]->SetApq(m_ice->GetApqSum(i));				//変形行列の更新
 	}
 	}
-
-	//newTime = clock();
-	//cout << "計測終了1::" << (double)(newTime - oldTime)/CLOCKS_PER_SEC << endl;
 	
+	//double end1 = qc.End()/*/100*/;
+	//cout << "計測終了1::" << end1 << endl;
+
 	//QueryCounter qc;
 	//qc.Start();
 	//cout << "計測開始" << endl;
-
-	//oldTime = clock();
-	//cout << "計測開始2" << endl;
 
 	//クラスタの運動処理
 	#pragma omp parallel
@@ -3365,21 +3342,20 @@ void rxFlGLWindow::StepCluster(double dt)
 		{	
 			if(m_ice->GetPtoCNum(i) == 0){	continue;	}
 			
-			QueryCounter iqc;
-			cout << "計測開始 " << i << endl;
-			iqc.Start();
-			//m_sm_cluster[i]->SetNowCm(m_ice->GetCmSum(i));			//重心の更新
-			//m_sm_cluster[i]->SetApq(m_ice->GetApqSum(i));				//変形行列の更新
+			//QueryCounter iqc;
+			//cout << "計測開始 " << i << endl;
+			//iqc.Start();
+
 			m_sm_cluster[i]->Update();									//運動計算
-			double end = iqc.End() / 100;
-			cout << "計測終了 " << i << " :: " << end << endl;
+
+			//double end = iqc.End();
+			//cout << "計測終了 " << i << " :: " << end << endl;
 		}
 	}//#pragma omp parallel
-	
-	//cout << "計測終了::" << qc.End() << endl;
 
-	//newTime = clock();
-	//cout << "計測終了2::" << (double)(newTime - oldTime)/CLOCKS_PER_SEC << endl;
+	//double end2 = qc.End()/*/100*/;
+	//cout << "計測終了1::" << end1 << endl;
+	//cout << "計測終了2::" << end2 << endl;
 }
 
 /*
