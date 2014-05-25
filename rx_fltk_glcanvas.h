@@ -99,14 +99,16 @@ class rxSSMeshGPU;
 //クラスタ作成方法　四面体ベースと粒子ベース
 //#define CLUSTER_TETRA
 //#define CLUSTER_PARTICLE
-
-//#define ICENUM	2197	//13_13_13
-
+//#define ICENUM 729
+//#define ICENUM 1331
+#define ICENUM	2197	//13_13_13
+//#define ICENUM	4913	//17_17_17
 //#define ICENUM	1014
-#define ICENUM	2646	//21_21_21 表面のみ
+//#define ICENUM	2646	//21_21_21 表面のみ
 //#define ICENUM	5046	//29_29_29 表面のみ
 //#define ICENUM	54			//3_3_3 表面のみ
 //#define ICENUM	6			//1_1_1 表面のみ
+//#define ICENUM	27
 
 // 描画フラグ
 enum
@@ -332,6 +334,14 @@ public:
 		MODE_NUM,
 	};
 
+	//追加　レンダリングパラメータ
+	double m_etaRatio;
+	double m_fresnelBias;
+	double m_fresnelPower;
+	double m_fresnelScale;
+
+	//落下開始フラグ
+	bool m_bFall;
 
 protected:
 	// シーン
@@ -583,7 +593,7 @@ protected:
 
 	void SetClusterInfo(const vector<int>& pList, const vector<int>& cList, const vector<int>& lList);
 	void SetTetraInfo(const vector<int>& pList, const vector<int>& cList, const vector<int>& lList);
-	void SetFreezeTetraInfo(const vector<int>& pList);
+	void SetFreezeTetraInfo(vector<int>& pList);
 	void SetFreezeClusterInfo(const vector<int>& pList);
 
 	void CheckDeleteCluster(void);
@@ -637,7 +647,7 @@ protected:
 	//追加：：四面体作成のための処理
 	void MakeTetrahedra();
 	void MakeTetrahedraOnlySurface();
-	void MakeFreezeTetrahedra(const vector<int>& pList, vector<int>& tList);
+	void MakeFreezeTetrahedra(vector<int>& pList, vector<int>& tList);
 	void MakeFreezeTetrahedra_OnlyFreezeParticle(const vector<int>& pList, vector<int>& tList);
 	void AddFreezeTetrahedra(const vector<int>& pList, vector<int>& tList);
 	void Save_NODE_File();

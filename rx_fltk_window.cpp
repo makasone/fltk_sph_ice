@@ -836,6 +836,7 @@ void rxFlWindow::OnMenuStep(string label)
 {
 	if(label.find("Step") == 0){// アニメーション1ステップだけ実行
 		m_pGLCanvas->Idle();
+		m_pGLCanvas->m_bFall = !m_pGLCanvas->m_bFall;
 	}
 	else if(label.find("Animation") == 0){	// アニメーションON/OFF
 		m_pGLCanvas->SwitchIdle(-1);

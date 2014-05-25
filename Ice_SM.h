@@ -57,11 +57,16 @@ public:
 	}
 
 	void AddVertex(const Vec3 &pos, double mass, int pIndx);
-
-	void ShapeMatching(double dt);
+	
 	void Update();
+	void ShapeMatching(double dt);
 	void calExternalForces(double dt);
 	void integrate(double dt);
+
+	void ShapeMatchingSolid(double dt);
+	void calExternalForcesSolid(double dt);
+	void integrateSolid(double);
+
 
 	void SetAlphas(int indx, int alpha){ m_dAlphas[indx] = alpha;	}
 	void SetBetas (int indx, int beta){	m_dBetas[indx] = beta;		}

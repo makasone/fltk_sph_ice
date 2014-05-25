@@ -60,8 +60,8 @@ void HeatTransfar::AddParticle(int nowVerticesNum)
 	//粒子の温度，熱量，状態の初期化
 	for( int i = mNumVertices; i < nowVerticesNum; i++)
 	{
-		mTemps[i] = 300.0;
-		mHeats[i] = 100.0f;
+		mTemps[i] = 1000.0f;
+		mHeats[i] = 1000.0f;
 
 		if( mTemps[i] < 250 )
 		{
