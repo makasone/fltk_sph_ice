@@ -209,7 +209,7 @@ void Surf_SM::UpdatePrefixSumPos()
 			}
 
 			m_mk2Dvec3_PrfxPos(indxX, indxY) = Vec3(m_fPos[pIndx*4+0], m_fPos[pIndx*4+1], m_fPos[pIndx*4+2]) * mass
-				+ (Vec3(m_fVel[pIndx*4+0], m_fVel[pIndx*4+1], m_fVel[pIndx*4+2])/* + Vec3(0.0, -9.81, 0.0)*0.01*/ ) * 0.01
+				+ (Vec3(m_fVel[pIndx*4+0], m_fVel[pIndx*4+1], m_fVel[pIndx*4+2])/* + Vec3(0.0, -9.81, 0.0)*0.01*/ ) * 0.02
 				+ preVec;
 			preVec = m_mk2Dvec3_PrfxPos(indxX, indxY);
 		}
@@ -237,7 +237,7 @@ void Surf_SM::UpdatePrefixSumApq()
 				break;
 			}
 
-			Vec3 p = Vec3(m_fPos[pIndx*4+0], m_fPos[pIndx*4+1], m_fPos[pIndx*4+2]) + (Vec3(m_fVel[pIndx*4+0], m_fVel[pIndx*4+1], m_fVel[pIndx*4+2])/* + Vec3(0.0, -9.81, 0.0)*0.01*/ ) * 0.01;
+			Vec3 p = Vec3(m_fPos[pIndx*4+0], m_fPos[pIndx*4+1], m_fPos[pIndx*4+2]) + (Vec3(m_fVel[pIndx*4+0], m_fVel[pIndx*4+1], m_fVel[pIndx*4+2])/* + Vec3(0.0, -9.81, 0.0)*0.01*/ ) * 0.02;
 			Vec3 q = m_vvec3OrgPos[pIndx];
 
 			//åªç›ÇÃAij

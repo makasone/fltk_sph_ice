@@ -492,7 +492,7 @@ void rxFlGLWindow::InitGL(void)
 	//追加	初期化処理
 	InitHT(m_Scene);		//熱処理初期化
 	InitICE();				//氷初期化
-	InitTetra();			//四面体初期化
+	//InitTetra();			//四面体初期化
 	InitCluster();			//クラスタ初期化
 	InitICE_Cluster();		//粒子とクラスタの関係情報を初期化
 
@@ -682,8 +682,6 @@ void rxFlGLWindow::Projection_s(void *x)
 //粒子選択
 void rxFlGLWindow::PickParticle(int x, int y)
 {
-	return;
-
 	rxGLPick pick;
 	pick.Set(rxFlGLWindow::DisplayForPick_s, this, rxFlGLWindow::Projection_s, this);
 	
@@ -1287,27 +1285,30 @@ void rxFlGLWindow::Idle(void)
 	//
 	else if(m_bMode == MODE_ICE)
 	{
-		StepPS(m_fDt);						//粒子法の運動
+		/*RXREAL *p = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
+		RXREAL *v = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_VELOCITY);*/
 
-		//cout << "1" <<endl;
+		StepPS(m_fDt);						//粒子法の運動
 		StepHT(m_fDt);						//熱処理
-		//cout << "2" <<endl;
 		
 		StepSolid_Melt(m_fDt);				//融解処理
 		StepSolid_Freeze(m_fDt);			//凝固処理
 //RXTIMER("change end");
-		//cout << "3" <<endl;
-//RXTIMER("cluster start");
-		StepCalcParam(m_fDt);				//温度による線形補間係数決定　中間状態あり
-		//cout << "4" <<endl;
-		 if(m_bFall)
-		 {
+		//StepCalcParam(m_fDt);				//温度による線形補間係数決定　中間状態あり
+		 //if(m_bFall)
+		//p = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
+		//v = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_VELOCITY);
+
+
 		StepCluster(m_fDt);					//クラスタの計算
-//RXTIMER("cluster end");
-		//cout << "5" <<endl;
-		 }
+
+		//p = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
+		//v = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_VELOCITY);
+
  		StepInterpolation(m_fDt);			//液体と固体の運動を線形補間
-		//cout << "6" <<endl;
+
+		//p = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
+		//v = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_VELOCITY);
 
 	}
 
@@ -2919,7 +2920,7 @@ void rxFlGLWindow::InitICE(void)
 void rxFlGLWindow::InitTetra()
 {	cout << __FUNCTION__ << endl;
 	MakeTetrahedra();											//tetgenを利用した四面体作成
-//	MakeTetrahedraOnlySurface();								//表面粒子によるテスト版
+////	MakeTetrahedraOnlySurface();								//表面粒子によるテスト版
 
 //	Load_ELE_File("test.1.ele");								//eleファイルを読み込み，リストを作成
 		
@@ -3102,29 +3103,30 @@ void rxFlGLWindow::InitCluster()
 	RXREAL *v = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_VELOCITY);
 
 	m_iClusteresNum = 0;														//クラスタ数
+
 	Ice_SM::SetParticlePosAndVel(p, v);
 
-	//パターン１：四面体リストを元に，粒子毎にクラスタ作成
-	for(int i = 0; i < ICENUM; i++)
-	{
-		// Shape Matchingの設定　パラメータ読み込み
-		rxSPHEnviroment sph_env = m_Scene.GetSphEnv();
+	////パターン１：四面体リストを元に，粒子毎にクラスタ作成
+	//for(int i = 0; i < ICENUM; i++)
+	//{
+	//	// Shape Matchingの設定　パラメータ読み込み
+	//	rxSPHEnviroment sph_env = m_Scene.GetSphEnv();
 
-		//クラスタ初期化
-		m_sm_cluster.push_back(new Ice_SM(m_iClusteresNum));
-		m_sm_cluster[m_iClusteresNum]->SetSimulationSpace(-sph_env.boundary_ext, sph_env.boundary_ext);
-		m_sm_cluster[m_iClusteresNum]->SetTimeStep(sph_env.smTimeStep);
-		m_sm_cluster[m_iClusteresNum]->SetCollisionFunc(0);
-		m_sm_cluster[m_iClusteresNum]->SetStiffness(1.0, 0.0);
+	//	//クラスタ初期化
+	//	m_sm_cluster.push_back(new Ice_SM(m_iClusteresNum));
+	//	m_sm_cluster[m_iClusteresNum]->SetSimulationSpace(-sph_env.boundary_ext, sph_env.boundary_ext);
+	//	m_sm_cluster[m_iClusteresNum]->SetTimeStep(sph_env.smTimeStep);
+	//	m_sm_cluster[m_iClusteresNum]->SetCollisionFunc(0);
+	//	m_sm_cluster[m_iClusteresNum]->SetStiffness(1.0, 0.0);
 
-		//四面体リストを元に，粒子毎にクラスタ作成
-		MakeCluster(i);
+	//	//四面体リストを元に，粒子毎にクラスタ作成
+	//	MakeCluster(i);
 
-		m_iClusteresNum++;
-	}
+	//	m_iClusteresNum++;
+	//}
 
 	//パターン２：近傍情報のみでクラスタ作成
-	//MakeClusterFromNeight();
+	MakeClusterFromNeight();
 
 	//TODO::粒子質量を下げる　浮力を生むため
 
@@ -3227,7 +3229,6 @@ void rxFlGLWindow::MakeClusterFromNeight()
 	
 	vector<vector<rxNeigh>>& neights = ((RXSPH*)m_pPS)->GetNeights();			//近傍粒子を取得
 	RXREAL *p = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
-	RXREAL *v = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_VELOCITY);
 
 	rxSPHEnviroment sph_env = m_Scene.GetSphEnv();								// Shape Matchingの設定　パラメータ読み込み
 
@@ -3322,7 +3323,7 @@ void rxFlGLWindow::StepCluster(double dt)
 	int* coSet = 0;
 	Vec3 pos,vel,veltemp;
 	
-	//RXREAL *p = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
+	RXREAL *p = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
 	RXREAL *v = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_VELOCITY);
 
 	//QueryCounter qc;
@@ -3330,27 +3331,25 @@ void rxFlGLWindow::StepCluster(double dt)
 	//qc.Start();
 
 	////prefixSumの更新
-	//m_ice->UpdatePrefixSum();
+	m_ice->UpdatePrefixSum();
 
-	////クラスタのパラメータ更新
-	//#pragma omp parallel
-	//{
-	//#pragma omp for
-	//for(int i = 0; i < m_iClusteresNum; i++)
-	//{	
-	//	if(m_ice->GetPtoCNum(i) == 0){	continue;	}
+	//クラスタのパラメータ更新
+	#pragma omp parallel
+	{
+	#pragma omp for
+	for(int i = 0; i < m_iClusteresNum; i++)
+	{	
+		if(m_ice->GetPtoCNum(i) == 0){	continue;	}
 
-	//	m_sm_cluster[i]->SetNowCm(m_ice->GetCmSum(i));				//重心の更新
-	//	m_sm_cluster[i]->SetApq(m_ice->GetApqSum(i));				//変形行列の更新
-	//}
-	//}
-	
+		m_sm_cluster[i]->SetNowCm(m_ice->GetCmSum(i));				//重心の更新
+		m_sm_cluster[i]->SetApq(m_ice->GetApqSum(i));				//変形行列の更新
+	}
+	}
+
 	//double end1 = qc.End()/*/100*/;
-	//cout << "計測終了1::" << end1 << endl;
 
 	//QueryCounter qc;
 	//qc.Start();
-	//cout << "計測開始" << endl;
 
 	//クラスタの運動処理
 	#pragma omp parallel
@@ -3374,6 +3373,9 @@ void rxFlGLWindow::StepCluster(double dt)
 	//double end2 = qc.End()/*/100*/;
 	//cout << "計測終了1::" << end1 << endl;
 	//cout << "計測終了2::" << end2 << endl;
+
+	//計測終了1::1.33483
+	//計測終了2::7.40698
 }
 
 /*
