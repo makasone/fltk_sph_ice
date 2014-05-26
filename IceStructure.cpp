@@ -76,7 +76,7 @@ IceStructure::IceStructure(int pNumMax, int cNumMax, int tNumMax)
 	//近傍四面体
 	m_piNTNum = new int[m_iTNumMax];
 
-	m_iNeighborMax = m_iTNumMax*0.3;		//1331 layer2 0.3 layer3 0.75
+	m_iNeighborMax = m_iTNumMax*0.5;		//1331 layer2 0.3 layer3 0.75
 											//2197 layer2 0.3 layre3 0.3 layer4 0.4
 											//3375 layer2
 	//m_iNeighborMax = 300;					//layer1なら大丈夫
@@ -456,11 +456,11 @@ void IceStructure::SetNeighborTetra(int tIndx, int layer)
 
 	//layer層目をたどって近傍四面体を取得する
 	int nowSize = 0, nowIndx = 0;
-
+	int d_addNum = 0;
 	for(int i = 2; i <= layer; i++)
 	{
 		nowSize = GetNTNum(tIndx);
-
+		d_addNum = GetNTNum(tIndx);
 		//探索するクラスタをnowSizeとnowIndxで制限している
 		for(int j = nowIndx; j < nowSize; j++)
 		{
@@ -470,26 +470,26 @@ void IceStructure::SetNeighborTetra(int tIndx, int layer)
 			for(int k = 0; k < GetTtoPIndx(jtIndx); k++)
 			{
 				int kpIndx = GetTtoP(jtIndx, k);				//近傍四面体に含まれている粒子のひとつ
-				if(kpIndx == -1){	continue;	}
+				if(kpIndx == -1){ continue;	}
 
 				if(find(pIndxList.begin(), pIndxList.end(), kpIndx) != pIndxList.end())
-				{	
+				{
 					continue;
 				}
 				pIndxList.push_back(kpIndx);
 
 				for(int l = 0; l < GetPtoTIndx(kpIndx); l++)
 				{
-					if(GetPtoT(kpIndx, j, 0) == -1 
-					|| GetPtoT(kpIndx, j, 1) == -1
-					|| GetPtoT(kpIndx, j, 0) == tIndx)
+					if(GetPtoT(kpIndx, l, 0) == -1 
+					|| GetPtoT(kpIndx, l, 1) == -1
+					|| GetPtoT(kpIndx, l, 0) == tIndx)
 					{
 						continue;
 					}
 
 					//同じ四面体を既に含んでいないかのチェック
-					if(CheckNeighborTetra( tIndx, GetPtoT(kpIndx, j, 0) ) != -1)
-					{
+					if(CheckNeighborTetra( tIndx, GetPtoT(kpIndx, l, 0) ) != -1)
+					{	//cout << "check4" << endl;
 						continue;
 					}
 
@@ -502,7 +502,7 @@ void IceStructure::SetNeighborTetra(int tIndx, int layer)
 					else
 					{
 //						if(GetNTNum(tIndx) > 200 ) return;	//近傍四面体数の制限
-						m_mk3DiNeighborTetra(tIndx, GetNTNum(tIndx), 0) = GetPtoT(kpIndx, j, 0);
+						m_mk3DiNeighborTetra(tIndx, GetNTNum(tIndx), 0) = GetPtoT(kpIndx, l, 0);
 						m_mk3DiNeighborTetra(tIndx, GetNTNum(tIndx), 1) = i;
 						CountNT(tIndx);
 					}
@@ -510,6 +510,7 @@ void IceStructure::SetNeighborTetra(int tIndx, int layer)
 			}
 		}
 		nowIndx = nowSize;										//次のループ開始時のスタート番号を更新
+		//cout << "tIndx = " << tIndx << " addNum = " << GetNTNum(tIndx)-d_addNum << endl;
 	}
 }
 

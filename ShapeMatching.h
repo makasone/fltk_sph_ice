@@ -298,10 +298,9 @@ inline void PolarDecomposition(const rxMatrix3 &A, rxMatrix3 &R, rxMatrix3 &S, r
 	R.makeIdentity();
 
 	// S = (A^T A)^(1/2)を求める
-	rxMatrix3 ATA;
-	// (A^T A)の計算
 	//warm start	1フレーム目は単位行列
-	ATA = bfrU.Transpose()*A.Transpose()*A*bfrU;
+	rxMatrix3 ATA(bfrU.Transpose()*A.Transpose()*A*bfrU);
+	// (A^T A)の計算
 
 	R.makeIdentity();
 

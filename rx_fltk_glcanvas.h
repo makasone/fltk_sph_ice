@@ -101,10 +101,10 @@ class rxSSMeshGPU;
 //#define CLUSTER_PARTICLE
 //#define ICENUM 729
 //#define ICENUM 1331
-//#define ICENUM	2197	//13_13_13
+#define ICENUM	2197	//13_13_13
 //#define ICENUM	4913	//17_17_17
 
-#define ICENUM	1014
+//#define ICENUM	1014
 //#define ICENUM	2646	//21_21_21 •\–Ê‚Ì‚Ý
 //#define ICENUM	5046	//29_29_29 •\–Ê‚Ì‚Ý
 //#define ICENUM	54			//3_3_3 •\–Ê‚Ì‚Ý

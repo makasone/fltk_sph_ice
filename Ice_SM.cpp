@@ -149,19 +149,16 @@ void Ice_SM::ShapeMatching(double dt)
 
 	QueryCounter qc;
 
-	Vec3 cm(0.0), cm_org(0.0);	// 重心
-	Vec3 p(0.0), q(0.0);
-
 	double mass = 0.0;	// 総質量
 
 	// 重心座標の計算
-	for(int i = 0; i < m_iNumVertices;++i){
+	for(int i = 0; i < m_iNumVertices; ++i){
 		//if(m_vFix[i]){	/*m *= 300.0;*/ m *= 1.0f;	}	// 固定点の質量を大きくする
 		mass += m_vMass[i];
 	}
 
-	cm = m_vec3NowCm / mass;
-	cm_org = m_vec3OrgCm;
+	Vec3 cm(m_vec3NowCm / mass), cm_org(m_vec3OrgCm);	// 重心
+	Vec3 p(0.0), q(0.0);
 
 	//Apqの行列式を求め，反転するかを判定
 	//不安定な場合が多いので×
@@ -192,17 +189,16 @@ void Ice_SM::ShapeMatching(double dt)
 	//qc.Start();
 
 	rxMatrix3 R, S;
-	//PolarDecomposition(m_mtrx3Apq, R, S, m_mtrxBeforeU);
-	PolarDecomposition(m_mtrx3Apq, R, S);
+	PolarDecomposition(m_mtrx3Apq, R, S, m_mtrxBeforeU);
+	//PolarDecomposition(m_mtrx3Apq, R, S);
 
 	//double end1 = qc.End()/*/100*/;
 
 	if(m_bLinearDeformation)
 	{
 		// Linear Deformations
-		rxMatrix3 A;
-		//A = Apq*Aqq.Inverse();	// A = Apq*Aqq^-1
-		A = m_mtrx3Apq * m_mtrx3AqqInv;	// A = Apq*Aqq^-1
+		rxMatrix3 A(m_mtrx3Apq * m_mtrx3AqqInv);	// A = Apq*Aqq^-1
+		//A = Apq*Aqq.Inverse();	//A = Apq*Aqq^-1
 
 		//体積保存のために√(det(A))で割る
 		if(m_bVolumeConservation){
@@ -420,7 +416,6 @@ void Ice_SM::ShapeMatchingSolid(double dt)
 	rxMatrix3 Apq(0.0), Aqq(0.0);
 	Vec3 p, q;
 
-	cm = m_vec3NowCm / mass;
 	cm_org = m_vec3OrgCm;
 
 	// Apq = Σmpq^T
@@ -530,11 +525,11 @@ void Ice_SM::Update()
 
 	calExternalForces(m_dDt);
 
-	//表面粒子のみ
-	ShapeMatching(m_dDt);
+	//パスを用いた高速化
+	//ShapeMatching(m_dDt);
 
-	//中身の詰まった
-	//ShapeMatchingSolid(m_dDt);
+	//普通の計算
+	ShapeMatchingSolid(m_dDt);
 
 	integrate(m_dDt);
 }

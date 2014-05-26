@@ -182,8 +182,22 @@ void Surf_SM::InitPathPrfxIndxSet(const vector<Ice_SM*> iceSM, IceStructure* str
 
 void Surf_SM::UpdatePrefixSum()
 {
-	UpdatePrefixSumPos();
-	UpdatePrefixSumApq();
+	//UpdatePrefixSumPos();
+	//UpdatePrefixSumApq();
+
+	//特に効果なし
+	#pragma omp parallel
+	#pragma omp sections
+	{
+	    #pragma omp section
+	    {
+	        UpdatePrefixSumPos();
+	    }
+	    #pragma omp section
+	    {
+	        UpdatePrefixSumApq();
+	    }
+	}
 }
 
 //重心のprefix sum
@@ -200,7 +214,7 @@ void Surf_SM::UpdatePrefixSumPos()
 		{
 			//TODO:末尾は必ず-1であることを想定している
 			//TODO:穴あきの場合もあるので，パスに所属する粒子数とかも保存したほうがいいかも
-			int pIndx = m_mk2DiPTHtoPRT(indxX, indxY);
+			int pIndx = m_mk2DiPTHtoPRT(indxX, indxY)*4;
 			double mass = 1.0;		//とりあえず1.0fで固定
 
 			if(pIndx == -1)
@@ -208,8 +222,8 @@ void Surf_SM::UpdatePrefixSumPos()
 				break;
 			}
 
-			m_mk2Dvec3_PrfxPos(indxX, indxY) = Vec3(m_fPos[pIndx*4+0], m_fPos[pIndx*4+1], m_fPos[pIndx*4+2]) * mass
-				+ (Vec3(m_fVel[pIndx*4+0], m_fVel[pIndx*4+1], m_fVel[pIndx*4+2])/* + Vec3(0.0, -9.81, 0.0)*0.01*/ ) * 0.02
+			m_mk2Dvec3_PrfxPos(indxX, indxY) = Vec3(m_fPos[pIndx+0], m_fPos[pIndx+1], m_fPos[pIndx+2]) * mass
+				+ (Vec3(m_fVel[pIndx+0], m_fVel[pIndx+1], m_fVel[pIndx+2])/* + Vec3(0.0, -9.81, 0.0)*0.01*/ ) * 0.02
 				+ preVec;
 			preVec = m_mk2Dvec3_PrfxPos(indxX, indxY);
 		}
@@ -229,7 +243,7 @@ void Surf_SM::UpdatePrefixSumApq()
 		{
 			//TODO:末尾は必ず-1であることを想定している
 			//TODO:穴あきの場合もあるので，パスに所属する粒子数とかも保存したほうがいいかも
-			int pIndx = m_mk2DiPTHtoPRT(indxX, indxY);
+			int pIndx = m_mk2DiPTHtoPRT(indxX, indxY)*4;
 			double mass = 1.0;		//とりあえず1.0で固定
 
 			if(pIndx == -1)
@@ -237,8 +251,9 @@ void Surf_SM::UpdatePrefixSumApq()
 				break;
 			}
 
-			Vec3 p = Vec3(m_fPos[pIndx*4+0], m_fPos[pIndx*4+1], m_fPos[pIndx*4+2]) + (Vec3(m_fVel[pIndx*4+0], m_fVel[pIndx*4+1], m_fVel[pIndx*4+2])/* + Vec3(0.0, -9.81, 0.0)*0.01*/ ) * 0.02;
-			Vec3 q = m_vvec3OrgPos[pIndx];
+			Vec3 p = Vec3(m_fPos[pIndx+0], m_fPos[pIndx+1], m_fPos[pIndx+2])
+					+ (Vec3(m_fVel[pIndx+0], m_fVel[pIndx+1], m_fVel[pIndx+2])/* + Vec3(0.0, -9.81, 0.0)*0.01*/ ) * 0.02;
+			Vec3 q = m_vvec3OrgPos[pIndx/4];
 
 			//現在のAij
 			m_mk2Dmat3_PrfxApq(indxX, indxY)(0,0) = mass * p[0] * q[0];
@@ -264,12 +279,13 @@ const Vec3 Surf_SM::CalcCmSum(int cIndx)
 	//クラスタに用意したデータセットを使って重心を求める
 	for(int iprt = 0; iprt < m_strct->GetCtoPNum(cIndx); iprt++)
 	{
-		int prtIndx = m_strct->GetCtoP(cIndx, iprt, 0);
-		int pthIndx = m_mk2DiPRTtoPTH(prtIndx, 0);
 		int start	= m_mk3DiPTHandPrfxSet(cIndx, iprt, 0);
 		int end		= m_mk3DiPTHandPrfxSet(cIndx, iprt, 1);
 
 		if(start == -1 || end == -1){	break;	}
+		
+		int prtIndx = m_strct->GetCtoP(cIndx, iprt, 0);
+		int pthIndx = m_mk2DiPRTtoPTH(prtIndx, 0);
 
 		cmSum += CalcCmFromPrfxSm(pthIndx, start, end);
 	}
@@ -295,10 +311,11 @@ const rxMatrix3 Surf_SM::CalcApqSum(int cIndx)
 	rxMatrix3 ApqSum(0.0);
 	rxMatrix3 mtt0T(0.0);			//M_i t_i (t^0_i)^T
 	double mass = 1.0;
-	Vec3 t = CalcCmSum(cIndx);
+	Vec3 t(CalcCmSum(cIndx));		//一時オブジェクトが作られないように
+
 	t /= (double)(m_strct->GetCtoPNum(cIndx));
 
-	Vec3 t0T = m_iceSM[cIndx]->GetOrgCm();
+	Vec3 t0T(m_iceSM[cIndx]->GetOrgCm());
 
 	mtt0T(0,0) = mass * t[0] * t0T[0];
 	mtt0T(0,1) = mass * t[0] * t0T[1];
@@ -314,12 +331,13 @@ const rxMatrix3 Surf_SM::CalcApqSum(int cIndx)
 
 	for(int iprt = 0; iprt < m_strct->GetCtoPNum(cIndx); iprt++)
 	{
-		int prtIndx = m_strct->GetCtoP(cIndx, iprt, 0);
-		int pthIndx = m_mk2DiPRTtoPTH(prtIndx, 0);
 		int start	= m_mk3DiPTHandPrfxSet(cIndx, iprt, 0);
 		int end		= m_mk3DiPTHandPrfxSet(cIndx, iprt, 1);
 
 		if(start == -1 || end == -1){	break;	}
+
+		int prtIndx = m_strct->GetCtoP(cIndx, iprt, 0);
+		int pthIndx = m_mk2DiPRTtoPTH(prtIndx, 0);
 
 		ApqSum += CalcApqFromPrfxSm(pthIndx, start, end);
 	}
