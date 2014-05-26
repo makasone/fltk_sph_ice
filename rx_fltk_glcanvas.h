@@ -96,20 +96,25 @@ class rxSSMeshGPU;
 	#endif
 #endif
 
-//クラスタ作成方法　四面体ベースと粒子ベース
-//#define CLUSTER_TETRA
-//#define CLUSTER_PARTICLE
-//#define ICENUM 729
-//#define ICENUM 1331
+//クラスタ作成方法　ポリゴンモデルとソリッドモデル　四面体ベースと粒子ベース
+#define SOLID
+//#define SURF
+
+#ifdef SOLID
+//#define ICENUM	729
+//#define ICENUM	1331
 #define ICENUM	2197	//13_13_13
 //#define ICENUM	4913	//17_17_17
+#endif
 
-//#define ICENUM	1014
-//#define ICENUM	2646	//21_21_21 表面のみ
-//#define ICENUM	5046	//29_29_29 表面のみ
-//#define ICENUM	54			//3_3_3 表面のみ
+#ifdef SURF
 //#define ICENUM	6			//1_1_1 表面のみ
 //#define ICENUM	27
+//#define ICENUM	54			//3_3_3 表面のみ
+//#define ICENUM	1014
+#define ICENUM	2646	//21_21_21 表面のみ
+//#define ICENUM	5046	//29_29_29 表面のみ
+#endif
 
 // 描画フラグ
 enum

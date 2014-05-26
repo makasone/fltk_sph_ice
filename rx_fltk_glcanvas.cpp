@@ -490,11 +490,20 @@ void rxFlGLWindow::InitGL(void)
 	m_ice = 0;
 
 	//追加	初期化処理
+#ifdef SOLID
 	InitHT(m_Scene);		//熱処理初期化
 	InitICE();				//氷初期化
 	InitTetra();			//四面体初期化
 	InitCluster();			//クラスタ初期化
 	InitICE_Cluster();		//粒子とクラスタの関係情報を初期化
+#endif
+
+#ifdef SURF
+	InitHT(m_Scene);		//熱処理初期化
+	InitICE();				//氷初期化
+	InitCluster();			//クラスタ初期化
+	InitICE_Cluster();		//粒子とクラスタの関係情報を初期化
+#endif
 
 	// GLSLのコンパイル
 	g_glslPointSprite = CreateGLSL(ps_vs, ps_fs, "point sprite");
@@ -1285,31 +1294,17 @@ void rxFlGLWindow::Idle(void)
 	//
 	else if(m_bMode == MODE_ICE)
 	{
-		/*RXREAL *p = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
-		RXREAL *v = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_VELOCITY);*/
-
 		StepPS(m_fDt);						//粒子法の運動
 		StepHT(m_fDt);						//熱処理
 		
 		StepSolid_Melt(m_fDt);				//融解処理
 		StepSolid_Freeze(m_fDt);			//凝固処理
-//RXTIMER("change end");
+
 		//StepCalcParam(m_fDt);				//温度による線形補間係数決定　中間状態あり
 		 //if(m_bFall)
-		//p = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
-		//v = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_VELOCITY);
-
 
 		StepCluster(m_fDt);					//クラスタの計算
-
-		//p = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
-		//v = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_VELOCITY);
-
  		StepInterpolation(m_fDt);			//液体と固体の運動を線形補間
-
-		//p = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
-		//v = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_VELOCITY);
-
 	}
 
 	//
@@ -2900,12 +2895,16 @@ void rxFlGLWindow::InitICE(void)
 
 	m_iLayer = m_Scene.GetSphEnv().layer;
 
-	//パターン１
+#ifdef SOLID
+	//ソリッドモデル
 	//m_ice = new IceStructure(5500, 5500, 26000);				//粒子数4913個の場合のパラメータ
 	m_ice = new IceStructure(4000, 4000, 12000);				//最大粒子数　最大クラスタ数　最大四面体数
-	
-	////パターン２
-	//m_ice = new IceStructure(6000, 6000, 1);					//表面粒子のみの場合
+#endif
+
+#ifdef SURF
+	//ポリゴンモデル
+	m_ice = new IceStructure(6000, 6000, 1);					//表面粒子のみの場合
+#endif
 
 	m_ice->SetParticleNum(ICENUM);								//粒子数の登録
 }
@@ -3106,6 +3105,7 @@ void rxFlGLWindow::InitCluster()
 
 	Ice_SM::SetParticlePosAndVel(p, v);
 
+#ifdef SOLID
 	//パターン１：四面体リストを元に，粒子毎にクラスタ作成
 	for(int i = 0; i < ICENUM; i++)
 	{
@@ -3124,9 +3124,12 @@ void rxFlGLWindow::InitCluster()
 
 		m_iClusteresNum++;
 	}
+#endif
 
+#ifdef SURF
 	//パターン２：近傍情報のみでクラスタ作成
-	//MakeClusterFromNeight();
+	MakeClusterFromNeight();
+#endif
 
 	//TODO::粒子質量を下げる　浮力を生むため
 
@@ -3331,27 +3334,29 @@ void rxFlGLWindow::StepCluster(double dt)
 	//cout << "計測開始" << endl;
 	//qc.Start();
 
-	//prefixSumの更新
-	m_ice->UpdatePrefixSum();
-	
-	//double end0 = qc.End();
-	//qc.Start();
-
-	//クラスタのパラメータ更新
-	#pragma omp parallel
-	{
-	#pragma omp for
-	for(int i = 0; i < m_iClusteresNum; i++)
-	{	
-		if(m_ice->GetPtoCNum(i) == 0){	continue;	}
-
-		//TODO::配列をconst 参照渡しにして書き込ませる
-		m_sm_cluster[i]->SetNowCm(m_ice->GetCmSum(i));				//重心の更新
-		m_sm_cluster[i]->SetApq(m_ice->GetApqSum(i));				//変形行列の更新
-	}
-	}
-
-	double end1 = qc.End()/*/100*/;
+//#ifdef SURF
+//	//prefixSumの更新
+//	m_ice->UpdatePrefixSum();
+//	
+//	//double end0 = qc.End();
+//	//qc.Start();
+//
+//	//クラスタのパラメータ更新
+//	#pragma omp parallel
+//	{
+//	#pragma omp for
+//	for(int i = 0; i < m_iClusteresNum; i++)
+//	{	
+//		if(m_ice->GetPtoCNum(i) == 0){	continue;	}
+//
+//		//TODO::配列をconst 参照渡しにして書き込ませる
+//		m_sm_cluster[i]->SetNowCm(m_ice->GetCmSum(i));				//重心の更新
+//		m_sm_cluster[i]->SetApq(m_ice->GetApqSum(i));				//変形行列の更新
+//	}
+//	}
+//
+//	//double end1 = qc.End()/*/100*/;
+//#endif
 
 	//QueryCounter qc;
 	//qc.Start();
