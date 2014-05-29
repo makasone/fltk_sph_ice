@@ -249,8 +249,6 @@ inline int EigenJacobiMethod(double *a, double *v, int n, double eps = 1e-8, int
  */
 inline void PolarDecomposition(const rxMatrix3 &A, rxMatrix3 &R, rxMatrix3 &S)
 {
-	R.makeIdentity();
-
 	// S = (A^T A)^(1/2)を求める
 	rxMatrix3 ATA;
 	// (A^T A)の計算
@@ -295,12 +293,10 @@ inline void PolarDecomposition(const rxMatrix3 &A, rxMatrix3 &R, rxMatrix3 &S)
  */
 inline void PolarDecomposition(const rxMatrix3 &A, rxMatrix3 &R, rxMatrix3 &S, rxMatrix3& bfrU)
 {
-	R.makeIdentity();
-
 	// S = (A^T A)^(1/2)を求める
 	//warm start	1フレーム目は単位行列
-	rxMatrix3 ATA(bfrU.Transpose()*A.Transpose()*A*bfrU);
 	// (A^T A)の計算
+	rxMatrix3 ATA(bfrU.Transpose()*A.Transpose()*A*bfrU);
 
 	R.makeIdentity();
 

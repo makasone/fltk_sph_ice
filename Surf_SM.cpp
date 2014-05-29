@@ -272,12 +272,12 @@ void Surf_SM::UpdatePrefixSumApq()
 	}
 }
 //重心の総和を返す
-const Vec3 Surf_SM::CalcCmSum(int cIndx)
+const Vec3 Surf_SM::CalcCmSum(const int& cIndx)
 {	//cout << __FUNCTION__ << " start" << endl;
 	Vec3 cmSum(0.0);
 
 	//クラスタに用意したデータセットを使って重心を求める
-	for(int iprt = 0; iprt < m_strct->GetCtoPNum(cIndx); iprt++)
+	for(int iprt = 0, ctopNum = m_strct->GetCtoPNum(cIndx); iprt < ctopNum; iprt++)
 	{
 		int start	= m_mk3DiPTHandPrfxSet(cIndx, iprt, 0);
 		int end		= m_mk3DiPTHandPrfxSet(cIndx, iprt, 1);
@@ -294,7 +294,7 @@ const Vec3 Surf_SM::CalcCmSum(int cIndx)
 }
 
 //prfixSumから値を返す
-const Vec3 Surf_SM::CalcCmFromPrfxSm(int path, int start, int end)
+const Vec3 Surf_SM::CalcCmFromPrfxSm(const int& path, const int& start, const int& end)
 {	//cout << __FUNCTION__ << endl;
 	if(start == 0)
 	{
@@ -306,16 +306,16 @@ const Vec3 Surf_SM::CalcCmFromPrfxSm(int path, int start, int end)
 	}
 }
 
-const rxMatrix3 Surf_SM::CalcApqSum(int cIndx)
+const rxMatrix3 Surf_SM::CalcApqSum(const int& cIndx)
 {
 	rxMatrix3 ApqSum(0.0);
 	rxMatrix3 mtt0T(0.0);			//M_i t_i (t^0_i)^T
 	double mass = 1.0;
 	Vec3 t(CalcCmSum(cIndx));		//一時オブジェクトが作られないように
 
-	t /= (double)(m_strct->GetCtoPNum(cIndx));
+	t *= 1.0 / (double)(m_strct->GetCtoPNum(cIndx));
 
-	Vec3 t0T(m_iceSM[cIndx]->GetOrgCm());
+	Vec3 t0T( m_iceSM[cIndx]->GetOrgCm() );
 
 	mtt0T(0,0) = mass * t[0] * t0T[0];
 	mtt0T(0,1) = mass * t[0] * t0T[1];
@@ -329,7 +329,7 @@ const rxMatrix3 Surf_SM::CalcApqSum(int cIndx)
 
 	ApqSum -= (double)(m_strct->GetCtoPNum(cIndx)) * mtt0T;
 
-	for(int iprt = 0; iprt < m_strct->GetCtoPNum(cIndx); iprt++)
+	for(int iprt = 0, ctopNum = m_strct->GetCtoPNum(cIndx); iprt < ctopNum; iprt++)
 	{
 		int start	= m_mk3DiPTHandPrfxSet(cIndx, iprt, 0);
 		int end		= m_mk3DiPTHandPrfxSet(cIndx, iprt, 1);
@@ -345,7 +345,7 @@ const rxMatrix3 Surf_SM::CalcApqSum(int cIndx)
 	return ApqSum;
 }
 
-const rxMatrix3 Surf_SM::CalcApqFromPrfxSm(int path, int start, int end)
+const rxMatrix3 Surf_SM::CalcApqFromPrfxSm(const int& path, const int& start, const int& end)
 {
 	if(start == 0)
 	{
@@ -387,7 +387,7 @@ void Surf_SM::DebugPathPrfxIndxSet()
 	{
 		for(int iY = 0; iY < m_mk3DiPTHandPrfxSet.GetSizeY(); iY++)
 		{
-			if( m_mk3DiPTHandPrfxSet(iX, iY, 0) == -1 || m_mk3DiPTHandPrfxSet(iX, iY, 1) == -1 ){	break;	}
+			if( m_mk3DiPTHandPrfxSet(iX, iY, 0) == -1 || m_mk3DiPTHandPrfxSet(iX, iY, 1) == -1 ){	cout << "num = " << iY-1 << endl;	break;	}
 			
 			cout << "m_mk3DiPTHandPrfxSet(" << iX << ", " << iY << ", 0) = " << m_mk3DiPTHandPrfxSet(iX, iY, 0)
 				 << ", (" << iX << ", " << iY << ", 1) = " << m_mk3DiPTHandPrfxSet(iX, iY, 1) << endl;

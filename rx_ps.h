@@ -109,6 +109,7 @@ public:
 		RX_ICE_CALC,		//計算クラスタの判別のために追加　氷塊
 		RX_EDGE,			//表面氷粒子取得のために追加　氷塊
 		RX_ICE_FAST_PATH,	//高速計算用のパスのために追加
+		RX_ICE_HIGH_CLUSTER,//
 
 		RX_PSDATA_END, 
 	};

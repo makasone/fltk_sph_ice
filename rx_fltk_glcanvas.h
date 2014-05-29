@@ -116,6 +116,8 @@ class rxSSMeshGPU;
 //#define ICENUM	5046	//29_29_29 表面のみ
 #endif
 
+#define HIGHNUM 8
+
 // 描画フラグ
 enum
 {
@@ -309,6 +311,7 @@ public:
 	// 追加　粒子ベース　クラスタ関連変数
 	//
 	vector<Ice_SM*> m_sm_cluster;
+	vector<Ice_SM*> m_sm_clusterHigh;
 
 	//
 	// 追加　氷構造関連変数
@@ -326,7 +329,12 @@ public:
 
 	int m_iLayer;							//計算処理クラスタ作成のために取得する近傍クラスタの，レイヤー数
 	int m_iShowClusterIndx;					//GUIで表示するクラスタ番号　０～クラスタ数　値はctr+shift+qで変化させる
+	int m_iShowHighClstrIndx;
 	int m_iShowTetraIndx;					//GUIで表示する四面体番号　０～四面体数　値はctr+shift+aで変化させる
+	
+	//objファイル
+	rxPolygons m_poly;
+
 	//
 	//追加　処理切り替え
 	//
@@ -569,9 +577,13 @@ protected:
 
 	//追加：：粒子ベース：：クラスタ
 	void InitCluster(void);
+
 	void MakeCluster(int pIndx);
 	void MakeClusterFromNeight();
+	void MakeClusterHigh();
+
 	void StepCluster(double dt);
+	void StepClusterHigh(double dt);
 	void StepCalcParam(double dt);
 	void StepInterpolation(double dt);
 
@@ -658,6 +670,9 @@ protected:
 	void AddFreezeTetrahedra(const vector<int>& pList, vector<int>& tList);
 	void Save_NODE_File();
 	void Save_POLY_File();
+
+	void InitObjFile();
+	void SetObjFile();
 
 	void Load_ELE_File(string name);
 

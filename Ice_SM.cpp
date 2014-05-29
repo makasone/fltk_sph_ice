@@ -189,8 +189,8 @@ void Ice_SM::ShapeMatching(double dt)
 	//qc.Start();
 
 	rxMatrix3 R, S;
-	PolarDecomposition(m_mtrx3Apq, R, S, m_mtrxBeforeU);
-	//PolarDecomposition(m_mtrx3Apq, R, S);
+	//PolarDecomposition(m_mtrx3Apq, R, S, m_mtrxBeforeU);
+	PolarDecomposition(m_mtrx3Apq, R, S);
 
 	//double end1 = qc.End()/*/100*/;
 
@@ -344,27 +344,28 @@ void Ice_SM::calExternalForces(double dt)
 	}
 
 	// 境界壁の影響
-	double res = 0.5;	// 反発係数
+	//処理がかなり重くなるが，安定はするみたい
+	double res = 0.9;	// 反発係数
 	for(int i = 0; i < m_iNumVertices; ++i){
-		if(m_vFix[i]) continue;
-		Vec3 &p = m_vCurPos[i];
-		Vec3 &np = m_vNewPos[i];
-		Vec3 &v = m_vVel[i];
-		if(np[0] < m_v3Min[0] || np[0] > m_v3Max[0]){
-			np[0] = p[0]-v[0]*dt*res;
-			np[1] = p[1];
-			np[2] = p[2];
-		}
-		if(np[1] < m_v3Min[1] || np[1] > m_v3Max[1]){
-			np[1] = p[1]-v[1]*dt*res;
-			np[0] = p[0];
-			np[2] = p[2];
-		}
-		if(np[2] < m_v3Min[2] || np[2] > m_v3Max[2]){
-			np[2] = p[2]-v[2]*dt*res;
-			np[0] = p[0];
-			np[1] = p[1];
-		}
+		//if(m_vFix[i]) continue;
+		//Vec3 &p = m_vCurPos[i];
+		//Vec3 &np = m_vNewPos[i];
+		//Vec3 &v = m_vVel[i];
+		//if(np[0] < m_v3Min[0] || np[0] > m_v3Max[0]){
+		//	np[0] = p[0]-v[0]*dt*res;
+		//	np[1] = p[1];
+		//	np[2] = p[2];
+		//}
+		//if(np[1] < m_v3Min[1] || np[1] > m_v3Max[1]){
+		//	np[1] = p[1]-v[1]*dt*res;
+		//	np[0] = p[0];
+		//	np[2] = p[2];
+		//}
+		//if(np[2] < m_v3Min[2] || np[2] > m_v3Max[2]){
+		//	np[2] = p[2]-v[2]*dt*res;
+		//	np[0] = p[0];
+		//	np[1] = p[1];
+		//}
 		clamp(m_vNewPos[i]);
 	}
 }
@@ -412,11 +413,10 @@ void Ice_SM::ShapeMatchingSolid(double dt)
 		cm += m_vNewPos[i]*m;
 	}
 	cm /= mass;
+	cm_org = m_vec3OrgCm;
 
 	rxMatrix3 Apq(0.0), Aqq(0.0);
 	Vec3 p, q;
-
-	cm_org = m_vec3OrgCm;
 
 	// Apq = Σmpq^T
 	// Aqq = Σmqq^T
@@ -471,10 +471,10 @@ void Ice_SM::ShapeMatchingSolid(double dt)
 		//Apq(2,1) = tmp;
 	//}
 	
-	//cout << "計測開始1" << endl;
 	//qc.Start();
 
 	rxMatrix3 R, S;
+	//PolarDecomposition(Apq, R, S, m_mtrxBeforeU);
 	PolarDecomposition(Apq, R, S);
 
 	//double end1 = qc.End()/*/100*/;
@@ -516,22 +516,53 @@ void Ice_SM::ShapeMatchingSolid(double dt)
 
 //----------------------------------------------ソリッド版---------------------------------------------
 
+
+void Ice_SM::CalcDisplaceMentVectorCm()
+{
+	Vec3 preVec(0.0);
+	Vec3 nowVec(0.0);
+	double mass = 0.0;
+
+	for(int i = 0; i < GetNumVertices(); i++)
+	{
+		int pIndx = m_iParticleIndxes[i] * 4;
+		preVec += Vec3(s_pfPrtPos[pIndx+0], s_pfPrtPos[pIndx+1], s_pfPrtPos[pIndx+2]);
+		nowVec += m_vGoalPos[i];
+		mass += m_vMass[i];
+	}
+
+	preVec /= mass;
+	nowVec /= mass;
+
+	m_vec3DisCm = nowVec-preVec;
+}
+
 /*!
  * シミュレーションステップを進める
  */
 void Ice_SM::Update()
 {//	cout << "Ice_update" << endl;
 	//calCollision(m_dDt);
+	QueryCounter qc;
 
+	qc.Start();
 	calExternalForces(m_dDt);
+	double end1 = qc.End()/*/100*/;
 
-	//パスを用いた高速化
-	//ShapeMatching(m_dDt);
+	qc.Start();
+	//ShapeMatching(m_dDt);		//パスを用いた高速化
+	ShapeMatchingSolid(m_dDt);	//普通の計算
+	double end2 = qc.End()/*/100*/;
 
-	//普通の計算
-	ShapeMatchingSolid(m_dDt);
-
+	qc.Start();
 	integrate(m_dDt);
+	double end3 = qc.End()/*/100*/;
+
+	//cout << "計測終了1::" << end1 << endl;
+	//cout << "計測終了2::" << end2 << endl;
+	//cout << "計測終了3::" << end3 << endl;
+
+	//CalcDisplaceMentVectorCm();
 }
 
 

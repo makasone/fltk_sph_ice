@@ -32,6 +32,8 @@ protected:
 	Vec3 m_vec3NowCm;					//現在のクラスタの重心
 	//vector<Vec3> m_vvec3OrgQ;			//初期の位置-重心
 
+	Vec3 m_vec3DisCm;					//重心位置の変位
+
 	rxMatrix3	m_mtrx3Apq;				//変形行列Apq
 	rxMatrix3	m_mtrx3AqqInv;			//変形行列Aqqの逆行列	前計算可能
 
@@ -102,6 +104,8 @@ public:
 	bool CheckIndx(int pIndx);
 	int	 SearchIndx(int pIndx);
 
+	const Vec3& GetDisVec(){	return m_vec3DisCm;	}
+	void CalcDisplaceMentVectorCm();
 
 	//デバッグ
 	void DebugIndx(void);

@@ -60,11 +60,11 @@ public:
 	void UpdatePrefixSumPos();		//重心　PrefixSumの計算
 	void UpdatePrefixSumApq();		//変形行列　PrefixSumの計算
 	
-	const Vec3 CalcCmSum(int cIndx);								//prefixSumからクラスタの重心を計算して返す
-	const Vec3 CalcCmFromPrfxSm(int path, int start, int end);
+	const Vec3 CalcCmSum(const int& cIndx);								//prefixSumからクラスタの重心を計算して返す
+	const Vec3 CalcCmFromPrfxSm(const int& path, const int& start, const int& end);
 
-	const rxMatrix3 CalcApqSum(int cIndx);
-	const rxMatrix3 CalcApqFromPrfxSm(int path, int start, int end);
+	const rxMatrix3 CalcApqSum(const int& cIndx);
+	const rxMatrix3 CalcApqFromPrfxSm(const int& path, const int& start, const int& end);
 
 	//デバッグ
 	void DebugPathDataPos();
