@@ -46,6 +46,7 @@ extern void LaunchShapeMatchingGPU(
 #define MAXPARTICLE 100
 #define SM_DIM 3
 
+
 //-----------------------------------------------------------------------------
 // Shape Matchingクラスの宣言
 //-----------------------------------------------------------------------------
@@ -53,14 +54,6 @@ class rxShapeMatching
 {
 protected:
 	// 形状データ
-	//vector<Vec3> m_vOrgPos;		//!< オリジナルの頂点位置
-	//vector<Vec3> m_vCurPos;		//!< 現在の頂点位置
-	//vector<Vec3> m_vNewPos;		//!< 次のステップの頂点位置
-	//vector<Vec3> m_vGoalPos;		//!< 目標頂点位置
-	//vector<double> m_vMass;		//!< 頂点質量(変形時の重み)
-	//vector<Vec3> m_vVel;			//!< 頂点速度
-	//vector<bool> m_pFix;			//!< 頂点固定フラグ
-
 	double* m_pOrgPos;				//!< オリジナルの頂点位置
 	double* m_pCurPos;				//!< 現在の頂点位置
 	double* m_pNewPos;				//!< 次のステップの頂点位置
@@ -187,6 +180,16 @@ protected:
 		if(pos[1] > m_v3Max[1]) pos[1] = m_v3Max[1];
 		if(pos[2] < m_v3Min[2]) pos[2] = m_v3Min[2];
 		if(pos[2] > m_v3Max[2]) pos[2] = m_v3Max[2];
+	}
+
+	void clamp(double* pos, int cIndx) const
+	{
+		if(pos[cIndx+0] < m_v3Min[0]) pos[cIndx+0] = m_v3Min[0];
+		if(pos[cIndx+0] > m_v3Max[0]) pos[cIndx+0] = m_v3Max[0];
+		if(pos[cIndx+1] < m_v3Min[1]) pos[cIndx+1] = m_v3Min[1];
+		if(pos[cIndx+1] > m_v3Max[1]) pos[cIndx+1] = m_v3Max[1];
+		if(pos[cIndx+2] < m_v3Min[2]) pos[cIndx+2] = m_v3Min[2];
+		if(pos[cIndx+2] > m_v3Max[2]) pos[cIndx+2] = m_v3Max[2];
 	}
 
 };

@@ -351,11 +351,14 @@ void Ice_SM::calExternalForces(double dt)
 		if(m_pFix[i]) continue;
 
 		int pIndx = m_iParticleIndxes[i]*4;
+		int cIndx = i*SM_DIM;
 
 		for(int j = 0; j < SM_DIM; j++)
 		{
-			m_pNewPos[i*SM_DIM+j] = s_pfPrtPos[pIndx+j]+s_pfPrtVel[pIndx+j]*dt;
-			m_pGoalPos[i*SM_DIM+j] = m_pOrgPos[i*SM_DIM+j];
+			int jpIndx = pIndx+j;
+			int jcIndx = cIndx+j;
+			m_pNewPos[jcIndx] = s_pfPrtPos[jpIndx]+s_pfPrtVel[jpIndx]*dt;
+			m_pGoalPos[jcIndx] = m_pOrgPos[jcIndx];
 		}
 	}
 
@@ -382,13 +385,8 @@ void Ice_SM::calExternalForces(double dt)
 		//	np[0] = p[0];
 		//	np[1] = p[1];
 		//}
-		
-		Vec3 np(m_pNewPos[i*SM_DIM+0], m_pNewPos[i*SM_DIM+1], m_pNewPos[i*SM_DIM+2]);
-		clamp(np);
 
-		m_pNewPos[i*SM_DIM+0] = np[0];
-		m_pNewPos[i*SM_DIM+1] = np[1];
-		m_pNewPos[i*SM_DIM+2] = np[2];
+		clamp(m_pNewPos, i*SM_DIM);
 	}
 }
 
@@ -402,11 +400,13 @@ void Ice_SM::integrate(double dt)
 	double dt1 = 1.0/dt;
 	for(int i = 0; i < m_iNumVertices; ++i)
 	{
+		int pIndx = m_iParticleIndxes[i]*4;
+
 		for(int j = 0; j < SM_DIM; j++)
 		{
-			int pIndx = m_iParticleIndxes[i];
-			m_pVel[i*SM_DIM+j] = (m_pNewPos[i*SM_DIM+j] - s_pfPrtPos[pIndx*4+j]) * dt1;/*+ m_v3Gravity * dt * 1.0*/;
-			m_pCurPos[i*SM_DIM+j] = m_pNewPos[i*SM_DIM+j];
+			int cIndx = i*SM_DIM+j;
+			m_pVel[cIndx] = (m_pNewPos[cIndx] - s_pfPrtPos[pIndx+j]) * dt1;/*+ m_v3Gravity * dt * 1.0*/;
+			m_pCurPos[cIndx] = m_pNewPos[cIndx];
 		}
 	}
 }
@@ -432,11 +432,16 @@ void Ice_SM::ShapeMatchingSolid(double dt)
 	for(int i = 0; i < m_iNumVertices;++i){
 		double m = m_pMass[i];
 		if(m_pFix[i]) m *= 300.0;	// ŒÅ’è“_‚ÌŽ¿—Ê‚ð‘å‚«‚­‚·‚é
+		
+		int cIndx = i*SM_DIM;
 		mass += m;
 
-		Vec3 np(m_pNewPos[i*SM_DIM+0], m_pNewPos[i*SM_DIM+1], m_pNewPos[i*SM_DIM+2]);
-		cm += np*m;
+		for(int j = 0; j < SM_DIM; j++)
+		{
+			cm[j] += m_pNewPos[cIndx+j]*m;
+		}
 	}
+
 	cm /= mass;
 	cm_org = m_vec3OrgCm;
 
@@ -445,13 +450,16 @@ void Ice_SM::ShapeMatchingSolid(double dt)
 
 	// Apq = ƒ°mpq^T
 	// Aqq = ƒ°mqq^T
-	for(int i = 0; i < m_iNumVertices; ++i){
+	for(int i = 0; i < m_iNumVertices; ++i)
+	{
+		int cIndx = i*SM_DIM;
 
-		Vec3 np(m_pNewPos[i*SM_DIM+0], m_pNewPos[i*SM_DIM+1], m_pNewPos[i*SM_DIM+2]);
-		Vec3 op(m_pOrgPos[i*SM_DIM+0], m_pOrgPos[i*SM_DIM+1], m_pOrgPos[i*SM_DIM+2]);
+		for(int j = 0; j < SM_DIM; j++)
+		{
+			p[j] = m_pNewPos[cIndx+j]-cm[j];
+			q[j] = m_pOrgPos[cIndx+j]-cm_org[j];
+		}
 
-		p = np-cm;
-		q = op-cm_org;
 		double m = m_pMass[i];
 
 		Apq(0,0) += m*p[0]*q[0];
@@ -531,17 +539,21 @@ void Ice_SM::ShapeMatchingSolid(double dt)
 		for(int i = 0; i < m_iNumVertices; ++i){
 			if(m_pFix[i]) continue;
 
-			Vec3 np(m_pNewPos[i*SM_DIM+0], m_pNewPos[i*SM_DIM+1], m_pNewPos[i*SM_DIM+2]);
-			Vec3 op(m_pOrgPos[i*SM_DIM+0], m_pOrgPos[i*SM_DIM+1], m_pOrgPos[i*SM_DIM+2]);
+			int cIndx = i*SM_DIM;
 
 			// ‰ñ“]s—ñR‚Ì‘ã‚í‚è‚Ìs—ñRL=ƒÀA+(1-ƒÀ)R‚ðŒvŽZ
-			q = op-cm_org;
+			for(int j = 0; j < SM_DIM; j++)
+			{
+				q[j] = m_pOrgPos[cIndx+j]-cm_org[j];
+			}
+
 			Vec3 gp(R*q+cm);
 
 			for(int j = 0; j < SM_DIM; j++)
 			{
-				m_pGoalPos[i*SM_DIM+j] = gp[j];
-				m_pNewPos[i*SM_DIM+j] += (gp[j]-np[j])*m_dAlphas[i];
+				int jcIndx = cIndx+j;
+				m_pGoalPos[jcIndx] = gp[j];
+				m_pNewPos[jcIndx] += (gp[j]-m_pNewPos[jcIndx])*m_dAlphas[i];
 			}
 		}
 
@@ -563,8 +575,9 @@ void Ice_SM::CalcDisplaceMentVectorCm()
 	for(int i = 0; i < GetNumVertices(); i++)
 	{
 		int pIndx = m_iParticleIndxes[i] * 4;
+		int cIndx = i*SM_DIM;
 		preVec += Vec3(s_pfPrtPos[pIndx+0], s_pfPrtPos[pIndx+1], s_pfPrtPos[pIndx+2]);
-		nowVec += Vec3(m_pGoalPos[i*SM_DIM+0], m_pGoalPos[i*SM_DIM+1], m_pGoalPos[i*SM_DIM+2]);
+		nowVec += Vec3(m_pGoalPos[cIndx+0], m_pGoalPos[cIndx+1], m_pGoalPos[cIndx+2]);
 		mass += m_pMass[i];
 	}
 
@@ -602,7 +615,7 @@ void Ice_SM::Update()
 	//CalcDisplaceMentVectorCm();
 
 	//GPUˆ—
-	LaunchShapeMatchingGPU();
+	//LaunchShapeMatchingGPU();
 }
 
 
