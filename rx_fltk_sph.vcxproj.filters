@@ -114,6 +114,9 @@
     <ClCompile Include="Surf_SM.cpp">
       <Filter>SM Files</Filter>
     </ClCompile>
+    <ClCompile Include="test.cpp">
+      <Filter>GUI Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="rx_sph.h">
@@ -215,6 +218,9 @@
     <ClInclude Include="QueryCounter.h">
       <Filter>UnilityScript</Filter>
     </ClInclude>
+    <ClInclude Include="test.h">
+      <Filter>GUI Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="bin\sph_scene_1.cfg">
@@ -288,6 +294,9 @@
     </CudaCompile>
     <CudaCompile Include="rx_pbdsph_kernel.cu">
       <Filter>CUDA</Filter>
+    </CudaCompile>
+    <CudaCompile Include="ShapeMatching.cu">
+      <Filter>SM Files</Filter>
     </CudaCompile>
   </ItemGroup>
 </Project>

@@ -97,7 +97,7 @@ public:
 
 	int GetPtoC(int pIndx, int lIndx, int oIndx);
 	int GetPtoT(int pIndx, int lIndx, int oIndx);
-	int GetCtoP(int cIndx, int lIndx, int oIndx);
+	const int& GetCtoP(const int& cIndx, const int& lIndx, const int& oIndx);
 
 	int GetNeighborTetra(int tIndx, int lIndx, int oIndx);
 

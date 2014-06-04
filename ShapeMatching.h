@@ -27,10 +27,24 @@
 
 #include "rx_nnsearch.h"
 
+#include <cuda_runtime.h>
+#include <cuda_gl_interop.h>
+
 using namespace std;
 
 //! 衝突判定用関数
 typedef void (*CollisionFunc)(Vec3&, Vec3&, Vec3&, int);
+
+
+//GPU処理
+extern void LaunchShapeMatchingGPU(
+	/*unsigned int num_particles,
+	float (*pos)[2],
+	float time,
+	float dt*/);
+
+#define MAXPARTICLE 100
+#define SM_DIM 3
 
 //-----------------------------------------------------------------------------
 // Shape Matchingクラスの宣言
@@ -39,14 +53,24 @@ class rxShapeMatching
 {
 protected:
 	// 形状データ
+	//vector<Vec3> m_vOrgPos;		//!< オリジナルの頂点位置
+	//vector<Vec3> m_vCurPos;		//!< 現在の頂点位置
+	//vector<Vec3> m_vNewPos;		//!< 次のステップの頂点位置
+	//vector<Vec3> m_vGoalPos;		//!< 目標頂点位置
+	//vector<double> m_vMass;		//!< 頂点質量(変形時の重み)
+	//vector<Vec3> m_vVel;			//!< 頂点速度
+	//vector<bool> m_pFix;			//!< 頂点固定フラグ
+
+	double* m_pOrgPos;				//!< オリジナルの頂点位置
+	double* m_pCurPos;				//!< 現在の頂点位置
+	double* m_pNewPos;				//!< 次のステップの頂点位置
+	double* m_pGoalPos;				//!< 目標頂点位置
+	double* m_pMass;				//!< 頂点質量(変形時の重み)
+	double* m_pVel;					//!< 頂点速度
+
+	bool* m_pFix;					//!< 頂点固定フラグ
+
 	int m_iNumVertices;
-	vector<Vec3> m_vOrgPos;			//!< オリジナルの頂点位置
-	vector<Vec3> m_vCurPos;			//!< 現在の頂点位置
-	vector<Vec3> m_vNewPos;			//!< 次のステップの頂点位置
-	vector<Vec3> m_vGoalPos;		//!< 目標頂点位置
-	vector<double> m_vMass;			//!< 頂点質量(変形時の重み)
-	vector<Vec3> m_vVel;			//!< 頂点速度
-	vector<bool> m_vFix;			//!< 頂点固定フラグ
 
 	// シミュレーションパラメータ
 	double m_dDt;					//!< タイムステップ幅
@@ -67,10 +91,23 @@ protected:
 
 	CollisionFunc m_fpCollision;
 
+	//GPU
+	//デバイス側へのポインタ
+	double* d_OrgPos;
+	double* d_CurPos;
+	double* d_NewPos;
+	double* d_GoalPos;
+	double* d_Mass;
+	double* d_Vel;
+
+	bool* d_Fix;
+
 public:
 	//! コンストラクタとデストラクタ
 	rxShapeMatching(int obj);
 	~rxShapeMatching();
+
+	void InitGPU();
 
 	void Clear();
 	void AddVertex(const Vec3 &pos, double mass);
@@ -82,26 +119,55 @@ public:
 	void SetSimulationSpace(Vec3 minp, Vec3 maxp){ m_v3Min = minp; m_v3Max = maxp; }
 	void SetStiffness(double alpha, double beta){ m_dAlpha = alpha; m_dBeta = beta; }
 
-	void SetCurrentPos(int oIndx, const Vec3 &pos){ m_vCurPos[oIndx] = pos; }
-	void SetOriginalPos(int oIndx, Vec3 pos){ m_vOrgPos[oIndx] = pos; }
-	void SetNewPos(int oIndx, Vec3 pos){ m_vNewPos[oIndx] = pos; }
-	void SetGoalPos(int oIndx, Vec3 pos){ m_vGoalPos[oIndx] = pos; }
+	void SetCurrentPos(int oIndx, const Vec3 &pos)
+	{ 
+		m_pCurPos[oIndx*SM_DIM+0] = pos[0];
+		m_pCurPos[oIndx*SM_DIM+1] = pos[1];
+		m_pCurPos[oIndx*SM_DIM+2] = pos[2];
+	}
 
-	void SetVelocity(int oIndx, const Vec3 &vel){ m_vVel[oIndx] = vel; }
+	void SetOriginalPos(int oIndx, Vec3 pos)
+	{ 
+		m_pOrgPos[oIndx*SM_DIM+0] = pos[0];
+		m_pOrgPos[oIndx*SM_DIM+1] = pos[1];
+		m_pOrgPos[oIndx*SM_DIM+2] = pos[2];
+	}
+
+	void SetNewPos(int oIndx, Vec3 pos)
+	{
+		m_pNewPos[oIndx*SM_DIM+0] = pos[0];
+		m_pNewPos[oIndx*SM_DIM+1] = pos[1];
+		m_pNewPos[oIndx*SM_DIM+2] = pos[2];
+	}
+
+	void SetGoalPos(int oIndx, Vec3 pos)
+	{
+		m_pGoalPos[oIndx*SM_DIM+0] = pos[0];
+		m_pGoalPos[oIndx*SM_DIM+1] = pos[1];
+		m_pGoalPos[oIndx*SM_DIM+2] = pos[2];
+	}
+
+	void SetVelocity(int oIndx, const Vec3 &vel)
+	{
+		m_pVel[oIndx*SM_DIM+0] = vel[0];
+		m_pVel[oIndx*SM_DIM+1] = vel[1];
+		m_pVel[oIndx*SM_DIM+2] = vel[2];
+	}
 
 	void SetCollisionFunc(CollisionFunc func){ m_fpCollision = func; }
 
 	int GetNumVertices() const { return m_iNumVertices; }
-	Vec3 GetVertexPos(int i){ return m_vCurPos[i]; }
-	Vec3 GetNewPos(int i){ return m_vNewPos[i]; }
-	Vec3 GetOriginalPos(int i){ return m_vOrgPos[i]; }
-	Vec3 GetGoalPos(int i) { return m_vGoalPos[i]; }
-	Vec3 GetVertexVel(int i){ return m_vVel[i]; }
-	double GetMass(int i){ return m_vMass[i]; }
+
+	const Vec3 GetVertexPos(int i){ return Vec3(m_pCurPos[i*SM_DIM+0], m_pCurPos[i*SM_DIM+1], m_pCurPos[i*SM_DIM+2]); }
+	const Vec3 GetNewPos(int i){ return Vec3(m_pNewPos[i*SM_DIM+0], m_pNewPos[i*SM_DIM+1], m_pNewPos[i*SM_DIM+2]); }
+	const Vec3 GetOrgPos(int i){ return Vec3(m_pOrgPos[i*SM_DIM+0], m_pOrgPos[i*SM_DIM+1], m_pOrgPos[i*SM_DIM+2]); }
+	const Vec3 GetGoalPos(int i) { return Vec3(m_pGoalPos[i*SM_DIM+0], m_pGoalPos[i*SM_DIM+1], m_pGoalPos[i*SM_DIM+2]); }
+	const Vec3 GetVertexVel(int i){ return Vec3(m_pVel[i*SM_DIM+0], m_pVel[i*SM_DIM+1], m_pVel[i*SM_DIM+2]); }
+	double GetMass(int i){ return m_pMass[i]; }
 
 	void FixVertex(int i, const Vec3 &pos);
 	void UnFixVertex(int i);
-	bool IsFixed(int i) { return m_vFix[i]; }
+	bool IsFixed(int i) { return m_pFix[i]; }
 
 protected:
 	//! 頂点位置の初期化

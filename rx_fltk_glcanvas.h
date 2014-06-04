@@ -59,6 +59,7 @@
 #include <boost/bind.hpp>
 #include <boost/function.hpp>
 
+#include "test.h"
 
 using namespace std;
 
@@ -104,6 +105,7 @@ class rxSSMeshGPU;
 //#define ICENUM	729
 //#define ICENUM	1331
 #define ICENUM	2197	//13_13_13
+//#define ICENUM	3463		//バニーモデル
 //#define ICENUM	4913	//17_17_17
 #endif
 
@@ -117,6 +119,10 @@ class rxSSMeshGPU;
 #endif
 
 #define HIGHNUM 8
+#define TETGENCOMMAND "-q10.0a0.5"
+#define MODEL_NAME "obj/bunny1331.obj"
+#define ELE_FILE	"obj/bunny1331.ele"
+#define NODE_FILE	"obj/bunny1331.node"
 
 // 描画フラグ
 enum
@@ -356,6 +362,9 @@ public:
 
 	//落下開始フラグ
 	bool m_bFall;
+
+	//テストクラス
+	mk_CGAL test;
 
 protected:
 	// シーン
@@ -663,7 +672,8 @@ protected:
 	void UpdateInfo();
 
 	//追加：：四面体作成のための処理
-	void MakeTetrahedra();
+	void MakeTetrahedra();				//初期に使っていた立方体のためのコード
+	void MakeTetrahedraFromObj();
 	void MakeTetrahedraOnlySurface();
 	void MakeFreezeTetrahedra(vector<int>& pList, vector<int>& tList);
 	void MakeFreezeTetrahedra_OnlyFreezeParticle(const vector<int>& pList, vector<int>& tList);
@@ -675,6 +685,7 @@ protected:
 	void SetObjFile();
 
 	void Load_ELE_File(string name);
+	void Load_NODE_File(string name, float* p);
 
 private:
 	//! 描画コールバック関数のオーバーライド

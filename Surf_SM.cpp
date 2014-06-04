@@ -276,16 +276,22 @@ const Vec3 Surf_SM::CalcCmSum(const int& cIndx)
 {	//cout << __FUNCTION__ << " start" << endl;
 	Vec3 cmSum(0.0);
 
+	int start = -1;
+	int end = -1;
+
+	int prtIndx = -1;
+	int pthIndx = -1;
+
 	//クラスタに用意したデータセットを使って重心を求める
 	for(int iprt = 0, ctopNum = m_strct->GetCtoPNum(cIndx); iprt < ctopNum; iprt++)
 	{
-		int start	= m_mk3DiPTHandPrfxSet(cIndx, iprt, 0);
-		int end		= m_mk3DiPTHandPrfxSet(cIndx, iprt, 1);
+		start	= m_mk3DiPTHandPrfxSet(cIndx, iprt, 0);
+		end		= m_mk3DiPTHandPrfxSet(cIndx, iprt, 1);
 
 		if(start == -1 || end == -1){	break;	}
 		
-		int prtIndx = m_strct->GetCtoP(cIndx, iprt, 0);
-		int pthIndx = m_mk2DiPRTtoPTH(prtIndx, 0);
+		prtIndx = m_strct->GetCtoP(cIndx, iprt, 0);
+		pthIndx = m_mk2DiPRTtoPTH(prtIndx, 0);
 
 		cmSum += CalcCmFromPrfxSm(pthIndx, start, end);
 	}
@@ -329,15 +335,21 @@ const rxMatrix3 Surf_SM::CalcApqSum(const int& cIndx)
 
 	ApqSum -= (double)(m_strct->GetCtoPNum(cIndx)) * mtt0T;
 
+	int start = -1;
+	int end = -1;
+
+	int prtIndx = -1;
+	int pthIndx = -1;
+
 	for(int iprt = 0, ctopNum = m_strct->GetCtoPNum(cIndx); iprt < ctopNum; iprt++)
 	{
-		int start	= m_mk3DiPTHandPrfxSet(cIndx, iprt, 0);
-		int end		= m_mk3DiPTHandPrfxSet(cIndx, iprt, 1);
+		start	= m_mk3DiPTHandPrfxSet(cIndx, iprt, 0);
+		end		= m_mk3DiPTHandPrfxSet(cIndx, iprt, 1);
 
 		if(start == -1 || end == -1){	break;	}
 
-		int prtIndx = m_strct->GetCtoP(cIndx, iprt, 0);
-		int pthIndx = m_mk2DiPRTtoPTH(prtIndx, 0);
+		prtIndx = m_strct->GetCtoP(cIndx, iprt, 0);
+		pthIndx = m_mk2DiPRTtoPTH(prtIndx, 0);
 
 		ApqSum += CalcApqFromPrfxSm(pthIndx, start, end);
 	}
@@ -387,10 +399,10 @@ void Surf_SM::DebugPathPrfxIndxSet()
 	{
 		for(int iY = 0; iY < m_mk3DiPTHandPrfxSet.GetSizeY(); iY++)
 		{
-			if( m_mk3DiPTHandPrfxSet(iX, iY, 0) == -1 || m_mk3DiPTHandPrfxSet(iX, iY, 1) == -1 ){	cout << "num = " << iY-1 << endl;	break;	}
+			if( m_mk3DiPTHandPrfxSet(iX, iY, 0) == -1 || m_mk3DiPTHandPrfxSet(iX, iY, 1) == -1 ){	cout << iY-1 << " ";	break;	}
 			
-			cout << "m_mk3DiPTHandPrfxSet(" << iX << ", " << iY << ", 0) = " << m_mk3DiPTHandPrfxSet(iX, iY, 0)
-				 << ", (" << iX << ", " << iY << ", 1) = " << m_mk3DiPTHandPrfxSet(iX, iY, 1) << endl;
+			//cout << "m_mk3DiPTHandPrfxSet(" << iX << ", " << iY << ", 0) = " << m_mk3DiPTHandPrfxSet(iX, iY, 0)
+			//	 << ", (" << iX << ", " << iY << ", 1) = " << m_mk3DiPTHandPrfxSet(iX, iY, 1) << endl;
 		}
 	}
 }

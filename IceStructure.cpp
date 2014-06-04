@@ -16,9 +16,9 @@ IceStructure::IceStructure(int pNumMax, int cNumMax, int tNumMax)
 	m_iTNumMax = tNumMax;
 
 	//粒子情報の初期化
-	m_iPtoCMax = m_iCNumMax*0.2;	//1331 layer2 0.4 layer3 0.75
+	m_iPtoCMax = m_iCNumMax*0.3;	//1331 layer2 0.4 layer3 0.75
 									//2197 layer2 0.4 layer3 0.4 layer4 0.5
-	m_iPtoTMax = m_iTNumMax*0.2;	//1331 layer2 0.3 layer3 0.5
+	m_iPtoTMax = m_iTNumMax*0.3;	//1331 layer2 0.3 layer3 0.5
 									//2197 layer2 0.3 layer3 0.3
 
 	m_piPtoCNum = new int[m_iPNumMax];
@@ -38,7 +38,7 @@ IceStructure::IceStructure(int pNumMax, int cNumMax, int tNumMax)
 
 	//クラスタ情報の初期化
 	//CtoTMaxは粒子数と等しいので定義しない
-	m_iCtoPMax = m_iPNumMax*0.2;	//1331 layer2 0.5 layer3 0.75
+	m_iCtoPMax = m_iPNumMax*0.3;	//1331 layer2 0.5 layer3 0.75
 									//2197 layer2 0.5 layre3 0.5
 	m_piCtoPNum = new int[m_iCNumMax];
 	m_piCtoTNum = new int[m_iCNumMax];
@@ -676,7 +676,7 @@ int IceStructure::GetPtoC(int pIndx, int lIndx, int oIndx)
  * @param[in] lIndx クラスタ内粒子番号
  * @param[in] oIndx 
  */
-int IceStructure::GetCtoP(int cIndx, int lIndx, int oIndx)
+const int& IceStructure::GetCtoP(const int& cIndx, const int& lIndx, const int& oIndx)
 {
 	return m_mk3DiCtoP(cIndx, lIndx, oIndx);
 }
