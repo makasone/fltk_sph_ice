@@ -43,7 +43,7 @@ extern void LaunchShapeMatchingGPU(
 	float time,
 	float dt*/);
 
-#define MAXPARTICLE 100
+#define MAXPARTICLE 300	//layer2 300
 #define SM_DIM 3
 
 
@@ -54,12 +54,12 @@ class rxShapeMatching
 {
 protected:
 	// 形状データ
-	double* m_pOrgPos;				//!< オリジナルの頂点位置
-	double* m_pCurPos;				//!< 現在の頂点位置
-	double* m_pNewPos;				//!< 次のステップの頂点位置
-	double* m_pGoalPos;				//!< 目標頂点位置
-	double* m_pMass;				//!< 頂点質量(変形時の重み)
-	double* m_pVel;					//!< 頂点速度
+	float* m_pOrgPos;				//!< オリジナルの頂点位置
+	float* m_pCurPos;				//!< 現在の頂点位置
+	float* m_pNewPos;				//!< 次のステップの頂点位置
+	float* m_pGoalPos;				//!< 目標頂点位置
+	float* m_pMass;				//!< 頂点質量(変形時の重み)
+	float* m_pVel;					//!< 頂点速度
 
 	bool* m_pFix;					//!< 頂点固定フラグ
 
@@ -86,7 +86,7 @@ protected:
 
 	//GPU
 	//デバイス側へのポインタ
-	double* d_OrgPos;
+	float* d_OrgPos;
 	double* d_CurPos;
 	double* d_NewPos;
 	double* d_GoalPos;
@@ -182,7 +182,7 @@ protected:
 		if(pos[2] > m_v3Max[2]) pos[2] = m_v3Max[2];
 	}
 
-	void clamp(double* pos, int cIndx) const
+	void clamp(float* pos, int cIndx) const
 	{
 		if(pos[cIndx+0] < m_v3Min[0]) pos[cIndx+0] = m_v3Min[0];
 		if(pos[cIndx+0] > m_v3Max[0]) pos[cIndx+0] = m_v3Max[0];

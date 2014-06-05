@@ -43,13 +43,14 @@ rxShapeMatching::rxShapeMatching(int obj)
 
 	//メモリ確保
 	//クラスタが保存できる最大粒子数をMAXPARTICLEで定義する．
-	m_pOrgPos = new double[MAXPARTICLE*SM_DIM];
-	m_pCurPos = new double[MAXPARTICLE*SM_DIM];
-	m_pNewPos = new double[MAXPARTICLE*SM_DIM];
-	m_pGoalPos = new double[MAXPARTICLE*SM_DIM];
-	m_pVel = new double[MAXPARTICLE*SM_DIM];
+	m_pOrgPos = new float[MAXPARTICLE*SM_DIM];
+	m_pCurPos = new float[MAXPARTICLE*SM_DIM];
+	//m_pNewPos = new float[MAXPARTICLE*SM_DIM];
+	//m_pGoalPos = new float[MAXPARTICLE*SM_DIM];
+	
+	m_pVel = new float[MAXPARTICLE*SM_DIM];
 
-	m_pMass = new double[MAXPARTICLE];
+	m_pMass = new float[MAXPARTICLE];
 	m_pFix = new bool[MAXPARTICLE];
 
 	Clear();
@@ -63,16 +64,24 @@ rxShapeMatching::~rxShapeMatching()
 }
 
 /*
- *	GPUの初期化
+ *	GPUの初期化	CPU側のデータを初期化した後に呼ぶ
  */
 void rxShapeMatching::InitGPU()
 {
 	//デバイス側のメモリを確保
 	//クラスタが保存できる最大粒子数をMAXPARTICLEで定義する．
-	cudaMalloc((void**)&d_OrgPos, sizeof(double) * MAXPARTICLE * SM_DIM);
+	cudaMalloc((void**)&d_OrgPos, sizeof(float) * MAXPARTICLE * SM_DIM);
+	cudaMalloc((void**)&d_CurPos, sizeof(double) * MAXPARTICLE * SM_DIM);
+	cudaMalloc((void**)&d_Vel, sizeof(double) * MAXPARTICLE * SM_DIM);
+	cudaMalloc((void**)&d_Mass, sizeof(double) * MAXPARTICLE);
+	cudaMalloc((void**)&d_Fix, sizeof(bool) * MAXPARTICLE);
 
 	//ホスト側のデータをデバイス側へ転送
-	//cudaMemcpy(d_OrgPos, m_pOrgPos, sizeof(float) * MAXPARTICLE * SM_DIM, cudaMemcpyHostToDevice);
+	cudaMemcpy(d_OrgPos, m_pOrgPos, sizeof(float) * MAXPARTICLE * SM_DIM, cudaMemcpyHostToDevice);
+	cudaMemcpy(d_CurPos, m_pCurPos, sizeof(double) * MAXPARTICLE * SM_DIM, cudaMemcpyHostToDevice);
+	cudaMemcpy(d_Vel, m_pVel,		sizeof(double) * MAXPARTICLE * SM_DIM, cudaMemcpyHostToDevice);
+	cudaMemcpy(d_Mass, m_pMass,		sizeof(double) * MAXPARTICLE, cudaMemcpyHostToDevice);
+	cudaMemcpy(d_Fix, m_pFix,		sizeof(bool) * MAXPARTICLE, cudaMemcpyHostToDevice);
 }
 
 
@@ -86,8 +95,8 @@ void rxShapeMatching::initialize(void)
 		for(int j = 0; j < SM_DIM; j++)
 		{
 			m_pCurPos[i*SM_DIM+j] = m_pOrgPos[i*SM_DIM+j];
-			m_pNewPos[i*SM_DIM+j] = m_pOrgPos[i*SM_DIM+j];
-			m_pGoalPos[i*SM_DIM+j] = m_pOrgPos[i*SM_DIM+j];
+			//m_pNewPos[i*SM_DIM+j] = m_pOrgPos[i*SM_DIM+j];
+			//m_pGoalPos[i*SM_DIM+j] = m_pOrgPos[i*SM_DIM+j];
 			m_pVel[i*SM_DIM+j] = 0.0;
 		}
 
@@ -108,8 +117,8 @@ void rxShapeMatching::Clear()
 		{
 			m_pOrgPos[i*SM_DIM+j] = 0.0;
 			m_pCurPos[i*SM_DIM+j] = 0.0;
-			m_pNewPos[i*SM_DIM+j] = 0.0;
-			m_pGoalPos[i*SM_DIM+j] = 0.0;
+			//m_pNewPos[i*SM_DIM+j] = 0.0;
+			//m_pGoalPos[i*SM_DIM+j] = 0.0;
 			m_pVel[i*SM_DIM+j] = 0.0;
 		}
 
@@ -130,8 +139,8 @@ void rxShapeMatching::AddVertex(const Vec3 &pos, double mass)
 	{
 		m_pOrgPos[m_iNumVertices*SM_DIM+i] = pos[i];
 		m_pCurPos[m_iNumVertices*SM_DIM+i] = pos[i];
-		m_pNewPos[m_iNumVertices*SM_DIM+i] = pos[i];
-		m_pGoalPos[m_iNumVertices*SM_DIM+i] = pos[i];
+		//m_pNewPos[m_iNumVertices*SM_DIM+i] = pos[i];
+		//m_pGoalPos[m_iNumVertices*SM_DIM+i] = pos[i];
 		m_pVel[m_iNumVertices*SM_DIM+i] = 0.0;
 	}
 
@@ -436,9 +445,9 @@ void rxShapeMatching::Update()
  */
 void rxShapeMatching::FixVertex(int i, const Vec3 &pos)
 {
-	m_pNewPos[i*SM_DIM+0] = pos[0];
-	m_pNewPos[i*SM_DIM+1] = pos[1];
-	m_pNewPos[i*SM_DIM+2] = pos[2];
+	m_pCurPos[i*SM_DIM+0] = pos[0];
+	m_pCurPos[i*SM_DIM+1] = pos[1];
+	m_pCurPos[i*SM_DIM+2] = pos[2];
 
 	m_pFix[i] = true;
 }

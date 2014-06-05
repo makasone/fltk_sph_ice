@@ -62,10 +62,10 @@ public:
 	
 	void Update();
 	void ShapeMatching(double dt);
-	void calExternalForces(double dt);
-	void integrate(double dt);
+	void calExternalForces(float* newPos, double dt);
+	void integrate(float* newPos, double dt);
 
-	void ShapeMatchingSolid(double dt);
+	void ShapeMatchingSolid(float* newPos, double dt);
 	void calExternalForcesSolid(double dt);
 	void integrateSolid(double);
 

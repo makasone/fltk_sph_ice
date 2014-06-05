@@ -13,11 +13,13 @@ void LaunchShapeMatchingGPU(
 	float time,
 	float dt*/)
 {
+	
+	//printf("LaunchGPUKernel");
+
 	dim3 grid(1, 1);
 	dim3 block(1, 1, 1);
 
-	//printf("LaunchGPUKernel");
-
+	//‰^“®ŒvŽZ
 	d_Integrate <<< grid , block >>> (/*num_particles, pos, time, dt*/);
 }
 

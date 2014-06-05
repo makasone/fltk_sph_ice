@@ -3194,6 +3194,12 @@ void rxFlGLWindow::InitCluster()
 	MakeClusterFromNeight();
 #endif
 
+	//クラスタに関するGPUの初期化
+	for(int i = 0; i < m_iClusteresNum; i++)
+	{
+		m_sm_cluster[i]->InitGPU();
+	}
+
 	//TODO::粒子質量を下げる　浮力を生むため
 
 	m_ice->SetClusterNum(m_iClusteresNum);				//クラスタ数の登録

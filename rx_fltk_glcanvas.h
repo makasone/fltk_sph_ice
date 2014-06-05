@@ -104,9 +104,9 @@ class rxSSMeshGPU;
 #ifdef SOLID
 //#define ICENUM	729
 //#define ICENUM	1331
-#define ICENUM	2197	//13_13_13
+//#define ICENUM	2197	//13_13_13
 //#define ICENUM	3463		//バニーモデル
-//#define ICENUM	4913	//17_17_17
+#define ICENUM	4913	//17_17_17
 #endif
 
 #ifdef SURF
