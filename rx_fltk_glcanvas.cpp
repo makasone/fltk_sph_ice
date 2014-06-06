@@ -3634,6 +3634,21 @@ void rxFlGLWindow::StepCluster(double dt)
 		}
 	}//#pragma omp parallel
 
+	//GPUを用いたクラスタの運動計算	OpenMPは使えないのに注意
+	//for(int i = 0; i < m_iClusteresNum; i++)
+	//{	
+	//	if(m_ice->GetPtoCNum(i) == 0){	continue;	}
+	//	
+	//	//QueryCounter iqc;
+	//	//cout << "計測開始 " << i << endl;
+	//	//iqc.Start();
+
+	//	m_sm_cluster[i]->UpdateGPU();									//運動計算
+
+	//	//double end = iqc.End();
+	//	//cout << "計測終了 " << i << " :: " << end << endl;
+	//}
+
 	//double end2 = qc.End()/*/100*/;
 
 	//cout << "計測終了0::" << end0 << endl;
@@ -3940,14 +3955,17 @@ void rxFlGLWindow::MakeClusterInfo(int cIndx, int* PtoCNum)
 	}
 
 	//粒子とクラスタの情報登録
-	const vector<int>& pIndxList = m_sm_cluster[cIndx]->GetVertexIndxList();
+	vector<int> pIndxList;
 
 	for(int i = 0; i < m_ice->GetCtoPNum(cIndx); i++)
 	{
-		m_ice->SetPtoC(pIndxList[i], pCountList[i], cIndx, i, pLayerList[i]);	//粒子が所属している四面体を登録
+		//m_ice->SetPtoC(pIndxList[i], pCountList[i], cIndx, i, pLayerList[i]);	
+		int pIndx = m_sm_cluster[cIndx]->GetParticleIndx(i);
+		m_ice->SetPtoC(pIndx, pCountList[i], cIndx, i, pLayerList[i]);			//粒子が所属しているクラスタを登録
+		pIndxList.push_back(pIndx);
 	}
 
-	m_ice->SetCtoP(cIndx, pIndxList, pLayerList);								//四面体が含んでいる粒子を登録
+	m_ice->SetCtoP(cIndx, pIndxList, pLayerList);								//クラスタが含んでいる粒子を登録
 
 	delete[] pCountList;
 	delete[] pLayerList;
@@ -3963,22 +3981,26 @@ void rxFlGLWindow::MakeClusterInfo(int cIndx)
 	CountSolid(cIndx);
 
 	//粒子とクラスタの情報登録
-	const vector<int>& pIndxList = m_sm_cluster[cIndx]->GetVertexIndxList();
-	int* pLayerList = new int[m_sm_cluster[cIndx]->GetNumVertices()];			//粒子の所属レイヤー
+	vector<int> pIndxList;
+	int pNum = m_sm_cluster[cIndx]->GetNumVertices();
+	int* pLayerList = new int[pNum];			//粒子の所属レイヤー
 
 	//layerのためのコピー
-	for(int i = 0; i < m_sm_cluster[cIndx]->GetNumVertices(); i++)
+	for(int i = 0; i < pNum; i++)
 	{
-		pLayerList[i] = m_sm_cluster[cIndx]->GetLayer(i);					//粒子が何層目の近傍なのかを取得
+		pLayerList[i] = m_sm_cluster[cIndx]->GetLayer(i);				//粒子が何層目の近傍なのかを取得
 	}
 
 	for(int i = 0; i < m_ice->GetCtoPNum(cIndx); i++)
 	{
-		int freeIndx = m_ice->GetPtoCFreeIndx(pIndxList[i]);
-		m_ice->SetPtoC(pIndxList[i], freeIndx, cIndx, i, pLayerList[i]);		//粒子が所属している四面体を登録
+		int pIndx = m_sm_cluster[cIndx]->GetParticleIndx(i);
+		int freeIndx = m_ice->GetPtoCFreeIndx(pIndx);
+
+		m_ice->SetPtoC(pIndx, freeIndx, cIndx, i, pLayerList[i]);		//粒子が所属している四面体を登録
+		pIndxList.push_back(pIndx);
 	}
-	
-	m_ice->SetCtoP(cIndx, pIndxList, pLayerList);								//四面体が含んでいる粒子を登録
+
+	m_ice->SetCtoP(cIndx, pIndxList, pLayerList);						//四面体が含んでいる粒子を登録
 
 	delete[] pLayerList;
 }
@@ -3988,7 +4010,7 @@ void rxFlGLWindow::MakeClusterInfo(int cIndx)
  * @param dt タイムステップ
  */
 void rxFlGLWindow::StepSolid_Melt(double dt)
-{//	cout << __FUNCTION__ << endl;
+{	//cout << __FUNCTION__ << endl;
 
 	vector<int> viParticleList;												//融解した粒子集合
 	vector<int> viClusterList;												//再定義するクラスタの集合
@@ -3996,16 +4018,12 @@ void rxFlGLWindow::StepSolid_Melt(double dt)
 	vector<int> viTetraList;												//再定義する四面体の集合
 	vector<int> viTLayerList;												//再定義する四面体のレイヤー
 
-	SearchMeltParticle(viParticleList);										//融解粒子の探索
-	//RXTIMER("SearchReconstructTetra_Melt start");
-	SearchReconstructTetra_Melt(viParticleList, viTetraList, viTLayerList);	//再定義四面体の探索
-	//RXTIMER("SearchReconstructTetra_Melt end");
+	SearchMeltParticle(viParticleList);											//融解粒子の探索
+	SearchReconstructTetra_Melt(viParticleList, viTetraList, viTLayerList);		//再定義四面体の探索
 	SearchReconstructCluster_Melt(viParticleList, viClusterList, viCLayerList);	//再定義クラスタの探索
 
 	UpdateInfo_Melt_PandT(viParticleList);									//粒子・四面体情報の更新
-	//RXTIMER("UpdateInfo_Melt_PandC start");
 	UpdateInfo_Melt_PandC(viParticleList, viClusterList);					//粒子・クラスタ情報の更新
-	//RXTIMER("UpdateInfo_Melt_PandC end");
 	
 	//CheckDeleteCluster();													//同一，包含関係にあるクラスタを削除
 	//RXTIMER("CheckDeleteTetra start");
@@ -4019,7 +4037,7 @@ void rxFlGLWindow::StepSolid_Melt(double dt)
 	SetClusterInfo(viParticleList, viClusterList, viCLayerList);			//粒子・クラスタ情報の再定義
 	//RXTIMER("SetClusterInfo end");
 
-	//デバッグ
+//デバッグ
 	//if(viParticleList.size() == 0){	return;	}
 	//cout << "Debug" << __FUNCTION__ << endl;
 	//cout << "viParticleList.size = " << viParticleList.size() << " ";
@@ -4174,8 +4192,7 @@ void rxFlGLWindow::SearchReconstructTetra_Melt(const vector<int>& pList, vector<
 
 		for(int j = 0; j < m_ice->GetPtoTIndx(ipIndx); j++)
 		{
-			if(m_ice->GetPtoT(ipIndx, j, 0) == -1
-			|| m_ice->GetPtoT(ipIndx, j, 1) == -1)
+			if(m_ice->GetPtoT(ipIndx, j, 0) == -1 || m_ice->GetPtoT(ipIndx, j, 1) == -1)
 			{
 				continue;
 			}
@@ -4298,7 +4315,7 @@ void rxFlGLWindow::UpdateInfo_Melt_PandC(const vector<int>& pList, const vector<
 	int jpIndx = 0;
 	int* coSet;
 
-	//融解した粒子のクラスタの情報を，他の粒子から取り除く
+	//融解したクラスタ情報を，他の粒子から取り除く
 	#pragma omp parallel
 	{
 	#pragma omp for private(j,k,icIndx,jpIndx,coSet)
@@ -4352,8 +4369,7 @@ void rxFlGLWindow::UpdateInfo_Melt_PandC(const vector<int>& pList, const vector<
 		}
 	}//end #pragma omp parallel
 
-	//再定義するクラスタに含まれる粒子の所属クラスタ情報を更新
-	//これから再定義するクラスタの情報を削除
+	//再定義するクラスタに含まれる粒子から、再定義するクラスタの情報を消去
 	#pragma omp parallel
 	{
 	#pragma omp for private(j,k,icIndx,jpIndx,coSet)
@@ -4557,7 +4573,7 @@ void rxFlGLWindow::RemoveReconstructTetra(vector<int>& tList, vector<int>& lList
  * @param lList レイヤーリスト
  */
 void rxFlGLWindow::SetClusterInfo(const vector<int>& pList, const vector<int>& cList, const vector<int>& lList)
-{//	cout << __FUNCTION__ << endl;
+{	//cout << __FUNCTION__ << endl;
 	if(pList.size() == 0 || cList.size() == 0){	return;	}
 	
 	vector<int> checkTList;
@@ -4688,6 +4704,7 @@ void rxFlGLWindow::SetClusterInfo(const vector<int>& pList, const vector<int>& c
 		}
 		MakeClusterInfo(cList[i]);
 	}
+
 }
 
 /*!

@@ -1,17 +1,27 @@
 #include <stdio.h>
 #include <math.h>
+#include <rx_cu_common.cuh>	//使わない？
 
+#define SM_DIM 3
 
-void LaunchShapeMathcingGPU();
-__global__ void d_Integrate();
+//引き渡す変数名が間違っていてもエラーが出ないので注意
 
+void LaunchShapeMathcingGPU(float* curPos, float* vel, int* pIndxes, float dt, int prtNum);
+__global__ void Update(float* curPos, float* vel, int* pIndxes, float dt, int prtNum);
+__device__ void ExternalForce(float* curPos, float* vel, int* pIndxes, float dt, int prtNum);
+__device__ void ProjectPos(float* curPos, float* vel, int* pIndxes, float dt, int prtNum);
+__device__ void Integrate(float* curPos, float* vel, int* pIndxes, float dt, int prtNum);
+
+float* d_Pos;	//デバイス側の粒子位置
+float* d_Vel;	//デバイス側の粒子速度
+
+//パラメータの初期化
+void InitParam()
+{
+}
 
 //GPU処理
-void LaunchShapeMatchingGPU(
-	/*unsigned int num_particles,
-	float (*pos)[2],
-	float time,
-	float dt*/)
+void LaunchShapeMatchingGPU(float* curPos, float* vel, int* pIndxes, float dt, int prtNum)
 {
 	
 	//printf("LaunchGPUKernel");
@@ -20,56 +30,247 @@ void LaunchShapeMatchingGPU(
 	dim3 block(1, 1, 1);
 
 	//運動計算
-	d_Integrate <<< grid , block >>> (/*num_particles, pos, time, dt*/);
+	Update <<< grid , block >>> (curPos, vel, pIndxes, dt, prtNum);
 }
 
 
 //GPUの位置・速度更新
-__global__ void d_Integrate(
-	/*int num_particles,	
-	float (*pos)[2],
-	float time, 
-	float dt*/)
+__global__
+void Update(
+	float* curPos, 
+	float* vel,
+	int* pIndxes,
+	float dt,
+	int prtNum)
 {
 	//printf("d_Integrate\n");	//めちゃくちゃ出るので注意
 
-	//unsigned int index;
-	//float xn, yn, p1, q1, p2, q2, p3, q3, p4, q4;
-	//float x, y, t;
+	ExternalForce(curPos, vel, pIndxes, dt, prtNum);
+	ProjectPos(curPos, vel, pIndxes, dt, prtNum);
+	Integrate(curPos, vel, pIndxes, dt, prtNum);
+}
 
- //   // 処理対象の粒子の決定．
- //   index = blockDim.x * blockIdx.x + threadIdx.x;
- //   if (index >= num_particles)
-	//	return;
-	//xn = pos[index][0];
- //   yn = pos[index][1];
+__device__
+	void ExternalForce(float* curPos, float* vel, int* pIndxes, float dt, int prtNum)
+{
+	// 重力の影響を付加，速度を反映
+	for(int i = 0; i < prtNum; ++i)
+	{
+		int pIndx = pIndxes[i]*4;
+		int cIndx = i*SM_DIM;
 
- //   // 1段目．
-	//p1 = d_U(xn, yn, time);
-	//q1 = d_V(xn, yn, time);
+		for(int j = 0; j < SM_DIM; j++)
+		{
+			int jpIndx = pIndx+j;
+			int jcIndx = cIndx+j;
 
-	//// 2段目．
-	//x = xn + 0.5f * p1 * dt;
-	//y = yn + 0.5f * q1 * dt;
-	//t = time + 0.5f * dt;
-	//p2 = d_U(x, y, t);
-	//q2 = d_V(x, y, t);
+			//curPos[jcIndx] = d_Pos[jpIndx]+d_Vel[jpIndx]*dt;
+		}
+	}
 
-	//// 3段目．
-	//x = xn + 0.5f * p2 * dt;
-	//y = yn + 0.5f * q2 * dt;
-	//t = time + 0.5f * dt;
-	//p3 = d_U(x, y, t);
-	//q3 = d_V(x, y, t);
+	// 境界壁の影響
+	//処理がかなり重くなるが，安定はするみたい
+	//double res = 0.9;	// 反発係数
+	//for(int i = 0; i < prtNum; ++i){
+	//	//if(m_pFix[i]) continue;
+	//	//Vec3 &p = m_vCurPos[i];
+	//	//Vec3 &np = m_vNewPos[i];
+	//	//Vec3 &v = m_vVel[i];
+	//	//if(np[0] < m_v3Min[0] || np[0] > m_v3Max[0]){
+	//	//	np[0] = p[0]-v[0]*dt*res;
+	//	//	np[1] = p[1];
+	//	//	np[2] = p[2];
+	//	//}
+	//	//if(np[1] < m_v3Min[1] || np[1] > m_v3Max[1]){
+	//	//	np[1] = p[1]-v[1]*dt*res;
+	//	//	np[0] = p[0] ;
+	//	//	np[2] = p[2];
+	//	//}
+	//	//if(np[2] < m_v3Min[2] || np[2] > m_v3Max[2]){
+	//	//	np[2] = p[2]-v[2]*dt*res;
+	//	//	np[0] = p[0];
+	//	//	np[1] = p[1];
+	//	//}
 
-	//// 4段目．
-	//x = xn + p3 * dt;
-	//y = yn + q3 * dt;
-	//t = time + dt;
-	//p4 = d_U(x, y, t);
-	//q4 = d_V(x, y, t);
- //  
- //   // 粒子位置の更新．
- //   pos[index][0] = xn + (p1 + p2 + p3 + p4) / 6.0f * dt;
- //   pos[index][1] = yn + (q1 + q2 + q3 + q4) / 6.0f * dt;
+	//	//clamp(curPos, i*SM_DIM);
+	//}
+}
+
+__device__
+	void ProjectPos(float* curPos, float* vel, int* pIndxes, float dt, int prtNum)
+{
+	if(prtNum <= 1) return;
+
+	float3 cm = make_float3(0.0, 0.0, 0.0);
+	float3 cm_org = make_float3(0.0, 0.0, 0.0);	// 重心
+
+	double mass = 0.0;	// 総質量
+
+	// 重心座標の計算
+	for(int i = 0; i < prtNum;++i){
+		//double m = m_pMass[i];
+		double m = 1.0;
+		//if(m_pFix[i]) m *= 300.0;	// 固定点の質量を大きくする
+		
+		int cIndx = i*SM_DIM;
+		mass += m;
+
+		cm.x += curPos[cIndx+0]*m;
+		cm.y += curPos[cIndx+1]*m;
+		cm.z += curPos[cIndx+2]*m;
+	}
+
+	cm.x /= mass;
+	cm.y /= mass;
+	cm.z /= mass;
+
+	//cm_org = m_vec3OrgCm;
+
+	//rxMatrix3 Apq(0.0), Aqq(0.0);
+	//Vec3 p, q;
+
+	//// Apq = Σmpq^T
+	//// Aqq = Σmqq^T
+	//for(int i = 0; i < prtNum; ++i)
+	//{
+	//	int cIndx = i*SM_DIM;
+
+	//	for(int j = 0; j < SM_DIM; j++)
+	//	{
+	//		//p[j] = m_pNewPos[cIndx+j]-cm[j];
+
+	//		//p[j] = newPos[cIndx+j]-cm[j];
+	//		p[j] = curPos[cIndx+j]-cm[j];
+	//		q[j] = m_pOrgPos[cIndx+j]-cm_org[j];
+	//	}
+
+	//	double m = m_pMass[i];
+
+	//	Apq(0,0) += m*p[0]*q[0];
+	//	Apq(0,1) += m*p[0]*q[1];
+	//	Apq(0,2) += m*p[0]*q[2];
+	//	Apq(1,0) += m*p[1]*q[0];
+	//	Apq(1,1) += m*p[1]*q[1];
+	//	Apq(1,2) += m*p[1]*q[2];
+	//	Apq(2,0) += m*p[2]*q[0];
+	//	Apq(2,1) += m*p[2]*q[1];
+	//	Apq(2,2) += m*p[2]*q[2];
+
+	//	Aqq(0,0) += m*q[0]*q[0];
+	//	Aqq(0,1) += m*q[0]*q[1];
+	//	Aqq(0,2) += m*q[0]*q[2];
+	//	Aqq(1,0) += m*q[1]*q[0];
+	//	Aqq(1,1) += m*q[1]*q[1];
+	//	Aqq(1,2) += m*q[1]*q[2];
+	//	Aqq(2,0) += m*q[2]*q[0];
+	//	Aqq(2,1) += m*q[2]*q[1];
+	//	Aqq(2,2) += m*q[2]*q[2];
+	//}
+
+	////Apqの行列式を求め，反転するかを判定
+	////不安定な場合が多いので×
+	////if( Apq.Determinant() < 0.0 && m_iNumVertices >= 4)
+	////{
+	//	//cout << "before det < 0" << endl;
+	//	//１　符号を反転
+	//	//Apq(0,2) = -Apq(0,2);
+	//	//Apq(1,2) = -Apq(1,2);
+	//	//Apq(2,2) = -Apq(2,2);
+
+	//	//２　a2とa3を交換
+	//	//double tmp;
+	//	//tmp = Apq(0,2);
+	//	//Apq(0,2) = Apq(0,1);
+	//	//Apq(0,1) = tmp;
+
+	//	//tmp = Apq(1,2);
+	//	//Apq(1,2) = Apq(1,1);
+	//	//Apq(1,1) = tmp;
+
+	//	//tmp = Apq(2,2);
+	//	//Apq(2,2) = Apq(2,1);
+	//	//Apq(2,1) = tmp;
+	////}
+	//
+
+	//rxMatrix3 R, S;
+	////PolarDecomposition(Apq, R, S, m_mtrxBeforeU);
+	//PolarDecomposition(Apq, R, S);
+
+	////double end1 = qc.End()/*/100*/;
+
+	//if(m_bLinearDeformation)
+	//{
+	//	// Linear Deformations
+	//	rxMatrix3 A;
+	//	A = Apq*Aqq.Inverse();	// A = Apq*Aqq^-1
+
+	//	// 体積保存のために√(det(A))で割る
+	//	if(m_bVolumeConservation){
+	//		double det = fabs(A.Determinant());
+	//		if(det > RX_FEQ_EPS){
+	//			det = 1.0/sqrt(det);
+	//			if(det > 2.0) det = 2.0;
+	//			A *= det;
+	//		}
+	//	}
+
+	//	//cout << "計測開始2" << endl;
+
+	//	// 目標座標を計算し，現在の頂点座標を移動
+	//	for(int i = 0; i < m_iNumVertices; ++i){
+	//		if(m_pFix[i]) continue;
+
+	//		int cIndx = i*SM_DIM;
+
+	//		// 回転行列Rの代わりの行列RL=βA+(1-β)Rを計算
+	//		for(int j = 0; j < SM_DIM; j++)
+	//		{
+	//			q[j] = m_pOrgPos[cIndx+j]-cm_org[j];
+	//		}
+
+	//		Vec3 gp(R*q+cm);
+
+	//		for(int j = 0; j < SM_DIM; j++)
+	//		{
+	//			int jcIndx = cIndx+j;
+
+	//			m_pCurPos[jcIndx] += (gp[j]-m_pCurPos[jcIndx])*m_dAlphas[i];
+	//		}
+	//	}
+	//}
+}
+
+/*!
+ * 速度と位置の更新
+ *  - 新しい位置と現在の位置座標から速度を算出
+ * @param[in] dt タイムステップ幅
+ */
+__device__
+	void Integrate(float* curPos, float* vel, int* pIndxes, float dt, int prtNum)
+{
+	double dt1 = 1.0/dt;
+
+	for(int i = 0; i < prtNum; ++i)
+	{
+		int pIndx = pIndxes[i]*4;
+
+		for(int j = 0; j < SM_DIM; j++)
+		{
+			int cIndx = i*SM_DIM+j;
+
+			//vel[cIndx] = (curPos[cIndx] - d_Pos[pIndx+j]) * dt1;/*+ m_v3Gravity * dt * 1.0*/;
+		}
+	}
+	
+}
+
+void clamp(float* pos, int cIndx)
+{
+	//if(pos[cIndx+0] < m_v3Min[0]) pos[cIndx+0] = m_v3Min[0];
+	//if(pos[cIndx+0] > m_v3Max[0]) pos[cIndx+0] = m_v3Max[0];
+	//if(pos[cIndx+1] < m_v3Min[1]) pos[cIndx+1] = m_v3Min[1];
+	//if(pos[cIndx+1] > m_v3Max[1]) pos[cIndx+1] = m_v3Max[1];
+	//if(pos[cIndx+2] < m_v3Min[2]) pos[cIndx+2] = m_v3Min[2];
+	//if(pos[cIndx+2] > m_v3Max[2]) pos[cIndx+2] = m_v3Max[2];
 }

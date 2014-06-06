@@ -53,6 +53,8 @@ rxShapeMatching::rxShapeMatching(int obj)
 	m_pMass = new float[MAXPARTICLE];
 	m_pFix = new bool[MAXPARTICLE];
 
+	m_iPIndxes = new int[MAXPARTICLE];
+
 	Clear();
 }
 
@@ -62,28 +64,6 @@ rxShapeMatching::rxShapeMatching(int obj)
 rxShapeMatching::~rxShapeMatching()
 {
 }
-
-/*
- *	GPUの初期化	CPU側のデータを初期化した後に呼ぶ
- */
-void rxShapeMatching::InitGPU()
-{
-	//デバイス側のメモリを確保
-	//クラスタが保存できる最大粒子数をMAXPARTICLEで定義する．
-	cudaMalloc((void**)&d_OrgPos, sizeof(float) * MAXPARTICLE * SM_DIM);
-	cudaMalloc((void**)&d_CurPos, sizeof(double) * MAXPARTICLE * SM_DIM);
-	cudaMalloc((void**)&d_Vel, sizeof(double) * MAXPARTICLE * SM_DIM);
-	cudaMalloc((void**)&d_Mass, sizeof(double) * MAXPARTICLE);
-	cudaMalloc((void**)&d_Fix, sizeof(bool) * MAXPARTICLE);
-
-	//ホスト側のデータをデバイス側へ転送
-	cudaMemcpy(d_OrgPos, m_pOrgPos, sizeof(float) * MAXPARTICLE * SM_DIM, cudaMemcpyHostToDevice);
-	cudaMemcpy(d_CurPos, m_pCurPos, sizeof(double) * MAXPARTICLE * SM_DIM, cudaMemcpyHostToDevice);
-	cudaMemcpy(d_Vel, m_pVel,		sizeof(double) * MAXPARTICLE * SM_DIM, cudaMemcpyHostToDevice);
-	cudaMemcpy(d_Mass, m_pMass,		sizeof(double) * MAXPARTICLE, cudaMemcpyHostToDevice);
-	cudaMemcpy(d_Fix, m_pFix,		sizeof(bool) * MAXPARTICLE, cudaMemcpyHostToDevice);
-}
-
 
 /*!
  * 頂点位置の初期化
@@ -124,6 +104,8 @@ void rxShapeMatching::Clear()
 
 		m_pMass[i] = 0.0;
 		m_pFix[i] = false;
+
+		m_iPIndxes[i] = -1;
 	}
 }
 
@@ -133,7 +115,7 @@ void rxShapeMatching::Clear()
  * @param[in] pos 頂点位置
  * @param[out] mass 頂点質量
  */
-void rxShapeMatching::AddVertex(const Vec3 &pos, double mass)
+void rxShapeMatching::AddVertex(const Vec3 &pos, double mass, int pIndx)
 {
 	for(int i = 0; i < SM_DIM; i++)
 	{
@@ -147,9 +129,11 @@ void rxShapeMatching::AddVertex(const Vec3 &pos, double mass)
 	//m_pFixは特にすること無し
 	m_pMass[m_iNumVertices] = mass;
 
+	m_iPIndxes[m_iNumVertices] = pIndx;
+
 	m_iNumVertices++;
 
-	initialize();	//これ必要？
+	//initialize();	//これ必要？
 }
 
 /*!

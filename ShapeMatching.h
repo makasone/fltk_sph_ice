@@ -36,13 +36,6 @@ using namespace std;
 typedef void (*CollisionFunc)(Vec3&, Vec3&, Vec3&, int);
 
 
-//GPU処理
-extern void LaunchShapeMatchingGPU(
-	/*unsigned int num_particles,
-	float (*pos)[2],
-	float time,
-	float dt*/);
-
 #define MAXPARTICLE 300	//layer2 300
 #define SM_DIM 3
 
@@ -56,10 +49,14 @@ protected:
 	// 形状データ
 	float* m_pOrgPos;				//!< オリジナルの頂点位置
 	float* m_pCurPos;				//!< 現在の頂点位置
+
 	float* m_pNewPos;				//!< 次のステップの頂点位置
 	float* m_pGoalPos;				//!< 目標頂点位置
-	float* m_pMass;				//!< 頂点質量(変形時の重み)
+
+	float* m_pMass;					//!< 頂点質量(変形時の重み)
 	float* m_pVel;					//!< 頂点速度
+
+	int* m_iPIndxes;				//!< クラスタに所属する粒子の番号
 
 	bool* m_pFix;					//!< 頂点固定フラグ
 
@@ -84,26 +81,13 @@ protected:
 
 	CollisionFunc m_fpCollision;
 
-	//GPU
-	//デバイス側へのポインタ
-	float* d_OrgPos;
-	double* d_CurPos;
-	double* d_NewPos;
-	double* d_GoalPos;
-	double* d_Mass;
-	double* d_Vel;
-
-	bool* d_Fix;
-
 public:
 	//! コンストラクタとデストラクタ
 	rxShapeMatching(int obj);
 	~rxShapeMatching();
 
-	void InitGPU();
-
 	void Clear();
-	void AddVertex(const Vec3 &pos, double mass);
+	void AddVertex(const Vec3 &pos, double mass, int pIndx);
 
 	void Update();
 
@@ -157,6 +141,8 @@ public:
 	const Vec3 GetGoalPos(int i) { return Vec3(m_pGoalPos[i*SM_DIM+0], m_pGoalPos[i*SM_DIM+1], m_pGoalPos[i*SM_DIM+2]); }
 	const Vec3 GetVertexVel(int i){ return Vec3(m_pVel[i*SM_DIM+0], m_pVel[i*SM_DIM+1], m_pVel[i*SM_DIM+2]); }
 	double GetMass(int i){ return m_pMass[i]; }
+
+	int GetParticleIndx(int indx){ return m_iPIndxes[indx]; }
 
 	void FixVertex(int i, const Vec3 &pos);
 	void UnFixVertex(int i);
