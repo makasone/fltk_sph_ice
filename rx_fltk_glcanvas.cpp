@@ -502,9 +502,10 @@ void rxFlGLWindow::InitGL(void)
 
 #endif
 
-	//InitObjFile();			//objファイルを読み込んで粒子位置を初期化
-	
-	InitTetra();
+	//InitObjFile();		//objファイルを読み込んで粒子位置を初期化
+	//test.test();			//CGALテスト
+
+	//InitTetra();
 	InitCluster();			//クラスタ初期化
 	InitICE_Cluster();		//粒子とクラスタの関係情報を初期化
 
@@ -2954,8 +2955,11 @@ void rxFlGLWindow::InitICE(void)
 
 #ifdef SOLID
 	//ソリッドモデル
+	//m_ice = new IceStructure(1000, 1000, 1000);
 	//m_ice = new IceStructure(3000, 3000, 12000);
-	m_ice = new IceStructure(5000, 5000, 26000);				//粒子数4913個の場合のパラメータ
+	//m_ice = new IceStructure(5000, 5000, 26000);				//粒子数4913個の場合のパラメータ
+	//m_ice = new IceStructure(10000, 10000, 1);
+	m_ice = new IceStructure(16000, 16000, 1);
 #endif
 
 #ifdef SURF
@@ -2987,34 +2991,34 @@ void rxFlGLWindow::InitTetra()
 	{
 		CountTetraHedra(i, m_vviTetraList[i]);
 	}
-	cout << "check2" << endl;
+
 	//メモリ確保
 	m_ice->InitTetraInfo();
-	cout << "check3" << endl;
+
 	//粒子が所属しているクラスタ数の配列をコピー
 	int *PtoTNum = new int[ICENUM];
-	cout << "check4" << endl;
+
 	for(int i = 0; i < ICENUM; i++)
 	{
 		PtoTNum[i] = m_ice->GetPtoTNum(i);
 	}
-	cout << "check5" << endl;
+
 	//四面体データ登録
 	for(unsigned i = 0; i < m_vviTetraList.size(); i++)
 	{
 		MakeTetraInfo(i, PtoTNum);
 	}
 	delete[] PtoTNum;
-	cout << "check6" << endl;
+
 	//近傍四面体データ登録
 	for(unsigned i = 0; i < m_vviTetraList.size(); i++)
 	{
 		m_ice->SetNeighborTetra(i, m_iLayer);
 	}
-	cout << "check7" << endl;
+
 	m_iTetraNum = m_vviTetraList.size();
 	m_iTetraNumNum = m_iTetraNum;		//デバッグ用
-	cout << "check8" << endl;
+
 	//デバッグ
 	//DebugTetra();
 }
@@ -3167,27 +3171,27 @@ void rxFlGLWindow::InitCluster()
 	//MakeClusterHigh();
 
 #ifdef SOLID
-	//パターン１：四面体リストを元に，粒子毎にクラスタ作成
-	for(int i = 0; i < ICENUM; i++)
-	{
-		// Shape Matchingの設定　パラメータ読み込み
-		rxSPHEnviroment sph_env = m_Scene.GetSphEnv();
+	////パターン１：四面体リストを元に，粒子毎にクラスタ作成
+	//for(int i = 0; i < ICENUM; i++)
+	//{
+	//	// Shape Matchingの設定　パラメータ読み込み
+	//	rxSPHEnviroment sph_env = m_Scene.GetSphEnv();
 
-		//クラスタ初期化
-		m_sm_cluster.push_back(new Ice_SM(m_iClusteresNum));
-		m_sm_cluster[m_iClusteresNum]->SetSimulationSpace(-sph_env.boundary_ext, sph_env.boundary_ext);
-		m_sm_cluster[m_iClusteresNum]->SetTimeStep(sph_env.smTimeStep);
-		m_sm_cluster[m_iClusteresNum]->SetCollisionFunc(0);
-		m_sm_cluster[m_iClusteresNum]->SetStiffness(1.0, 0.0);
+	//	//クラスタ初期化
+	//	m_sm_cluster.push_back(new Ice_SM(m_iClusteresNum));
+	//	m_sm_cluster[m_iClusteresNum]->SetSimulationSpace(-sph_env.boundary_ext, sph_env.boundary_ext);
+	//	m_sm_cluster[m_iClusteresNum]->SetTimeStep(sph_env.smTimeStep);
+	//	m_sm_cluster[m_iClusteresNum]->SetCollisionFunc(0);
+	//	m_sm_cluster[m_iClusteresNum]->SetStiffness(1.0, 0.0);
 
-		//四面体リストを元に，粒子毎にクラスタ作成
-		MakeCluster(i);
+	//	//四面体リストを元に，粒子毎にクラスタ作成
+	//	MakeCluster(i);
 
-		m_iClusteresNum++;
-	}
+	//	m_iClusteresNum++;
+	//}
 #endif
 
-	//MakeClusterFromNeight();
+	MakeClusterFromNeight();
 
 #ifdef SURF
 	//パターン２：近傍情報のみでクラスタ作成
@@ -3195,10 +3199,14 @@ void rxFlGLWindow::InitCluster()
 #endif
 
 	//クラスタに関するGPUの初期化
-	for(int i = 0; i < m_iClusteresNum; i++)
-	{
-		m_sm_cluster[i]->InitGPU();
-	}
+	//すべてのクラスタにアクセスできるようにポインタを渡している
+	//Ice_SM::InitGPU(m_sm_cluster, ((RXSPH*)m_pPS)->GetDevicePointer_Pos(), ((RXSPH*)m_pPS)->GetDevicePointer_Vel());
+
+	////クラスタのデータをGPUへ初期化
+	//for(int i = 0; i < ICENUM; i++)
+	//{
+	//	m_sm_cluster[i]->InitGPU_Instance();
+	//}
 
 	//TODO::粒子質量を下げる　浮力を生むため
 
@@ -3296,7 +3304,7 @@ void rxFlGLWindow::MakeClusterFromNeight()
 {
 	//初期化のために影響半径を広くしてみる
 	float radius = ((RXSPH*)m_pPS)->GetEffectiveRadius();
-	((RXSPH*)m_pPS)->SetEffectiveRadius(radius * 3.0f);
+	((RXSPH*)m_pPS)->SetEffectiveRadius(radius * 3.0f);							//3.0で近傍粒子が500を超えるのに注意
 	StepPS(m_fDt);																//一度タイムステップを勧めないと，近傍粒子が取得されないみたい
 	((RXSPH*)m_pPS)->SetEffectiveRadius(radius);
 	
@@ -3596,21 +3604,27 @@ void rxFlGLWindow::StepCluster(double dt)
 	////double end0 = qc.End();
 	////qc.Start();
 
+	//Vec3 vec(0.0);
+	//rxMatrix3 matrix(0.0);
+
 	////クラスタのパラメータ更新
 	//#pragma omp parallel
 	//{
-	//#pragma omp for
+	//#pragma omp for private(vec, matrix)
 	//for(int i = 0; i < m_iClusteresNum; i++)
 	//{	
 	//	if(m_ice->GetPtoCNum(i) == 0){	continue;	}
 
 	//	//TODO::配列を参照渡しにして書き込ませる
-	//	m_sm_cluster[i]->SetNowCm(m_ice->GetCmSum(i));				//重心の更新
-	//	m_sm_cluster[i]->SetApq(m_ice->GetApqSum(i));				//変形行列の更新
+	//	m_ice->GetCmSum(i, vec);
+	//	m_sm_cluster[i]->SetNowCm(vec);				//重心の更新
+
+	//	m_ice->GetApqSum(i, matrix);
+	//	m_sm_cluster[i]->SetApq(matrix);			//変形行列の更新
 	//}
 	//}
 
-	////double end1 = qc.End()/*/100*/;
+	//double end1 = qc.End()/*/100*/;
 //#endif
 
 	//qc.Start();
@@ -3634,8 +3648,10 @@ void rxFlGLWindow::StepCluster(double dt)
 		}
 	}//#pragma omp parallel
 
-	//GPUを用いたクラスタの運動計算	OpenMPは使えないのに注意
-	//for(int i = 0; i < m_iClusteresNum; i++)
+	//GPUを用いたクラスタの運動計算
+	//Ice_SM::UpdateGPU();
+
+	//for(int i = 0; i < /*m_iClusteresNum*/1; i++)
 	//{	
 	//	if(m_ice->GetPtoCNum(i) == 0){	continue;	}
 	//	
@@ -3643,11 +3659,13 @@ void rxFlGLWindow::StepCluster(double dt)
 	//	//cout << "計測開始 " << i << endl;
 	//	//iqc.Start();
 
-	//	m_sm_cluster[i]->UpdateGPU();									//運動計算
+	//	m_sm_cluster[i]->CopyDeviceToInstance();						//計算結果のコピー
 
 	//	//double end = iqc.End();
 	//	//cout << "計測終了 " << i << " :: " << end << endl;
 	//}
+
+
 
 	//double end2 = qc.End()/*/100*/;
 
@@ -3855,32 +3873,32 @@ void rxFlGLWindow::InitICE_Cluster()
 	{
 		CountSolid(i);
 	}
-
+	cout << __FUNCTION__ << " check0" << endl;
 	//メモリ確保
 	m_ice->InitClusterInfo();
-
+	cout << __FUNCTION__ << " check1" << endl;
 	//粒子が所属しているクラスタ数の配列をコピー
 	int *PtoCNum = new int[ICENUM];
-
+	cout << __FUNCTION__ << " check2" << endl;
 	for(int i = 0; i < ICENUM; i++)
 	{
 		PtoCNum[i] = m_ice->GetPtoCNum(i);
 	}
-
+	cout << __FUNCTION__ << " check3" << endl;
 	//クラスタと粒子の関連情報の登録
 	for(int i = 0; i < ICENUM; i++)
 	{
 		MakeClusterInfo(i, PtoCNum);	//カウントを前で行っているため，こちらを使う
 	}
-
+	cout << __FUNCTION__ << " check4" << endl;
 	delete[] PtoCNum;
-
+	cout << __FUNCTION__ << " check5" << endl;
 	//TODO::クラスタと四面体の関連情報の登録
 
 	RXREAL *p = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
 	RXREAL *v = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_VELOCITY);
-
-	//m_ice->InitPath(p, v, m_sm_cluster, ICENUM);			//高速化のためのパス作成
+	cout << __FUNCTION__ << " check6" << endl;
+	m_ice->InitPath(p, v, m_sm_cluster, ICENUM);			//高速化のためのパス作成
 
 	//デバッグ
 	//for(int i = 0; i < m_iClusteresNum; i++)
@@ -4805,7 +4823,7 @@ void rxFlGLWindow::StepSolid_Freeze(double dt)
 	//}
 	//cout << endl;
 
-	////クラスタ→粒子
+	//クラスタ→粒子
 	//for(int i = 0; i < m_iClusteresNum; i++){	m_ice->DebugCtoP(i);	}
 
 	//粒子→クラスタ

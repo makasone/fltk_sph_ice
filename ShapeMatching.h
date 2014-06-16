@@ -35,8 +35,15 @@ using namespace std;
 //! è’ìÀîªíËópä÷êî
 typedef void (*CollisionFunc)(Vec3&, Vec3&, Vec3&, int);
 
+//#define MAXCLUSTER  27
+//#define MAXCLUSTER 2197
+//#define MAXCLUSTER	4913
+//#define MAXCLUSTER	6859
+//#define MAXCLUSTER	9261
+#define MAXCLUSTER	15625
 
-#define MAXPARTICLE 300	//layer2 300
+//#define MAXPARTICLE 200		//2.0
+#define MAXPARTICLE 500	//layer2 300, 3.0 500
 #define SM_DIM 3
 
 

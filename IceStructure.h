@@ -1,7 +1,7 @@
 /*!
   @file IceStructure.h
 	
-  @brief 点，辺，面を用いて氷構造を操作するクラス
+  @brief 氷構造を操作するクラス
  
   @author Ryou Nakasone
   @date 2013-07
@@ -25,6 +25,7 @@ using namespace std;
 class IceStructure
 {
 public:
+	IceStructure();
 	IceStructure(int pNum, int cNum, int tNum);
 	~IceStructure(void);
 
@@ -76,8 +77,10 @@ public:
 	int  GetPtoTFreeIndx(int pIndx);
 	int  GetPtoCFreeIndx(int pIndx);
 
-	const Vec3		GetCmSum(int cIndx);
-	const rxMatrix3	GetApqSum(int cIndx);
+	//const Vec3		GetCmSum(int cIndx);
+	//const rxMatrix3	GetApqSum(int cIndx);
+	void	GetCmSum(int cIndx, Vec3& vec);
+	void	GetApqSum(int cIndx, rxMatrix3& matrix);
 
 	void SetPtoT(int pIndx, int lIndx, int tIndx, int oIndx);				//粒子が属する四面体の登録　　粒子番号，粒子内順序，四面体番号，四面体内順序
 	void SetPtoC(int pIndx, int lIndx, int cIndx, int oIndx, int layer);	//粒子が属するクラスタの登録　粒子番号，粒子内順序，クラスタ番号，クラスタ内順序

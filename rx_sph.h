@@ -573,6 +573,10 @@ public:
 	void SetEffectiveRadius(float r){	m_params.EffectiveRadius = r;	}
 	float GetEffectiveRadius(){ return m_params.EffectiveRadius; }
 	
+	//デバイスポインタ
+	RXREAL* GetDevicePointer_Pos(){	return m_dPos;	}
+	RXREAL* GetDevicePointer_Vel(){	return m_dVel;	}
+
 	// 近傍パーティクル
 	uint* GetNeighborList(const int &i, int &n);
 

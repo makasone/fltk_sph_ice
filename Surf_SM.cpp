@@ -13,7 +13,7 @@ void Surf_SM::InitPath(const float* pos, const float* vel, const vector<Ice_SM*>
 {	cout << __FUNCTION__ << endl;
 
 	m_iceSM = iceSM;
-	m_strct = strct;
+	m_strct = strct;	//ここのせいであとの処理がポインタ経由でアクセスするため，遅くなっている
 
 	m_fPos = pos;
 	m_fVel = vel;
@@ -56,15 +56,15 @@ void Surf_SM::InitPath(const float* pos, const float* vel, const vector<Ice_SM*>
 	//prefixSumを初期化
 	m_mk2Dvec3_PrfxPos.SetSize(pthNum, prtNum);	//位置
 	UpdatePrefixSumPos();
-	
+
 	m_mk2Dmat3_PrfxApq.SetSize(pthNum, prtNum);	//変形行列
 	UpdatePrefixSumApq();
-
+	cout << __FUNCTION__ << " check2" << endl;
 	//どのパスのどの部分が必要なのか，をクラスタごとに計算
 	InitPathPrfxIndxSet(iceSM, strct);
-
+	cout << __FUNCTION__ << " check4" << endl;
 	InitOrgCm();						//初期重心
-
+	cout << __FUNCTION__ << " check3" << endl;
 	////デバッグ
 	//DebugPathDataPos();
 	//DebugPathDataApq();
@@ -90,7 +90,9 @@ void Surf_SM::InitOrgCm()
 
 	for(int iclstr = 0; iclstr < m_strct->GetClusterNum(); iclstr++)
 	{
-		m_vvec3OrgCm[iclstr] = CalcCmSum(iclstr);
+		Vec3 vec(0.0);
+		 CalcCmSum(iclstr, vec);
+		m_vvec3OrgCm[iclstr] = vec;
 	}
 }
 
@@ -98,8 +100,10 @@ void Surf_SM::InitOrgCm()
 void Surf_SM::InitPathPrfxIndxSet(const vector<Ice_SM*> iceSM, IceStructure* strct)
 {
 	//サイズは，クラスタ数×近傍粒子数
-	//そんなにたくさんはいらないはずだが，凝固を考慮して倍ぐらいにしておく？．
-	m_mk3DiPTHandPrfxSet.SetSize( strct->GetClusterNum(), strct->GetClusterNum()*2, 2 );
+	//そんなにたくさんはいらないはずだが，凝固を考慮して倍ぐらいにしておく？
+	//m_mk3DiPTHandPrfxSet.SetSize( strct->GetClusterNum(), strct->GetClusterNum()*2, 2 );
+	//高速化を試す場合は，最低限に
+	m_mk3DiPTHandPrfxSet.SetSize( strct->GetClusterNum(), strct->GetClusterNum()/20, 2 );
 
 	for(unsigned i = 0; i < m_mk3DiPTHandPrfxSet.Get().size(); i++)
 	{
@@ -205,22 +209,26 @@ void Surf_SM::UpdatePrefixSum()
 void Surf_SM::UpdatePrefixSumPos()
 {//	cout << __FUNCTION__ << endl;
 
-	//パスの数×パスに含まれる最大粒子数　だけ繰り返す
-	for(int indxX = 0; indxX < m_mk2DiPTHtoPRT.GetSizeX(); indxX++)
-	{
-		Vec3 preVec = Vec3(0.0, 0.0, 0.0);
+	int sizeX = m_mk2DiPTHtoPRT.GetSizeX();
+	int sizeY = m_mk2DiPTHtoPRT.GetSizeY();
 
-		for(int indxY = 0; indxY < m_mk2DiPTHtoPRT.GetSizeY(); indxY++)
+	//パスの数×パスに含まれる最大粒子数　だけ繰り返す
+	for(int indxX = 0; indxX < sizeX; indxX++)
+	{
+		Vec3 preVec(0.0, 0.0, 0.0);
+		int pIndx = 0;
+
+		for(int indxY = 0; indxY < sizeY; indxY++)
 		{
 			//TODO:末尾は必ず-1であることを想定している
 			//TODO:穴あきの場合もあるので，パスに所属する粒子数とかも保存したほうがいいかも
-			int pIndx = m_mk2DiPTHtoPRT(indxX, indxY)*4;
-			double mass = 1.0;		//とりあえず1.0fで固定
-
-			if(pIndx == -1)
+			pIndx = m_mk2DiPTHtoPRT(indxX, indxY)*4;
+			if(pIndx < 0)
 			{
 				break;
 			}
+
+			double mass = 1.0;		//とりあえず1.0で固定
 
 			m_mk2Dvec3_PrfxPos(indxX, indxY) = Vec3(m_fPos[pIndx+0], m_fPos[pIndx+1], m_fPos[pIndx+2]) * mass
 				+ (Vec3(m_fVel[pIndx+0], m_fVel[pIndx+1], m_fVel[pIndx+2])/* + Vec3(0.0, -9.81, 0.0)*0.01*/ ) * 0.02
@@ -233,27 +241,31 @@ void Surf_SM::UpdatePrefixSumPos()
 //変形行列（moment matrix）Apqのprefix sum
 void Surf_SM::UpdatePrefixSumApq()
 {//	cout << __FUNCTION__ << endl;
+	int sizeX = m_mk2DiPTHtoPRT.GetSizeX();
+	int sizeY = m_mk2DiPTHtoPRT.GetSizeY();
 
 	//パスの数×パスに含まれる最大粒子数　だけ繰り返す
-	for(int indxX = 0; indxX < m_mk2DiPTHtoPRT.GetSizeX(); indxX++)
+	for(int indxX = 0; indxX < sizeX; indxX++)
 	{
 		rxMatrix3 preMat(0.0);
+		int pIndx = 0;
+		Vec3 p;
+		Vec3 q;
 
-		for(int indxY = 0; indxY < m_mk2DiPTHtoPRT.GetSizeY(); indxY++)
+		for(int indxY = 0; indxY < sizeY; indxY++)
 		{
 			//TODO:末尾は必ず-1であることを想定している
 			//TODO:穴あきの場合もあるので，パスに所属する粒子数とかも保存したほうがいいかも
-			int pIndx = m_mk2DiPTHtoPRT(indxX, indxY)*4;
-			double mass = 1.0;		//とりあえず1.0で固定
-
-			if(pIndx == -1)
+			pIndx = m_mk2DiPTHtoPRT(indxX, indxY)*4;
+			if(pIndx < 0)
 			{
 				break;
 			}
+			double mass = 1.0;		//とりあえず1.0で固定
 
-			Vec3 p = Vec3(m_fPos[pIndx+0], m_fPos[pIndx+1], m_fPos[pIndx+2])
+			/*Vec3 */p = Vec3(m_fPos[pIndx+0], m_fPos[pIndx+1], m_fPos[pIndx+2])
 					+ (Vec3(m_fVel[pIndx+0], m_fVel[pIndx+1], m_fVel[pIndx+2])/* + Vec3(0.0, -9.81, 0.0)*0.01*/ ) * 0.02;
-			Vec3 q = m_vvec3OrgPos[pIndx/4];
+			/*Vec3 */q = m_vvec3OrgPos[pIndx*1/4];
 
 			//現在のAij
 			m_mk2Dmat3_PrfxApq(indxX, indxY)(0,0) = mass * p[0] * q[0];
@@ -272,7 +284,7 @@ void Surf_SM::UpdatePrefixSumApq()
 	}
 }
 //重心の総和を返す
-const Vec3 Surf_SM::CalcCmSum(const int& cIndx)
+void Surf_SM::CalcCmSum(const int& cIndx, Vec3& vec)
 {	//cout << __FUNCTION__ << " start" << endl;
 	Vec3 cmSum(0.0);
 
@@ -293,10 +305,20 @@ const Vec3 Surf_SM::CalcCmSum(const int& cIndx)
 		prtIndx = m_strct->GetCtoP(cIndx, iprt, 0);
 		pthIndx = m_mk2DiPRTtoPTH(prtIndx, 0);
 
-		cmSum += CalcCmFromPrfxSm(pthIndx, start, end);
+		//cmSum += CalcCmFromPrfxSm(pthIndx, start, end);
+
+		//関数を使わないバージョン
+		if(start == 0)
+		{
+			cmSum += m_mk2Dvec3_PrfxPos(pthIndx, end);
+		}
+		else
+		{
+			cmSum += m_mk2Dvec3_PrfxPos(pthIndx, end) - m_mk2Dvec3_PrfxPos(pthIndx, start-1);
+		}
 	}
 
-	return cmSum;
+	vec = cmSum;
 }
 
 //prfixSumから値を返す
@@ -312,14 +334,15 @@ const Vec3 Surf_SM::CalcCmFromPrfxSm(const int& path, const int& start, const in
 	}
 }
 
-const rxMatrix3 Surf_SM::CalcApqSum(const int& cIndx)
+void Surf_SM::CalcApqSum(const int& cIndx, rxMatrix3& matrix)
 {
 	rxMatrix3 ApqSum(0.0);
 	rxMatrix3 mtt0T(0.0);			//M_i t_i (t^0_i)^T
 	double mass = 1.0;
-	Vec3 t(CalcCmSum(cIndx));		//一時オブジェクトが作られないように
+	Vec3 t(0.0);
+	CalcCmSum(cIndx, t);		//一時オブジェクトが作られないように
 
-	t *= 1.0 / (double)(m_strct->GetCtoPNum(cIndx));
+	t *= 1.0 / (m_strct->GetCtoPNum(cIndx));
 
 	Vec3 t0T( m_iceSM[cIndx]->GetOrgCm() );
 
@@ -333,7 +356,7 @@ const rxMatrix3 Surf_SM::CalcApqSum(const int& cIndx)
 	mtt0T(2,1) = mass * t[2] * t0T[1];
 	mtt0T(2,2) = mass * t[2] * t0T[2];
 
-	ApqSum -= (double)(m_strct->GetCtoPNum(cIndx)) * mtt0T;
+	ApqSum -= (m_strct->GetCtoPNum(cIndx)) * mtt0T;
 
 	int start = -1;
 	int end = -1;
@@ -351,10 +374,19 @@ const rxMatrix3 Surf_SM::CalcApqSum(const int& cIndx)
 		prtIndx = m_strct->GetCtoP(cIndx, iprt, 0);
 		pthIndx = m_mk2DiPRTtoPTH(prtIndx, 0);
 
-		ApqSum += CalcApqFromPrfxSm(pthIndx, start, end);
+		//ApqSum += CalcApqFromPrfxSm(pthIndx, start, end);
+		//関数を使わないバージョン
+		if(start == 0)
+		{
+			ApqSum += m_mk2Dmat3_PrfxApq(pthIndx, end);
+		}
+		else
+		{
+			ApqSum += m_mk2Dmat3_PrfxApq(pthIndx, end) - m_mk2Dmat3_PrfxApq(pthIndx, start-1);
+		}
 	}
 
-	return ApqSum;
+	matrix = ApqSum;
 }
 
 const rxMatrix3 Surf_SM::CalcApqFromPrfxSm(const int& path, const int& start, const int& end)

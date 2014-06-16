@@ -177,7 +177,7 @@
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
-      <AdditionalIncludeDirectories>./;../../../common/shared/inc;$(CudaToolkitIncludeDir);../../../common/shared/inc/cuda</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>./;../../../common/shared/inc;$(CudaToolkitIncludeDir);../../../common/shared/inc/cuda;D:\CGAL\build\include;D:\CGAL\include;D:\CGAL\auxiliary\gmp\include;D:\boost_1_55_0</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;RX_USE_BOUNDARY_PARTICLE;dDOUBLE;_CRT_SECURE_NO_DEPRECATE;GLS_DLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <PrecompiledHeader>
@@ -195,9 +195,9 @@
       <OmitFramePointers>true</OmitFramePointers>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>cuda.lib;cudart.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>cuda.lib;cudart.lib;libgmp-10.lib;libmpfr-4.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(OutDir)$(ProjectName).exe</OutputFile>
-      <AdditionalLibraryDirectories>../../../common/shared/lib;$(CudaToolkitLibDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>../../../common/shared/lib;$(CudaToolkitLibDir);D:/CGAL/build/lib;D:/CGAL/build/lib/$(Configuration);D:/boost_1_55_0/stage/lib;D:\CGAL\auxiliary\gmp\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <GenerateDebugInformation>false</GenerateDebugInformation>
       <SubSystem>Console</SubSystem>

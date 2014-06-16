@@ -102,13 +102,16 @@ class rxSSMeshGPU;
 //#define SURF
 
 #ifdef SOLID
-#define ICENUM 27
+//#define ICENUM 27
 //#define ICENUM 125
 //#define ICENUM	729
 //#define ICENUM	1331
 //#define ICENUM	2197	//13_13_13
 //#define ICENUM	3463		//バニーモデル
 //#define ICENUM	4913	//17_17_17
+//#define ICENUM 6859 //19_19_19
+//#define ICENUM	9261	//21_21_21
+#define ICENUM 15625		//25_25_25
 #endif
 
 #ifdef SURF

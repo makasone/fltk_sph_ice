@@ -8,6 +8,10 @@
  * @param[in] cNumMax　最大クラスタ数
  * @param[in] tNumMax　最大四面体数
  */
+IceStructure::IceStructure()
+{
+}
+
 IceStructure::IceStructure(int pNumMax, int cNumMax, int tNumMax)
 {
 	//最大数の登録
@@ -16,49 +20,51 @@ IceStructure::IceStructure(int pNumMax, int cNumMax, int tNumMax)
 	m_iTNumMax = tNumMax;
 
 	//粒子情報の初期化
-	m_iPtoCMax = m_iCNumMax*0.3;	//1331 layer2 0.4 layer3 0.75
+	m_iPtoCMax = m_iCNumMax*0.1;	//1331 layer2 0.4 layer3 0.75
 									//2197 layer2 0.4 layer3 0.4 layer4 0.5
-	m_iPtoTMax = m_iTNumMax*0.3;	//1331 layer2 0.3 layer3 0.5
+	m_iPtoTMax = m_iTNumMax*0.1;	//1331 layer2 0.3 layer3 0.5
 									//2197 layer2 0.3 layer3 0.3
 
+	//高速化をテストするときはPtoTはコメントに
 	m_piPtoCNum = new int[m_iPNumMax];
-	m_piPtoTNum = new int[m_iPNumMax];
+	//m_piPtoTNum = new int[m_iPNumMax];
 
 	m_piPtoCIndx = new int[m_iPNumMax];
-	m_piPtoTIndx = new int[m_iPNumMax];
+	//m_piPtoTIndx = new int[m_iPNumMax];
 
 	for(int i = 0; i < m_iPNumMax; i++)
 	{
 		m_piPtoCNum[i] = 0;
-		m_piPtoTNum[i] = 0;
+		//m_piPtoTNum[i] = 0;
 		
 		m_piPtoCIndx[i] = 0;
-		m_piPtoTIndx[i] = 0;
+		//m_piPtoTIndx[i] = 0;
 	}
 
 	//クラスタ情報の初期化
 	//CtoTMaxは粒子数と等しいので定義しない
-	m_iCtoPMax = m_iPNumMax*0.3;	//1331 layer2 0.5 layer3 0.75
+	//高速化をテストするときはCtoTはコメントに
+	m_iCtoPMax = m_iPNumMax*0.1;	//1331 layer2 0.5 layer3 0.75
 									//2197 layer2 0.5 layre3 0.5
 	m_piCtoPNum = new int[m_iCNumMax];
-	m_piCtoTNum = new int[m_iCNumMax];
+	//m_piCtoTNum = new int[m_iCNumMax];
 
 	m_piCtoPIndx = new int[m_iCNumMax];
-	m_piCtoTIndx = new int[m_iCNumMax];
+	//m_piCtoTIndx = new int[m_iCNumMax];
 
 	for(int i = 0; i < m_iCNumMax; i++)
 	{
 		m_piCtoPNum[i] = 0;
-		m_piCtoTNum[i] = 0;
+		//m_piCtoTNum[i] = 0;
 		
 		m_piCtoPIndx[i] = 0;
-		m_piCtoTIndx[i] = 0;
+		//m_piCtoTIndx[i] = 0;
 	}
 
 	//四面体情報の初期化
 	//TtoPMaxは最大４で固定
 	//TtoCMaxは必要ない
-	m_piTtoPNum = new int[m_iTNumMax];
+/*	m_piTtoPNum = new int[m_iTNumMax];
 	m_piTtoCNum = new int[m_iTNumMax];
 
 	m_piTtoPIndx = new int[m_iTNumMax];
@@ -74,6 +80,7 @@ IceStructure::IceStructure(int pNumMax, int cNumMax, int tNumMax)
 	}
 
 	//近傍四面体
+	//高速化のための実験ではコメントにしておく
 	m_piNTNum = new int[m_iTNumMax];
 
 	m_iNeighborMax = m_iTNumMax*0.1;		//1331 layer2 0.3 layer3 0.75
@@ -96,7 +103,7 @@ IceStructure::IceStructure(int pNumMax, int cNumMax, int tNumMax)
 			}
 		}
 	}
-
+*/
 	//フラグ
 	m_pbPFlag = new bool[m_iPNumMax];
 	m_pbCFlag = new bool[m_iCNumMax];
@@ -288,14 +295,14 @@ int IceStructure::GetPtoCFreeIndx(int pIndx)
 	return freeIndx;
 }
 
-const Vec3 IceStructure::GetCmSum(int cIndx)
+void IceStructure::GetCmSum(int cIndx, Vec3& vec)
 {
-	return m_SurfSm.CalcCmSum(cIndx);
+	m_SurfSm.CalcCmSum(cIndx, vec);
 }
 
-const rxMatrix3 IceStructure::GetApqSum(int cIndx)
+void IceStructure::GetApqSum(int cIndx, rxMatrix3& matrix)
 {
-	return m_SurfSm.CalcApqSum(cIndx);
+	m_SurfSm.CalcApqSum(cIndx, matrix);
 }
 
 //-------------------------------------------取得----------------------------------------

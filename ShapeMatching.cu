@@ -1,27 +1,43 @@
+#ifndef _GPU_SHAPE_MATCHING_H_
+#define _GPU_SHAPE_MATCHING_H_
+
+#include <math.h>	//使える？
 #include <stdio.h>
-#include <math.h>
-#include <rx_cu_common.cuh>	//使わない？
+
+//#include <cstdio>
+//#include <cmath>
+//#include <cstdlib>
+//
+//#include "rx_utility.h"
+//#include <rx_matrix.h>
+//
+//#include "rx_nnsearch.h"
+
+//#include <rx_cu_common.cu>
+#include <rx_cu_common.cuh>	//先生が定義した便利機能が使える　なぜか、インクルードすると赤くならない
 
 #define SM_DIM 3
 
 //引き渡す変数名が間違っていてもエラーが出ないので注意
 
-void LaunchShapeMathcingGPU(float* curPos, float* vel, int* pIndxes, float dt, int prtNum);
-__global__ void Update(float* curPos, float* vel, int* pIndxes, float dt, int prtNum);
-__device__ void ExternalForce(float* curPos, float* vel, int* pIndxes, float dt, int prtNum);
-__device__ void ProjectPos(float* curPos, float* vel, int* pIndxes, float dt, int prtNum);
-__device__ void Integrate(float* curPos, float* vel, int* pIndxes, float dt, int prtNum);
+void LaunchShapeMathcingGPU(float* prtPos, float* prtVel, float* orgPos, float* curPos, float* vel, int* pIndxes, float dt, int prtNum);
+__global__ void Update(float* prtPos, float* prtVel, float* orgPos, float* curPos, float* vel, int* pIndxes, float dt, int prtNum);
+__device__ void ExternalForce(float* prtPos, float* prtVel, float* curPos, float* vel, int* pIndxes, float dt, int prtNum);
+__device__ void ProjectPos(float* prtPos, float* prtVel, float* orgPos, float* curPos, float* vel, int* pIndxes, float dt, int prtNum);
+__device__ void Integrate(float* prtPos, float* prtVel, float* curPos, float* vel, int* pIndxes, float dt, int prtNum);
 
-float* d_Pos;	//デバイス側の粒子位置
-float* d_Vel;	//デバイス側の粒子速度
+__device__ void PolarDecomposition(matrix3x3 &A, matrix3x3 &R, matrix3x3 &S);
 
-//パラメータの初期化
-void InitParam()
-{
-}
+//行列演算
+__device__ void MakeIdentity(matrix3x3 &M);
+__device__ matrix3x3 Transpose(const matrix3x3 &M);
+__device__ matrix3x3 Inverse(const matrix3x3 &M);
+
+__device__ matrix3x3 Multiple(matrix3x3 &M1, matrix3x3 &M2);
+__device__ float3 Multiple(matrix3x3 &M1, float3& V);
 
 //GPU処理
-void LaunchShapeMatchingGPU(float* curPos, float* vel, int* pIndxes, float dt, int prtNum)
+void LaunchShapeMatchingGPU(float* prtPos, float* prtVel, float* orgPos, float* curPos, float* vel, int* pIndxes, float dt, int prtNum)
 {
 	
 	//printf("LaunchGPUKernel");
@@ -30,13 +46,16 @@ void LaunchShapeMatchingGPU(float* curPos, float* vel, int* pIndxes, float dt, i
 	dim3 block(1, 1, 1);
 
 	//運動計算
-	Update <<< grid , block >>> (curPos, vel, pIndxes, dt, prtNum);
+	Update <<< grid , block >>> (prtPos, prtVel, orgPos, curPos, vel, pIndxes, dt, prtNum);
 }
 
 
 //GPUの位置・速度更新
 __global__
 void Update(
+	float* prtPos,
+	float* prtVel, 
+	float* orgPos,
 	float* curPos, 
 	float* vel,
 	int* pIndxes,
@@ -45,13 +64,13 @@ void Update(
 {
 	//printf("d_Integrate\n");	//めちゃくちゃ出るので注意
 
-	ExternalForce(curPos, vel, pIndxes, dt, prtNum);
-	ProjectPos(curPos, vel, pIndxes, dt, prtNum);
-	Integrate(curPos, vel, pIndxes, dt, prtNum);
+	ExternalForce(prtPos, prtVel, curPos, vel, pIndxes, dt, prtNum);
+	ProjectPos(prtPos, prtVel, orgPos, curPos, vel, pIndxes, dt, prtNum);
+	Integrate(prtPos, prtVel, curPos, vel, pIndxes, dt, prtNum);
 }
 
 __device__
-	void ExternalForce(float* curPos, float* vel, int* pIndxes, float dt, int prtNum)
+	void ExternalForce(float* prtPos, float* prtVel, float* curPos, float* vel, int* pIndxes, float dt, int prtNum)
 {
 	// 重力の影響を付加，速度を反映
 	for(int i = 0; i < prtNum; ++i)
@@ -64,13 +83,13 @@ __device__
 			int jpIndx = pIndx+j;
 			int jcIndx = cIndx+j;
 
-			//curPos[jcIndx] = d_Pos[jpIndx]+d_Vel[jpIndx]*dt;
+			curPos[jcIndx] = prtPos[jpIndx]+prtVel[jpIndx]*dt;
 		}
 	}
 
 	// 境界壁の影響
 	//処理がかなり重くなるが，安定はするみたい
-	//double res = 0.9;	// 反発係数
+	//float res = 0.9;	// 反発係数
 	//for(int i = 0; i < prtNum; ++i){
 	//	//if(m_pFix[i]) continue;
 	//	//Vec3 &p = m_vCurPos[i];
@@ -97,19 +116,19 @@ __device__
 }
 
 __device__
-	void ProjectPos(float* curPos, float* vel, int* pIndxes, float dt, int prtNum)
+	void ProjectPos(float* prtPos, float* prtVel, float* orgPos, float* curPos, float* vel, int* pIndxes, float dt, int prtNum)
 {
 	if(prtNum <= 1) return;
 
 	float3 cm = make_float3(0.0, 0.0, 0.0);
 	float3 cm_org = make_float3(0.0, 0.0, 0.0);	// 重心
 
-	double mass = 0.0;	// 総質量
+	float mass = 0.0;	// 総質量
 
 	// 重心座標の計算
 	for(int i = 0; i < prtNum;++i){
-		//double m = m_pMass[i];
-		double m = 1.0;
+		//float m = m_pMass[i];
+		float m = 1.0;
 		//if(m_pFix[i]) m *= 300.0;	// 固定点の質量を大きくする
 		
 		int cIndx = i*SM_DIM;
@@ -118,54 +137,59 @@ __device__
 		cm.x += curPos[cIndx+0]*m;
 		cm.y += curPos[cIndx+1]*m;
 		cm.z += curPos[cIndx+2]*m;
+
+		cm_org.x += orgPos[cIndx+0]*m;
+		cm_org.y += orgPos[cIndx+1]*m;
+		cm_org.z += orgPos[cIndx+2]*m;
 	}
 
 	cm.x /= mass;
 	cm.y /= mass;
 	cm.z /= mass;
+	
+	cm_org.x /= mass;
+	cm_org.y /= mass;
+	cm_org.z /= mass;
 
-	//cm_org = m_vec3OrgCm;
+	matrix3x3 Apq, Aqq;
+	float3 p, q;
 
-	//rxMatrix3 Apq(0.0), Aqq(0.0);
-	//Vec3 p, q;
+	// Apq = Σmpq^T
+	// Aqq = Σmqq^T
+	for(int i = 0; i < prtNum; ++i)
+	{
+		int cIndx = i*SM_DIM;
 
-	//// Apq = Σmpq^T
-	//// Aqq = Σmqq^T
-	//for(int i = 0; i < prtNum; ++i)
-	//{
-	//	int cIndx = i*SM_DIM;
+		p.x = curPos[cIndx+0]-cm.x;
+		p.y = curPos[cIndx+1]-cm.y;
+		p.z = curPos[cIndx+2]-cm.z;
 
-	//	for(int j = 0; j < SM_DIM; j++)
-	//	{
-	//		//p[j] = m_pNewPos[cIndx+j]-cm[j];
+		q.x = orgPos[cIndx+0]-cm_org.x;
+		q.y = orgPos[cIndx+1]-cm_org.y;
+		q.z = orgPos[cIndx+2]-cm_org.z;
 
-	//		//p[j] = newPos[cIndx+j]-cm[j];
-	//		p[j] = curPos[cIndx+j]-cm[j];
-	//		q[j] = m_pOrgPos[cIndx+j]-cm_org[j];
-	//	}
+		float m = 1.0f;
 
-	//	double m = m_pMass[i];
+		Apq.e[0].x += m*p.x*q.x;
+		Apq.e[0].y += m*p.x*q.y;
+		Apq.e[0].z += m*p.x*q.z;
+		Apq.e[1].x += m*p.y*q.x;
+		Apq.e[1].y += m*p.y*q.y;
+		Apq.e[1].z += m*p.y*q.z;
+		Apq.e[2].x += m*p.z*q.x;
+		Apq.e[2].y += m*p.z*q.y;
+		Apq.e[2].z += m*p.z*q.z;
 
-	//	Apq(0,0) += m*p[0]*q[0];
-	//	Apq(0,1) += m*p[0]*q[1];
-	//	Apq(0,2) += m*p[0]*q[2];
-	//	Apq(1,0) += m*p[1]*q[0];
-	//	Apq(1,1) += m*p[1]*q[1];
-	//	Apq(1,2) += m*p[1]*q[2];
-	//	Apq(2,0) += m*p[2]*q[0];
-	//	Apq(2,1) += m*p[2]*q[1];
-	//	Apq(2,2) += m*p[2]*q[2];
-
-	//	Aqq(0,0) += m*q[0]*q[0];
-	//	Aqq(0,1) += m*q[0]*q[1];
-	//	Aqq(0,2) += m*q[0]*q[2];
-	//	Aqq(1,0) += m*q[1]*q[0];
-	//	Aqq(1,1) += m*q[1]*q[1];
-	//	Aqq(1,2) += m*q[1]*q[2];
-	//	Aqq(2,0) += m*q[2]*q[0];
-	//	Aqq(2,1) += m*q[2]*q[1];
-	//	Aqq(2,2) += m*q[2]*q[2];
-	//}
+		Aqq.e[0].x += m*q.x*q.x;
+		Aqq.e[0].y += m*q.x*q.y;
+		Aqq.e[0].z += m*q.x*q.z;
+		Aqq.e[1].x += m*q.y*q.x;
+		Aqq.e[1].y += m*q.y*q.y;
+		Aqq.e[1].z += m*q.y*q.z;
+		Aqq.e[2].x += m*q.z*q.x;
+		Aqq.e[2].y += m*q.z*q.y;
+		Aqq.e[2].z += m*q.z*q.z;
+	}
 
 	////Apqの行列式を求め，反転するかを判定
 	////不安定な場合が多いので×
@@ -178,7 +202,7 @@ __device__
 	//	//Apq(2,2) = -Apq(2,2);
 
 	//	//２　a2とa3を交換
-	//	//double tmp;
+	//	//float tmp;
 	//	//tmp = Apq(0,2);
 	//	//Apq(0,2) = Apq(0,1);
 	//	//Apq(0,1) = tmp;
@@ -193,52 +217,49 @@ __device__
 	////}
 	//
 
-	//rxMatrix3 R, S;
+	matrix3x3 R, S;
 	////PolarDecomposition(Apq, R, S, m_mtrxBeforeU);
-	//PolarDecomposition(Apq, R, S);
-
-	////double end1 = qc.End()/*/100*/;
+	PolarDecomposition(Apq, R, S);
 
 	//if(m_bLinearDeformation)
-	//{
-	//	// Linear Deformations
-	//	rxMatrix3 A;
-	//	A = Apq*Aqq.Inverse();	// A = Apq*Aqq^-1
+	{
+		// Linear Deformations
+		matrix3x3 A;
+		A = Multiple(Apq, Inverse(Aqq));	// A = Apq*Aqq^-1
 
-	//	// 体積保存のために√(det(A))で割る
-	//	if(m_bVolumeConservation){
-	//		double det = fabs(A.Determinant());
-	//		if(det > RX_FEQ_EPS){
-	//			det = 1.0/sqrt(det);
-	//			if(det > 2.0) det = 2.0;
-	//			A *= det;
-	//		}
-	//	}
+		//// 体積保存のために√(det(A))で割る
+		//if(m_bVolumeConservation){
+		//	float det = fabs(A.Determinant());
+		//	if(det > RX_FEQ_EPS){
+		//		det = 1.0/sqrt(det);
+		//		if(det > 2.0) det = 2.0;
+		//		A *= det;
+		//	}
+		//}
 
-	//	//cout << "計測開始2" << endl;
+		// 目標座標を計算し，現在の頂点座標を移動
+		for(int i = 0; i < prtNum; ++i){
+			//if(m_pFix[i]) continue;
 
-	//	// 目標座標を計算し，現在の頂点座標を移動
-	//	for(int i = 0; i < m_iNumVertices; ++i){
-	//		if(m_pFix[i]) continue;
+			int cIndx = i*SM_DIM;
 
-	//		int cIndx = i*SM_DIM;
+			// 回転行列Rの代わりの行列RL=βA+(1-β)Rを計算
+			q.x = orgPos[cIndx+0]-cm_org.x;
+			q.y = orgPos[cIndx+1]-cm_org.y;
+			q.z = orgPos[cIndx+2]-cm_org.z;
 
-	//		// 回転行列Rの代わりの行列RL=βA+(1-β)Rを計算
-	//		for(int j = 0; j < SM_DIM; j++)
-	//		{
-	//			q[j] = m_pOrgPos[cIndx+j]-cm_org[j];
-	//		}
-
-	//		Vec3 gp(R*q+cm);
-
-	//		for(int j = 0; j < SM_DIM; j++)
-	//		{
-	//			int jcIndx = cIndx+j;
-
-	//			m_pCurPos[jcIndx] += (gp[j]-m_pCurPos[jcIndx])*m_dAlphas[i];
-	//		}
-	//	}
-	//}
+			//Vec3 gp(R*q+cm);
+			float3 Rq = Multiple(R, q);
+			float3 gp;
+			gp.x = Rq.x + cm.x;
+			gp.y = Rq.y + cm.y;
+			gp.z = Rq.z + cm.z;
+			
+			curPos[cIndx+0] += (gp.x-curPos[cIndx+0])*1.0f/*m_dAlphas[i]*/;
+			curPos[cIndx+1] += (gp.y-curPos[cIndx+1])*1.0f/*m_dAlphas[i]*/;
+			curPos[cIndx+2] += (gp.z-curPos[cIndx+2])*1.0f/*m_dAlphas[i]*/;
+		}
+	}
 }
 
 /*!
@@ -247,9 +268,9 @@ __device__
  * @param[in] dt タイムステップ幅
  */
 __device__
-	void Integrate(float* curPos, float* vel, int* pIndxes, float dt, int prtNum)
+	void Integrate(float* prtPos, float* prtVel, float* curPos, float* vel, int* pIndxes, float dt, int prtNum)
 {
-	double dt1 = 1.0/dt;
+	float dt1 = 1.0/dt;
 
 	for(int i = 0; i < prtNum; ++i)
 	{
@@ -259,13 +280,14 @@ __device__
 		{
 			int cIndx = i*SM_DIM+j;
 
-			//vel[cIndx] = (curPos[cIndx] - d_Pos[pIndx+j]) * dt1;/*+ m_v3Gravity * dt * 1.0*/;
+			vel[cIndx] = (curPos[cIndx] - prtPos[pIndx+j]) * dt1;/*+ m_v3Gravity * dt * 1.0*/;
 		}
 	}
 	
 }
 
-void clamp(float* pos, int cIndx)
+__device__  
+	void clamp(float* pos, int cIndx)
 {
 	//if(pos[cIndx+0] < m_v3Min[0]) pos[cIndx+0] = m_v3Min[0];
 	//if(pos[cIndx+0] > m_v3Max[0]) pos[cIndx+0] = m_v3Max[0];
@@ -274,3 +296,298 @@ void clamp(float* pos, int cIndx)
 	//if(pos[cIndx+2] < m_v3Min[2]) pos[cIndx+2] = m_v3Min[2];
 	//if(pos[cIndx+2] > m_v3Max[2]) pos[cIndx+2] = m_v3Max[2];
 }
+
+/*!
+ * Jacobi法による固有値の算出
+ * @param[inout] a 実対称行列．計算後，対角要素に固有値が入る
+ * @param[out] v 固有ベクトル(aと同じサイズ)
+ * @param[in] n 行列のサイズ(n×n)
+ * @param[in] eps 収束誤差
+ * @param[in] iter_max 最大反復回数
+ * @return 反復回数
+ */
+__device__ 
+ int EigenJacobiMethod(float *a, float *v, int n, float eps = 1e-8, int iter_max = 100)
+{
+	float *bim, *bjm;
+	float bii, bij, bjj, bji;
+ 
+	bim = new float[n];
+	bjm = new float[n];
+ 
+	for(int i = 0; i < n; ++i){
+		for(int j = 0; j < n; ++j){
+			v[i*n+j] = (i == j) ? 1.0 : 0.0;
+		}
+	}
+ 
+	int cnt = 0;
+	for(;;){
+		int i = -1, j = -1;
+ 
+		float x = 0.0;
+		for(int ia = 0; ia < n; ++ia){
+			for(int ja = 0; ja < n; ++ja){
+				int idx = ia*n+ja;
+				if(ia != ja && fabs(a[idx]) > x){
+					i = ia;
+					j = ja;
+					x = fabs(a[idx]);
+				}
+			}
+		}
+
+		if(i == -1 || j == -1) return 0;
+ 
+		float aii = a[i*n+i];
+		float ajj = a[j*n+j];
+		float aij = a[i*n+j];
+ 
+		float m_dAlpha, m_dBeta;
+		m_dAlpha = (aii-ajj)/2.0;
+		m_dBeta  = sqrt(m_dAlpha*m_dAlpha+aij*aij);
+ 
+		float st, ct;
+		ct = sqrt((1.0+fabs(m_dAlpha)/m_dBeta)/2.0);    // sinθ
+		st = (((aii-ajj) >= 0.0) ? 1.0 : -1.0)*aij/(2.0*m_dBeta*ct);    // cosθ
+ 
+		// A = PAPの計算
+		for(int m = 0; m < n; ++m){
+			if(m == i || m == j) continue;
+ 
+			float aim = a[i*n+m];
+			float ajm = a[j*n+m];
+ 
+			bim[m] =  aim*ct+ajm*st;
+			bjm[m] = -aim*st+ajm*ct;
+		}
+ 
+		bii = aii*ct*ct+2.0*aij*ct*st+ajj*st*st;
+		bij = 0.0;
+ 
+		bjj = aii*st*st-2.0*aij*ct*st+ajj*ct*ct;
+		bji = 0.0;
+ 
+		for(int m = 0; m < n; ++m){
+			a[i*n+m] = a[m*n+i] = bim[m];
+			a[j*n+m] = a[m*n+j] = bjm[m];
+		}
+		a[i*n+i] = bii;
+		a[i*n+j] = bij;
+		a[j*n+j] = bjj;
+		a[j*n+i] = bji;
+ 
+		// V = PVの計算
+		for(int m = 0; m < n; ++m){
+			float vmi = v[m*n+i];
+			float vmj = v[m*n+j];
+ 
+			bim[m] =  vmi*ct+vmj*st;
+			bjm[m] = -vmi*st+vmj*ct;
+		}
+		for(int m = 0; m < n; ++m){
+			v[m*n+i] = bim[m];
+			v[m*n+j] = bjm[m];
+		}
+ 
+		float e = 0.0;
+		for(int ja = 0; ja < n; ++ja){
+			for(int ia = 0; ia < n; ++ia){
+				if(ia != ja){
+					e += fabs(a[ja*n+ia]);
+				}
+			}
+		}
+		if(e < eps) break;
+ 
+		cnt++;
+		if(cnt > iter_max) break;
+	}
+ 
+	delete [] bim;
+	delete [] bjm;
+ 
+	return cnt;
+}
+
+
+/*!
+ * 極分解で回転行列と対称行列に分解 A=RS
+ * @param[in] A 入力行列
+ * @param[out] R 回転行列(直交行列 R^-1 = R^T)
+ * @param[out] S 対称行列
+ */
+__device__ 
+	void PolarDecomposition(matrix3x3 &A, matrix3x3 &R, matrix3x3 &S)
+{
+	// S = (A^T A)^(1/2)を求める
+	matrix3x3 ATA;
+	ATA = Multiple(Transpose(A), A);	// (A^T A)の計算
+
+	MakeIdentity(R);
+
+	// (A^T A)を固有値分解して対角行列と直交行列を求める
+	// M^(1/2) = U^T M' U 
+	//  M = (A^T A), M':対角行列の平方根を取ったもの, U:直交行列
+
+	//行列をfloatに変換
+	float* pATA = new float[9];
+	float* pU = new float[9];
+
+	for(int i = 0; i < 3; i++)
+	{
+		int indx = i*3;
+		pATA[indx+0] = ATA.e[i].x;
+		pATA[indx+1] = ATA.e[i].y;
+		pATA[indx+2] = ATA.e[i].z;
+	}
+
+	EigenJacobiMethod(pATA, pU, 3);
+
+	//float*を行列に変換	
+	matrix3x3 U;
+
+	for(int i = 0; i < 3; i++)
+	{
+		int indx = i*3;
+		ATA.e[i].x = pATA[indx+0];
+		ATA.e[i].y = pATA[indx+1];
+		ATA.e[i].z = pATA[indx+2];
+
+		U.e[i].x = pU[indx+0];
+		U.e[i].y = pU[indx+1];
+		U.e[i].z = pU[indx+2];
+	}
+
+	// 対角行列の平方根をとって，逆行列計算のために逆数にしておく
+	float l0 = (ATA.e[0].x <= 0.0) ? 0.0 : 1.0/sqrt(ATA.e[0].x);
+	float l1 = (ATA.e[1].y <= 0.0) ? 0.0 : 1.0/sqrt(ATA.e[1].y);
+	float l2 = (ATA.e[2].z <= 0.0) ? 0.0 : 1.0/sqrt(ATA.e[2].z);
+
+	//// U^T M' U の逆行列計算
+	matrix3x3 S1;
+	S1.e[0].x = l0*U.e[0].x*U.e[0].x + l1*U.e[0].y*U.e[0].y + l2*U.e[0].z*U.e[0].z;
+	S1.e[0].y = l0*U.e[0].x*U.e[1].x + l1*U.e[0].y*U.e[1].y + l2*U.e[0].z*U.e[1].z;
+	S1.e[0].z = l0*U.e[0].x*U.e[2].x + l1*U.e[0].y*U.e[2].y + l2*U.e[0].z*U.e[2].z;
+	S1.e[1].x = S1.e[0].x;
+	S1.e[1].y = l0*U.e[1].x*U.e[1].x + l1*U.e[1].y*U.e[1].y + l2*U.e[1].z*U.e[1].z;
+	S1.e[1].z = l0*U.e[1].x*U.e[2].x + l1*U.e[1].y*U.e[2].y + l2*U.e[1].y*U.e[2].z;
+	S1.e[2].x = S1.e[0].z;
+	S1.e[2].y = S1.e[1].z;
+	S1.e[2].z = l0*U.e[2].x*U.e[2].x + l1*U.e[2].y*U.e[2].y + l2*U.e[2].z*U.e[2].z;
+
+	R = Multiple(A, S1);	// R = A S^-1
+	S = Multiple(Transpose(R), A); // S = R^-1 A = R^T A
+}
+
+//配列初期化
+__device__
+	void MakeIdentity(matrix3x3 &M)
+{
+	M.e[0].x = 1.0;
+	M.e[0].y = 0.0;
+	M.e[0].z = 0.0;
+
+	M.e[1].x = 0.0;
+	M.e[1].y = 1.0;
+	M.e[1].z = 0.0;
+
+	M.e[2].x = 0.0;
+	M.e[2].y = 0.0;
+	M.e[2].z = 1.0;
+}
+
+//転置行列
+__device__
+	matrix3x3 Transpose(const matrix3x3 &M)
+{
+	matrix3x3 T;
+
+	T.e[0].x = M.e[0].x;
+	T.e[0].y = M.e[1].x;
+	T.e[0].z = M.e[2].x;
+
+	T.e[1].x = M.e[0].y;
+	T.e[1].y = M.e[1].y;
+	T.e[1].z = M.e[2].y;
+
+	T.e[2].x = M.e[0].z;
+	T.e[2].y = M.e[1].z;
+	T.e[2].z = M.e[2].z;
+
+	return T;
+}
+
+//逆行列
+__device__
+	matrix3x3 Inverse(const matrix3x3 &M)
+{
+	matrix3x3 I;
+
+	I.e[0].x = M.e[0].x;
+	I.e[0].y = M.e[1].x;
+	I.e[0].z = M.e[2].x;
+
+	I.e[1].x = M.e[0].y;
+	I.e[1].y = M.e[1].y;
+	I.e[1].z = M.e[2].y;
+
+	I.e[2].x = M.e[0].z;
+	I.e[2].y = M.e[1].z;
+	I.e[2].z = M.e[2].z;
+
+	float d = M.e[0].x*M.e[1].y*M.e[2].z- 
+			 M.e[0].x*M.e[2].y*M.e[1].z+ 
+			 M.e[1].x*M.e[2].y*M.e[0].z- 
+			 M.e[1].x*M.e[0].y*M.e[2].z+ 
+			 M.e[2].x*M.e[0].y*M.e[1].z- 
+			 M.e[2].x*M.e[1].y*M.e[0].z;
+
+	if(d == 0) d = 1;
+
+	I.e[0].x =  (M.e[1].y*M.e[2].z-M.e[1].z*M.e[2].y)/d;
+	I.e[0].y = -(M.e[0].y*M.e[2].z-M.e[0].z*M.e[2].y)/d;
+	I.e[0].z =  (M.e[0].y*M.e[1].z-M.e[0].z*M.e[1].y)/d;
+	I.e[1].x = -(M.e[1].x*M.e[2].z-M.e[1].z*M.e[2].x)/d;
+	I.e[1].y =  (M.e[0].x*M.e[2].z-M.e[0].z*M.e[2].x)/d;
+	I.e[1].z = -(M.e[0].x*M.e[1].z-M.e[0].z*M.e[1].x)/d;
+	I.e[2].x =  (M.e[1].x*M.e[2].y-M.e[1].y*M.e[2].x)/d;
+	I.e[2].y = -(M.e[0].x*M.e[2].y-M.e[0].y*M.e[2].x)/d;
+	I.e[2].z =  (M.e[0].x*M.e[1].y-M.e[0].y*M.e[1].x)/d;
+
+	return I;
+}
+
+__device__ 
+	matrix3x3 Multiple(matrix3x3 &M1, matrix3x3 &M2)
+{
+	matrix3x3 M;
+
+	M.e[0].x = M1.e[0].x * M2.e[0].x + M1.e[0].y * M2.e[1].x + M1.e[0].z * M2.e[2].x;
+	M.e[0].y = M1.e[0].x * M2.e[0].y + M1.e[0].y * M2.e[1].y + M1.e[0].z * M2.e[2].y;
+	M.e[0].z = M1.e[0].x * M2.e[0].z + M1.e[0].y * M2.e[1].z + M1.e[0].z * M2.e[2].z;
+	 
+	M.e[1].x = M1.e[1].x * M2.e[0].x + M1.e[1].y * M2.e[1].x + M1.e[1].z * M2.e[2].x;
+	M.e[1].y = M1.e[1].x * M2.e[0].y + M1.e[1].y * M2.e[1].y + M1.e[1].z * M2.e[2].y;
+	M.e[1].z = M1.e[1].x * M2.e[0].z + M1.e[1].y * M2.e[1].z + M1.e[1].z * M2.e[2].z;
+	 
+	M.e[2].x = M1.e[2].x * M2.e[0].x + M1.e[2].y * M2.e[1].x + M1.e[2].z * M2.e[2].x;
+	M.e[2].y = M1.e[2].x * M2.e[0].y + M1.e[2].y * M2.e[1].y + M1.e[2].z * M2.e[2].y;
+	M.e[2].z = M1.e[2].x * M2.e[0].z + M1.e[2].y * M2.e[1].z + M1.e[2].z * M2.e[2].z;
+
+	return M;
+}
+
+__device__ 
+	float3 Multiple(matrix3x3 &M1, float3 &V)
+{
+	float3 M;
+
+	M.x = M1.e[0].x * V.x + M1.e[0].y * V.y + M1.e[0].z * V.z;
+	M.y = M1.e[1].x * V.y + M1.e[1].y * V.y + M1.e[1].z * V.z;
+	M.z = M1.e[2].x * V.z + M1.e[2].y * V.y + M1.e[2].z * V.z;
+
+	return M;
+}
+
+#endif

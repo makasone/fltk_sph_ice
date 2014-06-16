@@ -43,6 +43,7 @@ rxShapeMatching::rxShapeMatching(int obj)
 
 	//メモリ確保
 	//クラスタが保存できる最大粒子数をMAXPARTICLEで定義する．
+	//高速化を行う場合はコメントアウト
 	m_pOrgPos = new float[MAXPARTICLE*SM_DIM];
 	m_pCurPos = new float[MAXPARTICLE*SM_DIM];
 	//m_pNewPos = new float[MAXPARTICLE*SM_DIM];

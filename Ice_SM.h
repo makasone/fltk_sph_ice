@@ -20,6 +20,9 @@ using namespace std;
 
 //GPU処理
 extern void LaunchShapeMatchingGPU(
+	float* prtPos,
+	float* prtVel, 
+	float* orgPos,
 	float* curPos,
 	float* vel,
 	int* pIndxes, 
@@ -31,6 +34,8 @@ extern void LaunchShapeMatchingGPU(
 class Ice_SM : public rxShapeMatching
 {
 protected:
+
+	unsigned m_iIndxNum;				//配列で実装したため、穴あきに対応するための最大添字番号
 
 	float* m_fpAlphas;					//!< stiffnessパラメータ[0,1] (速度計算に使用)
 	float* m_fpBetas;					//!< deformationパラメータ[0,1]	未使用
@@ -52,24 +57,30 @@ protected:
 	static const float* s_pfPrtPos;		//読み込み専用
 	static const float* s_pfPrtVel;		//読み込み専用
 
-	//GPU
+	static float* sd_PrtPos;		//デバイスポインタ
+	static float* sd_PrtVel;		//デバイスポインタ
+
+//--------------------------------------GPU------------------------------------------------------------
 	//デバイス側へのポインタ
-	float* d_OrgPos;
-	float* d_CurPos;
-	float* d_NewPos;
-	float* d_GoalPos;
-	float* d_Mass;
-	float* d_Vel;
+	static float* d_OrgPos;
+	static float* d_CurPos;
+	static float* d_NewPos;
+	static float* d_GoalPos;
+	static float* d_Mass;
+	static float* d_Vel;
 
-	bool* d_Fix;
+	static bool* d_Fix;
 
-	int* d_PIndxes;
+	static int* d_PIndxes;
 
-	unsigned m_iIndxNum;				//配列で実装したため、穴あきに対応するための最大添字番号
+	static int* d_IndxSet;					//クラスタのデータの開始添字と終了添字を保存
 
-	//ここに辺と面を持たせる
+	static int s_vertSum;					//全クラスタに含まれる粒子の総数
+
+//--------------------------------------GPU------------------------------------------------------------
+
 		//bounds壁にぶつかったときの反発力
-		//allowFlip反転を許すかのフラグ　いらない？
+		//allowFlip反転を許すかのフラグ
 
 public:
 	Ice_SM(int obj);
@@ -80,14 +91,18 @@ public:
 		s_pfPrtPos = pos;	s_pfPrtVel = vel;
 	}
 
-	void InitGPU();
+	static void Ice_SM::InitGPU(const vector<Ice_SM*>& sm, float* d_pos, float* d_vel);
+
+	void InitGPU_Instance();
 
 	void AddVertex(const Vec3 &pos, double mass, int pIndx);
 	
 	void Update();
-	void UpdateGPU();
+	static void UpdateGPU();
 
-	void ShapeMatching(double dt);
+	void CopyDeviceToInstance();
+
+	void ShapeMatching(float* newPos, double dt);
 	void ShapeMatchingSolid(float* newPos, double dt);
 
 	void calExternalForces(float* newPos, double dt);
@@ -98,8 +113,8 @@ public:
 
 	void SetLayer(int indx, int layer){	m_ipLayeres[indx] = layer;	}
 
-	void SetNowCm(Vec3 nowCm){	m_vec3NowCm = nowCm;	}
-	void SetApq(rxMatrix3 Apq){	m_mtrx3Apq = Apq;	}
+	void SetNowCm(Vec3& nowCm){	m_vec3NowCm = nowCm;	}
+	void SetApq(rxMatrix3& Apq){	m_mtrx3Apq = Apq;	}
 
 	void SetLinerFalg(int indx, int flag){	m_iLinearDeformation[indx] = flag; }
 	void SetVolumeFlag(int indx, int flag){	m_iVolumeConservation[indx] = flag;}
@@ -131,6 +146,7 @@ public:
 	//デバッグ
 	void DebugIndx(void);
 	void DebugLayer(void);
+
 };
 
 #endif
