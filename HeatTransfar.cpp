@@ -188,6 +188,84 @@ inline double HeatTransfar::KernelSplineL(const double &r, const double &h)
 }
 
 //温度と熱量の処理　顕熱・潜熱の計算，相変化判定
+void HeatTransfar::calcTempAndHeat(int i)
+{
+	//中間状態への変化検出
+	if( mPhase[i] == -2 && mTemps[i] > 250.0f )					//氷の場合
+	{
+		mPhase[i] = -1;											//氷中間状態
+		mTemps[i] = 250.0f;
+		mHeats[i] = 0;
+	}
+	else if( mPhase[i] == 2 && mTemps[i] < 250.0f )				//水の場合
+	{
+		mPhase[i] = 1;											//水中間状態
+		mTemps[i] = 250.0f;
+		mHeats[i] = mLatentHeat;								//融解潜熱
+	}
+
+	//顕熱・潜熱の計算
+	if( mPhase[i] == -1 || mPhase[i] == 1 )						//水中間か氷中間の場合
+	{
+		//潜熱計算
+		//変化温度を熱量に変換して潜熱計算　（温度は変化しない）
+		float spcfHt = 2.1f + (2.1f * mHeats[i] / mLatentHeat);	//比熱　含有熱量で水と氷の比熱を補間
+		mHeats[i]	+= mTempsDelta[i] * spcfHt * 1.0f;			//温度変化を熱量に換算　質量は１で固定
+
+//		cout << "mHeats[" << i << "] = " << mHeats[i] << "mPhase[i] = " << mPhase[i] << endl;1
+
+		//潜熱変化から顕熱変化へ戻る判定
+		if( mPhase[i] == -1 && mHeats[i] < -mLatentHeat/300.0f )//改善　<0　にすると，溶けなくなる
+		{
+			//氷中間状態→氷
+			mPhase[i] = -2;										//氷への相変化
+			mTemps[i] = 249.0f;
+			mHeats[i] = 0;										//熱（ポテンシャルエネルギー）を放出
+//			cout << "こおりへ戻った  i= " << i << endl;
+		}
+		else if( mPhase[i] == 1 && mHeats[i] > mLatentHeat )
+		{
+			//水中間状態→水
+			mPhase[i] = 2;										//水への相変化
+			mTemps[i] = 251.0f;
+			mHeats[i] = 0;										//熱（ポテンシャルエネルギー）を吸収
+//			cout << "みずへ戻った i = " << i << endl;
+		}
+
+		//相変化判定
+		if( mPhase[i] == -1 && mHeats[i] > mLatentHeat )		//含有熱量が融解潜熱を上回る
+		{
+			mPhase[i] = 2;										//水への相変化
+			mTemps[i] = 251.0f;
+			mHeats[i] = 0;										//熱（ポテンシャルエネルギー）を吸収
+			mPhaseChange[i] = 1;
+//			cout << "みずへ i = " << i << endl;
+		}
+		else if( mPhase[i] == 1 && mHeats[i] < 0.0f )			//含有熱量が凝固潜熱を使い切る
+		{
+			mPhase[i] = -2;										//氷への相変化
+			mTemps[i] = 249.0f;
+			mHeats[i] = 0;										//熱（ポテンシャルエネルギー）を放出
+			mPhaseChange[i] = 1;
+//			cout << "こおりへ  i= " << i << endl;
+		}
+	}
+	else
+	{	
+		//顕熱計算
+		//変化熱量の適用
+		float spcfHt = (mTemps[i] > 250.0f)? 4.2f : 2.1f;		//比熱　水と氷で比熱を変動　水4.2　氷2.1
+		mTemps[i] =	mTemps[i] + mHeats[i] / (spcfHt * 1.0f);	//熱量を温度に換算　質量は固定している
+		mHeats[i] = 0.0f;										//初期化　フレームごとに熱量（顕熱）は蓄積されない
+
+		//変化温度を適用
+		mTemps[i] += mTempsDelta[i];
+		if( mTemps[i] > mTempMax) mTemps[i] = mTempMax;
+		if( mTemps[i] < mTempMin) mTemps[i] = mTempMin;
+	}
+}
+
+//温度と熱量の処理　顕熱・潜熱の計算，相変化判定
 void HeatTransfar::calcTempAndHeat()
 {
 	for( int i = 0; i < mNumVertices; i++)

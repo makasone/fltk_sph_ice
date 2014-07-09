@@ -355,6 +355,35 @@ rxFlWindow::rxFlWindow(int w_, int h_, const char* title)
 			sg->resizable(NULL);
 			sg->end();
 		}
+
+		//追加：：線形補間係数のスライダー
+		xs += ws+5;
+		ys = h()-(hs_stat+ver_margin+hs_para)+5;
+		ws = 280;
+
+		sg = new Fl_Group(xs, ys, ws, hs, "INTPLTN");
+		{
+			sg->box(FL_DOWN_BOX);
+			sg->labelsize(12);
+			sg->align(FL_ALIGN_TOP | FL_ALIGN_INSIDE);
+
+			int dx = 125;
+			ys += 30;
+
+			m_pSliderVScale = new Fl_Value_Slider(xs+dx, ys, 145, 25, "InterPlation");
+			m_pSliderVScale->type(1);
+			m_pSliderVScale->callback(OnSliderParam_s, this);
+			m_pSliderVScale->minimum(0.0);
+			m_pSliderVScale->maximum(1.0);
+			m_pSliderVScale->step(0.05);
+			m_pSliderVScale->value(1.0);
+			m_pSliderVScale->align(Fl_Align(FL_ALIGN_LEFT));
+			m_pSliderVScale->clear_visible_focus();
+
+			sg->resizable(NULL);
+			sg->end();
+		}
+
 		//追加：：熱計算パラメータのGUI
 		xs += ws+5;
 		ys = h()-(hs_stat+ver_margin+hs_para)+5;
@@ -371,7 +400,7 @@ rxFlWindow::rxFlWindow(int w_, int h_, const char* title)
 
 			m_pSliderVScale = new Fl_Value_Slider(xs+dx, ys, 145, 25, "AirTemp");
 			m_pSliderVScale->type(1);
-			m_pSliderVScale->callback(OnSliderTemp_s, this);
+			m_pSliderVScale->callback(OnSliderParam_s, this);
 			m_pSliderVScale->minimum(-1000);
 			m_pSliderVScale->maximum(1000);
 			m_pSliderVScale->step(10);
@@ -400,7 +429,7 @@ rxFlWindow::rxFlWindow(int w_, int h_, const char* title)
 
 			m_pSliderVScale = new Fl_Value_Slider(xs+dx, ys, 145, 25, "AirTemp");
 			m_pSliderVScale->type(1);
-			m_pSliderVScale->callback(OnSliderTemp_s, this);
+			m_pSliderVScale->callback(OnSliderParam_s, this);
 			m_pSliderVScale->minimum(-1000);
 			m_pSliderVScale->maximum(1000);
 			m_pSliderVScale->step(10);
@@ -654,24 +683,31 @@ void rxFlWindow::OnSliderDraw(Fl_Widget *widget)
  * @param[in] widget ウィジットの親クラスオブジェクト
  * @param[in] x ユーザ定義変数
  */
-void rxFlWindow::OnSliderTemp_s(Fl_Widget *widget, void* x)
+void rxFlWindow::OnSliderParam_s(Fl_Widget *widget, void* x)
 {
-	((rxFlWindow*)x)->OnSliderTemp(widget);
+	((rxFlWindow*)x)->OnSliderParam(widget);
 }
-void rxFlWindow::OnSliderTemp(Fl_Widget *widget)
+void rxFlWindow::OnSliderParam(Fl_Widget *widget)
 {
 	Fl_Value_Slider *slider = (Fl_Value_Slider*)widget;
 	string label = slider->label();
 	double val = slider->value();
 
-	if(label.find("AirTemp") != string::npos){
+	if(label.find("AirTemp") != string::npos)
+	{
 		m_pGLCanvas->m_ht->setAirTemp(val);
 	}
 	//else if(label.find("Mesh Threshold") != string::npos){
 	//	m_pGLCanvas->m_fMeshThr = val;
 	//}
+	else if(label.find("InterPlation") != string::npos)
+	{
+		for(int i = 0; i < ICENUM; i++)
+		{
+			m_pGLCanvas->m_fIntrps[i]=val;
+		}
+	}
 }
-
 
 /*!
  * Fl_Check_Buttonのコールバック関数 - Draw

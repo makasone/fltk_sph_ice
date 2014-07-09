@@ -21,11 +21,13 @@ using namespace std;
 //GPU処理
 extern void LaunchShapeMatchingGPU(
 	float* prtPos,
+	cudaGraphicsResource* sd_PrtPosVbo,
 	float* prtVel, 
 	float* orgPos,
 	float* curPos,
 	float* vel,
 	int* pIndxes, 
+	int* d_IndxSet,
 	float dt,
 	int prtNum
 	);
@@ -58,6 +60,7 @@ protected:
 	static const float* s_pfPrtVel;		//読み込み専用
 
 	static float* sd_PrtPos;		//デバイスポインタ
+	static cudaGraphicsResource* sd_PrtPosVbo;
 	static float* sd_PrtVel;		//デバイスポインタ
 
 //--------------------------------------GPU------------------------------------------------------------
@@ -91,7 +94,7 @@ public:
 		s_pfPrtPos = pos;	s_pfPrtVel = vel;
 	}
 
-	static void Ice_SM::InitGPU(const vector<Ice_SM*>& sm, float* d_pos, float* d_vel);
+	static void Ice_SM::InitGPU(const vector<Ice_SM*>& sm, float* d_pos, cudaGraphicsResource* d_pos_vbo, float* d_vel);
 
 	void InitGPU_Instance();
 
@@ -100,7 +103,7 @@ public:
 	void Update();
 	static void UpdateGPU();
 
-	void CopyDeviceToInstance();
+	void CopyDeviceToInstance(int num);
 
 	void ShapeMatching(float* newPos, double dt);
 	void ShapeMatchingSolid(float* newPos, double dt);

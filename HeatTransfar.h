@@ -60,7 +60,8 @@ public:
 	void heatAirAndParticle();											//空気とパーティクルの熱処理
 	void heatParticleAndParticle(float* d, double h);					//パーティクル間の熱処理
 
-	void calcTempAndHeat();											//熱量から温度を求める
+	void calcTempAndHeat();												//熱量から温度を求める
+	void calcTempAndHeat(int pIndx);									//1個の粒子だけ熱量から温度を求める
 
 	// splineカーネル　カーネル関数
 	inline double KernelSpline(const double &r, const double &h);

@@ -36,14 +36,18 @@ using namespace std;
 typedef void (*CollisionFunc)(Vec3&, Vec3&, Vec3&, int);
 
 //#define MAXCLUSTER  27
-//#define MAXCLUSTER 2197
+#define MAXCLUSTER  729
+//#define MAXCLUSTER	2197
+//#define MAXCLUSTER	2197
 //#define MAXCLUSTER	4913
 //#define MAXCLUSTER	6859
 //#define MAXCLUSTER	9261
-#define MAXCLUSTER	15625
+//#define MAXCLUSTER	15625
 
+#define MAXPARTICLE 150
 //#define MAXPARTICLE 200		//2.0
-#define MAXPARTICLE 500	//layer2 300, 3.0 500
+//#define MAXPARTICLE 500	//layer2 300, 3.0 500
+//#define MAXPARTICLE 15625	//MakeOneCluster�̏ꍇ
 #define SM_DIM 3
 
 
@@ -136,6 +140,11 @@ public:
 		m_pVel[oIndx*SM_DIM+0] = vel[0];
 		m_pVel[oIndx*SM_DIM+1] = vel[1];
 		m_pVel[oIndx*SM_DIM+2] = vel[2];
+	}
+
+	void SetMass(int oIndx, float mass)
+	{
+		m_pMass[oIndx] = mass;
 	}
 
 	void SetCollisionFunc(CollisionFunc func){ m_fpCollision = func; }

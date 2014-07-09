@@ -27,18 +27,18 @@ IceStructure::IceStructure(int pNumMax, int cNumMax, int tNumMax)
 
 	//高速化をテストするときはPtoTはコメントに
 	m_piPtoCNum = new int[m_iPNumMax];
-	//m_piPtoTNum = new int[m_iPNumMax];
+	m_piPtoTNum = new int[m_iPNumMax];
 
 	m_piPtoCIndx = new int[m_iPNumMax];
-	//m_piPtoTIndx = new int[m_iPNumMax];
+	m_piPtoTIndx = new int[m_iPNumMax];
 
 	for(int i = 0; i < m_iPNumMax; i++)
 	{
 		m_piPtoCNum[i] = 0;
-		//m_piPtoTNum[i] = 0;
+		m_piPtoTNum[i] = 0;
 		
 		m_piPtoCIndx[i] = 0;
-		//m_piPtoTIndx[i] = 0;
+		m_piPtoTIndx[i] = 0;
 	}
 
 	//クラスタ情報の初期化
@@ -46,11 +46,11 @@ IceStructure::IceStructure(int pNumMax, int cNumMax, int tNumMax)
 	//高速化をテストするときはCtoTはコメントに
 	m_iCtoPMax = m_iPNumMax*0.1;	//1331 layer2 0.5 layer3 0.75
 									//2197 layer2 0.5 layre3 0.5
+	//m_iCtoPMax = m_iPNumMax;		//単一クラスタ
+
 	m_piCtoPNum = new int[m_iCNumMax];
-	//m_piCtoTNum = new int[m_iCNumMax];
 
 	m_piCtoPIndx = new int[m_iCNumMax];
-	//m_piCtoTIndx = new int[m_iCNumMax];
 
 	for(int i = 0; i < m_iCNumMax; i++)
 	{
@@ -64,7 +64,7 @@ IceStructure::IceStructure(int pNumMax, int cNumMax, int tNumMax)
 	//四面体情報の初期化
 	//TtoPMaxは最大４で固定
 	//TtoCMaxは必要ない
-/*	m_piTtoPNum = new int[m_iTNumMax];
+	m_piTtoPNum = new int[m_iTNumMax];
 	m_piTtoCNum = new int[m_iTNumMax];
 
 	m_piTtoPIndx = new int[m_iTNumMax];
@@ -103,7 +103,7 @@ IceStructure::IceStructure(int pNumMax, int cNumMax, int tNumMax)
 			}
 		}
 	}
-*/
+
 	//フラグ
 	m_pbPFlag = new bool[m_iPNumMax];
 	m_pbCFlag = new bool[m_iCNumMax];

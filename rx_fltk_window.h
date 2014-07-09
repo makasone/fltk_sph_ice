@@ -110,8 +110,8 @@ public:
 	static void OnSliderDraw_s(Fl_Widget *widget, void* x);
 	inline void OnSliderDraw(Fl_Widget *widget);
 	//’Ç‰Á
-	static void OnSliderTemp_s(Fl_Widget *widget, void* x);
-	inline void OnSliderTemp(Fl_Widget *widget);
+	static void OnSliderParam_s(Fl_Widget *widget, void* x);
+	inline void OnSliderParam(Fl_Widget *widget);
 
 	static void OnCheckDraw_s(Fl_Widget *widget, void* x);
 	inline void OnCheckDraw(Fl_Widget *widget);

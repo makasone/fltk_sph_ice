@@ -13,8 +13,10 @@
 const float* Ice_SM::s_pfPrtPos;
 const float* Ice_SM::s_pfPrtVel;
 
-float* Ice_SM::sd_PrtPos;	//デバイスポインタ
-float* Ice_SM::sd_PrtVel;	//デバイスポインタ
+//デバイスポインタ
+float* Ice_SM::sd_PrtPos;	
+cudaGraphicsResource* Ice_SM::sd_PrtPosVbo;
+float* Ice_SM::sd_PrtVel;
 
 float* Ice_SM::d_OrgPos;
 float* Ice_SM::d_CurPos;
@@ -53,14 +55,15 @@ Ice_SM::~Ice_SM()
 {
 }
 
-void Ice_SM::InitGPU(const vector<Ice_SM*>& ice_sm, float* d_pos, float* d_vel)
+void Ice_SM::InitGPU(const vector<Ice_SM*>& ice_sm, float* d_pos, cudaGraphicsResource* d_pos_vbo, float* d_vel)
 {
 	//デバイスポインタのアドレスを保存
 	sd_PrtPos = d_pos;
+	sd_PrtPosVbo = d_pos_vbo;
 	sd_PrtVel = d_vel;
 
 	//デバイス側のメモリを確保
-	//最大クラスタ数×クラスタが保存できる最大粒子数　でメモリを取る．
+	//（最大クラスタ数）×（クラスタが保存できる最大粒子数）　でメモリを確保．
 	cudaMalloc((void**)&d_OrgPos,	sizeof(float) * MAXCLUSTER * MAXPARTICLE * SM_DIM);
 	cudaMalloc((void**)&d_CurPos,	sizeof(float) * MAXCLUSTER * MAXPARTICLE * SM_DIM);
 	cudaMalloc((void**)&d_Vel,		sizeof(float) * MAXCLUSTER * MAXPARTICLE * SM_DIM);
@@ -71,12 +74,12 @@ void Ice_SM::InitGPU(const vector<Ice_SM*>& ice_sm, float* d_pos, float* d_vel)
 
 	cudaMalloc((void**)&d_IndxSet,	sizeof(int)   * MAXCLUSTER * 2);
 
-	//CPUのデータを１次元配列にコピーして初期化
+	//CPUのデータを１次元配列にコピー
 	//ホスト側のデータをデバイス側へ転送して初期化
-	//メモリが確保できないので、分割してコピーする
+		//メモリが確保できないので、分割してコピーする
 	float* oPoses = new float[MAXPARTICLE * SM_DIM];
 	float* cPoses = new float[MAXPARTICLE * SM_DIM];
-	float* veles = new float[MAXPARTICLE * SM_DIM];
+	float* veles  = new float[MAXPARTICLE * SM_DIM];
 
 	float* mass = new float[MAXPARTICLE];
 	bool* fix = new bool[MAXPARTICLE];
@@ -92,6 +95,7 @@ void Ice_SM::InitGPU(const vector<Ice_SM*>& ice_sm, float* d_pos, float* d_vel)
 
 		for(int j = 0; j < MAXPARTICLE; j++)
 		{
+			//現在位置，初期位置，速度
 			Vec3 oPos = sm->GetVertexPos(j);
 			Vec3 cPos = sm->GetOrgPos(j);
 			Vec3 vel  = sm->GetVertexVel(j);
@@ -100,17 +104,20 @@ void Ice_SM::InitGPU(const vector<Ice_SM*>& ice_sm, float* d_pos, float* d_vel)
 			{
 				oPoses[j*SM_DIM + k] = oPos[k];
 				cPoses[j*SM_DIM + k] = cPos[k];
-				veles[j*SM_DIM + k] = vel[k];
+				veles [j*SM_DIM + k] = vel[k];
 			}
 
+			//質量，選択フラグ，粒子番号
 			mass[j] = sm->GetMass(j);
 			fix[j] = false;
 			indx[j] = sm->GetParticleIndx(j);
 		}
 
+		//配列のどこからどこまでが埋まっているか
 		set[0] = i*MAXPARTICLE;
-		set[1] = i*MAXPARTICLE+sm->GetNumVertices() -1;
+		set[1] = i*MAXPARTICLE + sm->GetNumVertices()-1;
 
+		//総粒子数
 		s_vertSum += sm->GetNumVertices();
 
 		//初期化
@@ -118,77 +125,96 @@ void Ice_SM::InitGPU(const vector<Ice_SM*>& ice_sm, float* d_pos, float* d_vel)
 
 		cudaMemcpy(d_OrgPos+vecSize,	oPoses,	sizeof(float) * MAXPARTICLE * SM_DIM, cudaMemcpyHostToDevice);
 		cudaMemcpy(d_CurPos+vecSize,	cPoses,	sizeof(float) * MAXPARTICLE * SM_DIM, cudaMemcpyHostToDevice);
-		cudaMemcpy(d_Vel+vecSize,		veles,	sizeof(float) * MAXPARTICLE * SM_DIM, cudaMemcpyHostToDevice);
+		cudaMemcpy(d_Vel   +vecSize,	veles,	sizeof(float) * MAXPARTICLE * SM_DIM, cudaMemcpyHostToDevice);
 
 		int smSize = i * MAXPARTICLE;
 
-		cudaMemcpy(d_Mass+smSize,		mass,	sizeof(float) * MAXPARTICLE, cudaMemcpyHostToDevice);
-		cudaMemcpy(d_Fix+smSize,		fix,	sizeof(bool) * MAXPARTICLE, cudaMemcpyHostToDevice);
-		cudaMemcpy(d_PIndxes+smSize,	indx,	sizeof(int) * MAXPARTICLE, cudaMemcpyHostToDevice);
+		cudaMemcpy(d_Mass   +smSize,	mass,	sizeof(float) * MAXPARTICLE, cudaMemcpyHostToDevice);
+		cudaMemcpy(d_Fix    +smSize,	fix,	sizeof(bool)  * MAXPARTICLE, cudaMemcpyHostToDevice);
+		cudaMemcpy(d_PIndxes+smSize,	indx,	sizeof(int)   * MAXPARTICLE, cudaMemcpyHostToDevice);
 
 		cudaMemcpy(d_IndxSet+i*2,		set,	sizeof(int) * 2, cudaMemcpyHostToDevice);
 	}
 
-	//リセット
-	for(int i = 0; i < MAXCLUSTER; i++)
-	{
-		Ice_SM* sm = ice_sm[i];
+	////リセット
+	//for(int i = 0; i < MAXCLUSTER; i++)
+	//{
+	//	Ice_SM* sm = ice_sm[i];
 
-		for(int j = 0; j < MAXPARTICLE; j++)
-		{
-			for(int k = 0; k < SM_DIM; k++)
-			{
-				oPoses[j*SM_DIM + k] = 0.0f;
-				cPoses[j*SM_DIM + k] = 0.0f;
-				veles[j*SM_DIM + k] = 0.0f;
-			}
+	//	for(int j = 0; j < MAXPARTICLE; j++)
+	//	{
+	//		for(int k = 0; k < SM_DIM; k++)
+	//		{
+	//			oPoses[j*SM_DIM + k] = 0.0f;
+	//			cPoses[j*SM_DIM + k] = 0.0f;
+	//			veles [j*SM_DIM + k] = 0.0f;
+	//		}
 
-			mass[j] = 0.0f;
-			fix[j] = false;
-			indx[j] = 0;
-		}
-	}
+	//		mass[j] = 0.0f;
+	//		fix [j] = false;
+	//		indx[j] = 0;
+	//	}
+	//}
 
-	//デバイス側のデータをホストへ分割して転送
-	for(int i = 0; i < MAXCLUSTER; i++)
-	{
-		//cout << "クラスタ " << i << " :: ";
+	////ホスト側のデータを転送した結果をダンプ
+	//ofstream ofs( "DtoH_Test.txt" );
+	//ofs << "DtoH_Test" << endl;
 
-		int vecSize = i * MAXPARTICLE * SM_DIM;
-		Ice_SM* sm = ice_sm[i];
+	////デバイス側のデータをホストへ分割して転送
+	//for(int i = 0; i < MAXCLUSTER; i++)
+	//{
+	//	ofs << "クラスタ " << i << endl;
 
-		cudaMemcpy(oPoses,	d_OrgPos+vecSize,	sizeof(float) * MAXPARTICLE * SM_DIM, cudaMemcpyDeviceToHost);
-		cudaMemcpy(cPoses,	d_CurPos+vecSize,	sizeof(float) * MAXPARTICLE * SM_DIM, cudaMemcpyDeviceToHost);
-		cudaMemcpy(veles,	d_Vel+vecSize,		sizeof(float) * MAXPARTICLE * SM_DIM, cudaMemcpyDeviceToHost);
+	//	int vecSize = i * MAXPARTICLE * SM_DIM;
+	//	Ice_SM* sm = ice_sm[i];
 
-		int smSize = i * MAXPARTICLE;
+	//	cudaMemcpy(oPoses,	d_OrgPos+vecSize,	sizeof(float) * MAXPARTICLE * SM_DIM, cudaMemcpyDeviceToHost);
+	//	cudaMemcpy(cPoses,	d_CurPos+vecSize,	sizeof(float) * MAXPARTICLE * SM_DIM, cudaMemcpyDeviceToHost);
+	//	cudaMemcpy(veles,	d_Vel   +vecSize,	sizeof(float) * MAXPARTICLE * SM_DIM, cudaMemcpyDeviceToHost);
 
-		cudaMemcpy(mass,	d_Mass+smSize,		sizeof(float) * MAXPARTICLE, cudaMemcpyDeviceToHost);
-		cudaMemcpy(fix,		d_Fix+smSize,		sizeof(bool) * MAXPARTICLE, cudaMemcpyDeviceToHost);
-		cudaMemcpy(indx,	d_PIndxes+smSize,	sizeof(int) * MAXPARTICLE, cudaMemcpyDeviceToHost);
+	//	int smSize = i * MAXPARTICLE;
 
-		cudaMemcpy(set,		d_IndxSet+i*2,		sizeof(int) * 2, cudaMemcpyDeviceToHost);
+	//	cudaMemcpy(mass,	d_Mass   +smSize,	sizeof(float) * MAXPARTICLE, cudaMemcpyDeviceToHost);
+	//	cudaMemcpy(fix,		d_Fix    +smSize,	sizeof(bool)  * MAXPARTICLE, cudaMemcpyDeviceToHost);
+	//	cudaMemcpy(indx,	d_PIndxes+smSize,	sizeof(int)   * MAXPARTICLE, cudaMemcpyDeviceToHost);
 
-		for(int j = 0; j < MAXPARTICLE; j++)
-		{
-			//cout << j << " :: "; 
+	//	cudaMemcpy(set,		d_IndxSet+i*2,		sizeof(int)   * 2, cudaMemcpyDeviceToHost);
 
-			//for(int k = 0; k < SM_DIM; k++)
-			//{
-			//	cout << k << " :: " << oPoses[j*SM_DIM + k] << "	";
-			//}
-			//cout << endl;
+	//	//転送できているかの確認
+	//	for(int j = 0; j < MAXPARTICLE; j++)
+	//	{
+	//		//ofs << j << " :: "; 
+	//		
+	//		//初期位置
+	//		//ofs << "oPoses = ( "; 
+	//		//
+	//		//for(int k = 0; k < SM_DIM; k++)
+	//		//{
+	//		//	ofs << oPoses[j*SM_DIM + k] << " ";
+	//		//}
+	//		//ofs << "), ";
 
-			//mass[j] = j;
-			//fix[j] = false;
-			//if(indx[j] == -1){	break;	}
-			//cout << indx[j] << ",";
-		}
+	//		////mass[j] = j;
+	//		////fix[j] = false;
+	//		//if(indx[j] == -1){	ofs << "end" << endl; break;		}
+	//		//else{				ofs << "indx = " << indx[j] << ",";	}
 
-		//差が１であればよい
-		//cout << "start = " << set[0] << ", end = " << set[1] << ", Size = " << set[1]-set[0] << ", sm = " << sm->GetNumVertices();
-		//cout << endl;
-	}
+	//		//ofs << endl;
+	//	}
+
+	//	//開始位置と終了位置
+	//	ofs << "set = ( " << set[0] << " ," << set[1] << ")" << endl;
+
+	//	//差が１であればよい
+	//	//cout << "start = " << set[0] << ", end = " << set[1] << ", Size = " << set[1]-set[0] << ", sm = " << sm->GetNumVertices();
+	//	//cout << endl;
+	//}
+
+	//転送直後のデータを比べてみる
+	//for(int i = 0; i < MAXCLUSTER;i++)
+	//{
+	//	ice_sm[i]->CopyDeviceToInstance(i);
+	//}
 
 	delete[] oPoses;
 	delete[] cPoses;
@@ -201,7 +227,6 @@ void Ice_SM::InitGPU(const vector<Ice_SM*>& ice_sm, float* d_pos, float* d_vel)
 
 void Ice_SM::InitGPU_Instance()
 {
-	
 
 
 }
@@ -370,12 +395,12 @@ void Ice_SM::ShapeMatching(float* newPos, double dt)
 
 	// 重心座標の計算
 	for(int i = 0; i < m_iIndxNum; ++i){
-		if( CheckHole(i) ){	continue;	}
-		//if(m_pFix[i]){	/*m *= 300.0;*/ m *= 1.0f;	}	// 固定点の質量を大きくする
+		//if( CheckHole(i) ){	continue;	}
+		//if(m_pFix[i]){	mass += m_pMass[i]*300;	}	// 固定点の質量を大きくする
 		mass += m_pMass[i];
 	}
 
-	Vec3 cm(m_vec3NowCm / mass), cm_org(m_vec3OrgCm);	// 重心
+	Vec3 cm(1 / mass * m_vec3NowCm), cm_org(m_vec3OrgCm);	// 重心
 	Vec3 p(0.0), q(0.0);
 
 	//Apqの行列式を求め，反転するかを判定
@@ -443,7 +468,8 @@ void Ice_SM::ShapeMatching(float* newPos, double dt)
 			//m_vNewPos[i] += (m_vGoalPos[i]-m_vNewPos[i])*m_dAlphas[i];
 
 			//Vec3 np(m_pNewPos[i*SM_DIM+0], m_pNewPos[i*SM_DIM+1], m_pNewPos[i*SM_DIM+2]);
-			Vec3 op(m_pOrgPos[i*SM_DIM+0], m_pOrgPos[i*SM_DIM+1], m_pOrgPos[i*SM_DIM+2]);
+			int cIndx = i*SM_DIM;
+			Vec3 op(m_pOrgPos[cIndx+0], m_pOrgPos[cIndx+1], m_pOrgPos[cIndx+2]);
 
 			q = op-cm_org;
 			Vec3 gp(R*q+cm);
@@ -451,7 +477,7 @@ void Ice_SM::ShapeMatching(float* newPos, double dt)
 
 			for(int j = 0; j < SM_DIM; j++)
 			{
-				int jcIndx = i*SM_DIM+j;
+				int jcIndx = cIndx+j;
 				//m_pGoalPos[i*SM_DIM+j] = gp[j];
 				//m_pNewPos[i*SM_DIM+j] += (gp[j]-np[j])*m_fpAlphas[i];
 				m_pCurPos[jcIndx] += (gp[j]-m_pCurPos[jcIndx])*m_fpAlphas[i];
@@ -586,11 +612,11 @@ void Ice_SM::calExternalForces(float* newPos, double dt)
 	double res = 0.9;	// 反発係数
 	for(int i = 0; i < m_iIndxNum; ++i)
 	{
-		if( CheckHole(i) ){	continue;	}
-		//if(m_pFix[i]) continue;
-		//Vec3 &p = m_vCurPos[i];
-		//////Vec3 &np = m_vNewPos[i];
-		//Vec3 &v = m_vVel[i];
+		//if( CheckHole(i) ){	continue;	}
+		////if(m_pFix[i]) continue;
+		//Vec3 &p = m_pCurPos[i];
+
+		//Vec3 &v = m_pVel[i];
 		//if(np[0] < m_v3Min[0] || np[0] > m_v3Max[0]){
 		//	np[0] = p[0]-v[0]*dt*res;
 		//	np[1] = p[1];
@@ -633,22 +659,27 @@ void Ice_SM::ShapeMatchingSolid(float* newPos, double dt)
 	for(int i = 0; i < m_iIndxNum; ++i)
 	{
 		if( CheckHole(i) ){	continue;	}
-		//double m = m_pMass[i];
-		//if(m_pFix[i]) m *= 300.0;	// 固定点の質量を大きくする
+		double m = m_pMass[i];
+		if(m_pFix[i]) m *= 300.0;	// 固定点の質量を大きくする
 		
 		int cIndx = i*SM_DIM;
-		mass += m_pMass[i];
+		mass += m;
 
 		for(int j = 0; j < SM_DIM; j++)
 		{
 			//cm[j] += m_pNewPos[cIndx+j]*m;
 			//cm[j] += newPos[cIndx+j]*m;
-			cm[j] += m_pCurPos[cIndx+j]*m_pMass[i];
+			cm[j] += m_pCurPos[cIndx+j]*m;
 		}
 	}
 
 	cm /= mass;
 	cm_org = m_vec3OrgCm;
+
+	//if(m_iObjectNo < 1)
+	//{
+	//	cout << "cpu, number::" << m_iObjectNo << " cm = " << cm << ", cm_org = " << cm_org << endl;
+	//}
 
 	rxMatrix3 Apq(0.0), Aqq(0.0);
 	Vec3 p, q;
@@ -693,6 +724,11 @@ void Ice_SM::ShapeMatchingSolid(float* newPos, double dt)
 		Aqq(2,2) += m*q[2]*q[2];
 	}
 
+	//if(m_iObjectNo < 1)
+	//{
+	//	cout << "cpu, number::" << m_iObjectNo << " Apq = " << Apq << ", Aqq = " << Apq << endl;
+	//}
+
 	//Apqの行列式を求め，反転するかを判定
 	//不安定な場合が多いので×
 	//if( Apq.Determinant() < 0.0 && m_iNumVertices >= 4)
@@ -723,6 +759,11 @@ void Ice_SM::ShapeMatchingSolid(float* newPos, double dt)
 	rxMatrix3 R, S;
 	//PolarDecomposition(Apq, R, S, m_mtrxBeforeU);
 	PolarDecomposition(Apq, R, S);
+
+	//if(m_iObjectNo < 1)
+	//{
+	//	cout << "cpu, number::" << m_iObjectNo << " R = " << R << ", S = " << S << endl;
+	//}
 
 	//double end1 = qc.End()/*/100*/;
 
@@ -801,7 +842,7 @@ void Ice_SM::integrate(float* newPos, double dt)
 			//m_pCurPos[cIndx] = m_pNewPos[cIndx];
 			//m_pVel[cIndx] = (newPos[cIndx] - s_pfPrtPos[pIndx+j]) * dt1;/*+ m_v3Gravity * dt * 1.0*/;
 			//m_pCurPos[cIndx] = newPos[cIndx];
-			m_pVel[cIndx] = (m_pCurPos[cIndx] - s_pfPrtPos[pIndx+j]) * dt1;/*+ m_v3Gravity * dt * 1.0*/;
+			m_pVel[cIndx] = (m_pCurPos[cIndx] - s_pfPrtPos[pIndx+j]) * dt1 + m_v3Gravity[j] * dt * 0.1f;
 		}
 	}
 }
@@ -872,15 +913,47 @@ void Ice_SM::UpdateGPU()
 	//cudaMemcpy(d_Vel,		m_pVel,	sizeof(float) * m_iNumVertices * SM_DIM, cudaMemcpyHostToDevice);
 
 	//GPU処理
-	LaunchShapeMatchingGPU(sd_PrtPos, sd_PrtVel, d_OrgPos, d_CurPos, d_Vel, d_PIndxes, 0.02, s_vertSum);
+	LaunchShapeMatchingGPU(sd_PrtPos, sd_PrtPosVbo, sd_PrtVel, d_OrgPos, d_CurPos, d_Vel, d_PIndxes, d_IndxSet, 0.02, s_vertSum);
 }
 
 //GPUの計算結果を各インスタンスへコピーする
-void Ice_SM::CopyDeviceToInstance()
-{
+void Ice_SM::CopyDeviceToInstance(int num)
+{	//cout << __FUNCTION__ << " num = " << num << endl;
+
 	//デバイス側のデータをホスト側へ転送
-	cudaMemcpy(m_pCurPos, d_CurPos, sizeof(float) * m_iIndxNum * SM_DIM, cudaMemcpyDeviceToHost);
-	cudaMemcpy(m_pVel,		d_Vel,	sizeof(float) * m_iIndxNum * SM_DIM, cudaMemcpyDeviceToHost);
+	float* cPoses = new float[MAXPARTICLE * SM_DIM];
+	float* veles  = new float[MAXPARTICLE * SM_DIM];
+
+	int vecSize = num * MAXPARTICLE * SM_DIM;
+
+	cudaMemcpy(cPoses,	d_CurPos+vecSize,	sizeof(float) * MAXPARTICLE * SM_DIM, cudaMemcpyDeviceToHost);
+	cudaMemcpy(veles,	d_Vel   +vecSize,	sizeof(float) * MAXPARTICLE * SM_DIM, cudaMemcpyDeviceToHost);
+
+	for(int j = 0; j < MAXPARTICLE; j++)
+	{
+		if(GetParticleIndx(j) == -1){	continue;	}
+
+		//位置，速度
+		Vec3 cPos = Vec3(cPoses[j*SM_DIM + 0], cPoses[j*SM_DIM + 1], cPoses[j*SM_DIM + 2]);
+		Vec3 vel  = Vec3(veles [j*SM_DIM + 0], veles [j*SM_DIM + 1], veles [j*SM_DIM + 2]);
+
+		//if(num < 2)
+		//{
+		//	////CPUでの運動計算結果と比較
+		//	Vec3 cpuPos = GetVertexPos(j);
+		//	Vec3 cpuVel = GetVertexVel(j);
+
+		//	cout << "num = " << num << endl;
+		//	cout << "posDiv = " << norm2(cpuPos)-norm2(cPos) << endl;
+		//	cout << "velDiv = " << norm2(cpuVel)-norm2(vel) << endl;
+		//}
+
+		SetCurrentPos(j, cPos);
+		SetVelocity(j, vel);
+	}
+
+	delete[] cPoses;
+	delete[] veles;
 }
 
 //----------------------------------------デバッグ--------------------------------------

@@ -268,15 +268,25 @@ void Surf_SM::UpdatePrefixSumApq()
 			/*Vec3 */q = m_vvec3OrgPos[pIndx*1/4];
 
 			//åªç›ÇÃAij
-			m_mk2Dmat3_PrfxApq(indxX, indxY)(0,0) = mass * p[0] * q[0];
-			m_mk2Dmat3_PrfxApq(indxX, indxY)(0,1) = mass * p[0] * q[1];
-			m_mk2Dmat3_PrfxApq(indxX, indxY)(0,2) = mass * p[0] * q[2];
-			m_mk2Dmat3_PrfxApq(indxX, indxY)(1,0) = mass * p[1] * q[0];
-			m_mk2Dmat3_PrfxApq(indxX, indxY)(1,1) = mass * p[1] * q[1];
-			m_mk2Dmat3_PrfxApq(indxX, indxY)(1,2) = mass * p[1] * q[2];
-			m_mk2Dmat3_PrfxApq(indxX, indxY)(2,0) = mass * p[2] * q[0];
-			m_mk2Dmat3_PrfxApq(indxX, indxY)(2,1) = mass * p[2] * q[1];
-			m_mk2Dmat3_PrfxApq(indxX, indxY)(2,2) = mass * p[2] * q[2];
+			//m_mk2Dmat3_PrfxApq(indxX, indxY)(0,0) = mass * p[0] * q[0];
+			//m_mk2Dmat3_PrfxApq(indxX, indxY)(0,1) = mass * p[0] * q[1];
+			//m_mk2Dmat3_PrfxApq(indxX, indxY)(0,2) = mass * p[0] * q[2];
+			//m_mk2Dmat3_PrfxApq(indxX, indxY)(1,0) = mass * p[1] * q[0];
+			//m_mk2Dmat3_PrfxApq(indxX, indxY)(1,1) = mass * p[1] * q[1];
+			//m_mk2Dmat3_PrfxApq(indxX, indxY)(1,2) = mass * p[1] * q[2];
+			//m_mk2Dmat3_PrfxApq(indxX, indxY)(2,0) = mass * p[2] * q[0];
+			//m_mk2Dmat3_PrfxApq(indxX, indxY)(2,1) = mass * p[2] * q[1];
+			//m_mk2Dmat3_PrfxApq(indxX, indxY)(2,2) = mass * p[2] * q[2];
+
+			m_mk2Dmat3_PrfxApq(indxX, indxY)(0,0) = p[0] * q[0];
+			m_mk2Dmat3_PrfxApq(indxX, indxY)(0,1) = p[0] * q[1];
+			m_mk2Dmat3_PrfxApq(indxX, indxY)(0,2) = p[0] * q[2];
+			m_mk2Dmat3_PrfxApq(indxX, indxY)(1,0) = p[1] * q[0];
+			m_mk2Dmat3_PrfxApq(indxX, indxY)(1,1) = p[1] * q[1];
+			m_mk2Dmat3_PrfxApq(indxX, indxY)(1,2) = p[1] * q[2];
+			m_mk2Dmat3_PrfxApq(indxX, indxY)(2,0) = p[2] * q[0];
+			m_mk2Dmat3_PrfxApq(indxX, indxY)(2,1) = p[2] * q[1];
+			m_mk2Dmat3_PrfxApq(indxX, indxY)(2,2) = p[2] * q[2];
 
 			m_mk2Dmat3_PrfxApq(indxX, indxY) += preMat;		//Ç±ÇÍÇ‹Ç≈ÇÃAijÇâ¡éZ
 			preMat = m_mk2Dmat3_PrfxApq(indxX, indxY);

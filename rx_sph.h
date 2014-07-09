@@ -576,6 +576,7 @@ public:
 	//デバイスポインタ
 	RXREAL* GetDevicePointer_Pos(){	return m_dPos;	}
 	RXREAL* GetDevicePointer_Vel(){	return m_dVel;	}
+	cudaGraphicsResource* GetDevicePointer_PosVBO(){	return m_pPosResource;	}
 
 	// 近傍パーティクル
 	uint* GetNeighborList(const int &i, int &n);
