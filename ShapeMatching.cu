@@ -1,9 +1,10 @@
-//SM法のGPU実装　とりあえずやってみて，データ構造は後で直す
+//SM法のGPU実装 運動計算
+//とりあえずやってみて，データ構造は後で直す
 
 #ifndef _GPU_SHAPE_MATCHING_H_
 #define _GPU_SHAPE_MATCHING_H_
 
-#include <math.h>	//使える？
+#include <math.h>
 #include <stdio.h>
 #include <cuda_runtime.h>
 
@@ -24,7 +25,7 @@
 
 //引き渡す変数名が間違っていてもエラーが出ないので注意
 
-void LaunchShapeMathcingGPU(float* prtPos, cudaGraphicsResource* sd_PrtPosVbo, float* prtVel, float* orgPos, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum);
+void LaunchShapeMathcingGPU(float* prtPos, float* prtVel, float* orgPos, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum);
 __global__ void Update(float* prtPos, float* prtVel, float* orgPos, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum);
 __device__ void ExternalForce(float* prtPos, float* prtVel, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum);
 __device__ void ProjectPos(float* prtPos, float* prtVel, float* orgPos, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum);
@@ -33,6 +34,7 @@ __device__ void Integrate(float* prtPos, float* prtVel, float* curPos, float* ve
 __device__ void PolarDecomposition(matrix3x3 &A, matrix3x3 &R, matrix3x3 &S);
 
 //行列演算
+//TODO::てきとうなのでもう少し使いやすく
 __device__ void MakeIdentity(matrix3x3 &M);
 __device__ matrix3x3 Transpose(const matrix3x3 &M);
 __device__ matrix3x3 Inverse(const matrix3x3 &M);
@@ -41,23 +43,15 @@ __device__ matrix3x3 Multiple(matrix3x3 &M1, matrix3x3 &M2);
 __device__ float3 Multiple(matrix3x3 &M1, float3& V);
 
 //GPU処理
-void LaunchShapeMatchingGPU(float* prtPos, cudaGraphicsResource* sd_PrtPosVbo, float* prtVel, float* orgPos, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum)
+void LaunchShapeMatchingGPU(float* prtPos, float* prtVel, float* orgPos, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum)
 {
-	
 	//printf("LaunchGPUKernel");
-
-	//頂点バッファオブジェクトをマップ
-	cudaGraphicsMapResources(1, &sd_PrtPosVbo, 0);
-	cudaGraphicsResourceGetMappedPointer((void**)&prtPos, NULL, sd_PrtPosVbo);
 
 	dim3 grid(1, 1);
 	dim3 block(729, 1, 1);
 
 	//運動計算
 	Update <<< grid , block >>> (prtPos, prtVel, orgPos, curPos, vel, pIndxes, indxSet, dt, prtNum);
-
-	//アンマップ
-	cudaGraphicsUnmapResources(1, &sd_PrtPosVbo, 0);
 }
 
 
@@ -181,11 +175,6 @@ __device__
 	cm_org.y /= mass;
 	cm_org.z /= mass;
 
-	//if(clusterIndx < 1)
-	//{
-	//	printf("gpu, number:: %d, cm = (%f, %f, %f), cm_org = (%f, %f, %f)", clusterIndx, cm.x , cm.y, cm.z, cm_org.x, cm_org.y, cm_org.z); 
-	//}
-
 	matrix3x3 Apq, Aqq;
 	float3 p, q;
 
@@ -226,20 +215,6 @@ __device__
 		Aqq.e[2].z += m*q.z*q.z;
 	}
 
-	//if(clusterIndx < 1)
-	//{
-	//	printf("gpu, number:: %d, Apq = (%f, %f, %f)(%f, %f, %f)(%f, %f, %f), Aqq = (%f, %f, %f)(%f, %f, %f)(%f, %f, %f)", 
-	//		clusterIndx, 
-	//		Apq.e[0].x, Apq.e[0].y, Apq.e[0].z,
-	//		Apq.e[1].x, Apq.e[1].y, Apq.e[1].z,
-	//		Apq.e[2].x, Apq.e[2].y, Apq.e[2].z,
-
-	//		Aqq.e[0].x, Aqq.e[0].y, Aqq.e[0].z,
-	//		Aqq.e[1].x, Aqq.e[1].y, Aqq.e[1].z,
-	//		Aqq.e[2].x, Aqq.e[2].y, Aqq.e[2].z
-	//		); 
-	//}
-
 	////Apqの行列式を求め，反転するかを判定
 	////不安定な場合が多いので×
 	////if( Apq.Determinant() < 0.0 && m_iNumVertices >= 4)
@@ -269,20 +244,6 @@ __device__
 	matrix3x3 R, S;
 	////PolarDecomposition(Apq, R, S, m_mtrxBeforeU);
 	PolarDecomposition(Apq, R, S);
-
-	//if(clusterIndx < 1)
-	//{
-	//	printf("gpu, number:: %d, R = (%f, %f, %f)(%f, %f, %f)(%f, %f, %f), S = (%f, %f, %f)(%f, %f, %f)(%f, %f, %f)\n", 
-	//		clusterIndx, 
-	//		R.e[0].x, R.e[0].y, R.e[0].z,
-	//		R.e[1].x, R.e[1].y, R.e[1].z,
-	//		R.e[2].x, R.e[2].y, R.e[2].z,
-
-	//		S.e[0].x, S.e[0].y, S.e[0].z,
-	//		S.e[1].x, S.e[1].y, S.e[1].z,
-	//		S.e[2].x, S.e[2].y, S.e[2].z
-	//		); 
-	//}
 
 	//if(m_bLinearDeformation)
 	{

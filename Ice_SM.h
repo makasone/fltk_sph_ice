@@ -21,7 +21,6 @@ using namespace std;
 //GPU処理
 extern void LaunchShapeMatchingGPU(
 	float* prtPos,
-	cudaGraphicsResource* sd_PrtPosVbo,
 	float* prtVel, 
 	float* orgPos,
 	float* curPos,
@@ -30,38 +29,38 @@ extern void LaunchShapeMatchingGPU(
 	int* d_IndxSet,
 	float dt,
 	int prtNum
-	);
+);
 
 
 class Ice_SM : public rxShapeMatching
 {
 protected:
 
-	unsigned m_iIndxNum;				//配列で実装したため、穴あきに対応するための最大添字番号
+	unsigned m_iIndxNum;						//配列で実装したため、穴あきに対応するための最大添字番号
 
-	float* m_fpAlphas;					//!< stiffnessパラメータ[0,1] (速度計算に使用)
-	float* m_fpBetas;					//!< deformationパラメータ[0,1]	未使用
+	float* m_fpAlphas;							//!< stiffnessパラメータ[0,1] (速度計算に使用)
+	float* m_fpBetas;							//!< deformationパラメータ[0,1]	未使用
 	
 	int* m_ipLayeres;
 
-	Vec3 m_vec3OrgCm;					//初期のクラスタの重心
-	Vec3 m_vec3NowCm;					//現在のクラスタの重心
-	//vector<Vec3> m_vvec3OrgQ;			//初期の位置-重心
+	Vec3 m_vec3OrgCm;							//初期のクラスタの重心
+	Vec3 m_vec3NowCm;							//現在のクラスタの重心
+	//vector<Vec3> m_vvec3OrgQ;					//初期の位置-重心
 
-	Vec3 m_vec3DisCm;					//重心位置の変位
+	Vec3 m_vec3DisCm;							//重心位置の変位
 
-	rxMatrix3	m_mtrx3Apq;				//変形行列Apq
-	rxMatrix3	m_mtrx3AqqInv;			//変形行列Aqqの逆行列	前計算可能
+	rxMatrix3	m_mtrx3Apq;						//変形行列Apq
+	rxMatrix3	m_mtrx3AqqInv;					//変形行列Aqqの逆行列	前計算可能
 
-	vector<int> m_iLinearDeformation;	//!< Linear/Quadratic deformation切り替えフラグ　未使用
-	vector<int> m_iVolumeConservation;	//!< 変形時の体積保存性(√det(A)で割るかどうか)　未使用
+	vector<int> m_iLinearDeformation;			//!< Linear/Quadratic deformation切り替えフラグ　未使用
+	vector<int> m_iVolumeConservation;			//!< 変形時の体積保存性(√det(A)で割るかどうか)　未使用
 
-	static const float* s_pfPrtPos;		//読み込み専用
-	static const float* s_pfPrtVel;		//読み込み専用
+	static const float* s_pfPrtPos;				//読み込み専用
+	static const float* s_pfPrtVel;				//読み込み専用
 
-	static float* sd_PrtPos;		//デバイスポインタ
+	static float* sd_PrtPos;					//位置のデバイスポインタ
 	static cudaGraphicsResource* sd_PrtPosVbo;
-	static float* sd_PrtVel;		//デバイスポインタ
+	static float* sd_PrtVel;					//速度のデバイスポインタ
 
 //--------------------------------------GPU------------------------------------------------------------
 	//デバイス側へのポインタ
@@ -94,22 +93,27 @@ public:
 		s_pfPrtPos = pos;	s_pfPrtVel = vel;
 	}
 
+	static void SetDevicePosPointer(float* d_pos)
+	{
+		sd_PrtPos = d_pos;
+	}
+
 	static void Ice_SM::InitGPU(const vector<Ice_SM*>& sm, float* d_pos, cudaGraphicsResource* d_pos_vbo, float* d_vel);
 
 	void InitGPU_Instance();
 
 	void AddVertex(const Vec3 &pos, double mass, int pIndx);
 	
-	void Update();
+	void UpdateCPU();
 	static void UpdateGPU();
 
 	void CopyDeviceToInstance(int num);
 
-	void ShapeMatching(float* newPos, double dt);
-	void ShapeMatchingSolid(float* newPos, double dt);
+	void ShapeMatching(double dt);
+	void ShapeMatchingSolid(double dt);
 
-	void calExternalForces(float* newPos, double dt);
-	void integrate(float* newPos, double dt);
+	void calExternalForces(double dt);
+	void integrate(double dt);
 
 	void SetAlphas(int indx, float alpha){	m_fpAlphas[indx] = alpha;	}
 	void SetBetas (int indx, float beta){	m_fpBetas[indx] = beta;		}

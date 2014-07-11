@@ -3807,27 +3807,16 @@ void rxFlGLWindow::StepCluster(double dt)
 {//	cout << __FUNCTION__ << endl;
 
 	if(m_bPause){	return;}
-
-	QueryCounter qc;
-
-	int j = 0;
-	int jpIndx = 0, jlIndx = 0, jcIndx = 0, joIndx = 0;
-	double shapeNum = 0.0;
-	int* coSet = 0;
-	Vec3 pos,vel,veltemp;
 	
 	RXREAL *p = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
 	RXREAL *v = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_VELOCITY);
 
-	//qc.Start();
+//クラスタの運動処理
 
 //#ifdef SURF
-	//qc.Start();
+//CPU 高速化手法を用いた場合
 	//prefixSumの更新
 	//m_ice->UpdatePrefixSum();
-	//
-	////double end0 = qc.End();
-	////qc.Start();
 
 	//Vec3 vec(0.0);
 	//rxMatrix3 matrix(0.0);
@@ -3841,6 +3830,7 @@ void rxFlGLWindow::StepCluster(double dt)
 	//	if(m_ice->GetPtoCNum(i) == 0){	continue;	}
 
 	//	//TODO::配列を参照渡しにして書き込ませる
+		//TODO::インターフェースを整理
 	//	m_ice->GetCmSum(i, vec);
 	//	m_sm_cluster[i]->SetNowCm(vec);				//重心の更新
 
@@ -3848,69 +3838,43 @@ void rxFlGLWindow::StepCluster(double dt)
 	//	m_sm_cluster[i]->SetApq(matrix);			//変形行列の更新
 	//}
 	//}
-
-	//double end1 = qc.End()/*/100*/;
 //#endif
 
-	//qc.Start();
-
-	////現在の粒子位置をダンプ
-	//TODO::ファイル閉じてないけど大丈夫？
-	//ofstream ofs( "Test.txt" );
-	//ofs << "Test" << endl;
-	//for(int i = 0; i < 2; i++)
-	//{
-	//	ofs << "cpu:: i = " << i << endl;
-
-	//	for(int j = 0; j < m_sm_cluster[i]->GetNumVertices(); j++)
-	//	{
-	//		ofs << "cIndx = " << m_sm_cluster[i]->GetParticleIndx(j) << ", " << m_sm_cluster[i]->GetVertexPos(j) << endl;
-	//	}
-	//}
-
-	////クラスタの運動処理
+//CPU OpenMPで並列処理
 	//#pragma omp parallel
 	//{
 	//#pragma omp for
-		for(int i = 0; i < m_iClusteresNum; ++i)
-		{	
-			if(m_ice->GetPtoCNum(i) == 0){	continue;	}
-			
-			//QueryCounter iqc;
-			//cout << "計測開始 " << i << endl;
-			//iqc.Start();
-
-			m_sm_cluster[i]->Update();									//運動計算
-
-			//double end = iqc.End();
-			//cout << "計測終了 " << i << " :: " << end << endl;
-		}
+		//for(int i = 0; i < m_iClusteresNum; ++i)
+		//{	
+		//	if(m_ice->GetPtoCNum(i) == 0){	continue;	}
+		//	m_sm_cluster[i]->UpdateCPU();									//運動計算
+		//}
 	//}//#pragma omp parallel
 
+//GPUで並列処理
+	//位置情報はVBOを使っているので，マップしないといけない
+	//頂点バッファオブジェクトをマップ
+	float* dvbo_pos = ((RXSPH*)m_pPS)->GetDevicePointer_Pos();
+	cudaGraphicsResource* d_resource_pos = ((RXSPH*)m_pPS)->GetDevicePointer_PosVBO();
 
+	cudaGraphicsMapResources(1, &d_resource_pos, 0);
+	cudaGraphicsResourceGetMappedPointer((void**)&dvbo_pos, NULL, d_resource_pos);
+	
 	//GPUを用いたクラスタの運動計算
+	Ice_SM::SetDevicePosPointer(dvbo_pos);	//マップしたポインタを渡す
 	Ice_SM::UpdateGPU();
 
-	for(int i = 0; i < m_iClusteresNum; i++)
+	//位置情報をアンマップ
+	cudaGraphicsUnmapResources(1, &d_resource_pos, 0);
+
+	//計算結果のコピー
+	//IceStructure::AverageClusteres();
+	//TODO::ここをなくして速くする
+	for(int i = 0; i < m_iClusteresNum; ++i)
 	{	
 		if(m_ice->GetPtoCNum(i) == 0){	continue;	}
-		
-		//QueryCounter iqc;
-		//cout << "計測開始 " << i << endl;
-		//iqc.Start();
-
-		m_sm_cluster[i]->CopyDeviceToInstance(i);						//計算結果のコピー
-
-		//double end = iqc.End();
-		//cout << "計測終了 " << i << " :: " << end << endl;
+		m_sm_cluster[i]->CopyDeviceToInstance(i);
 	}
-
-
-	//double end2 = qc.End()/*/100*/;
-
-	//cout << "計測終了0::" << end0 << endl;
-	//cout << "計測終了1::" << end1 << endl;
-	//cout << "計測終了2::" << end2 << endl;
 }
 
 void rxFlGLWindow::StepClusterHigh(double dt)
@@ -7950,7 +7914,7 @@ bool LoadCubeMap(rxCubeMapData &cube_map, string base, string ext)
 	fn[3] = base+"negy"+ext;
 	fn[4] = base+"posz"+ext;
 	fn[5] = base+"negz"+ext;
-
+	
 	if(!LoadCubeMapTexture(fn, cube_map)){
 		return false;
 	}

@@ -1,11 +1,11 @@
 /*!
   @file Ice_SM.h
 	
-  @brief ShapeMatching法を基にした相変化シミュレーション
+  @brief ShapeMatching法(GPU実装)
   @ref M. Muller et al., "Meshless deformations based on shape matching", SIGGRAPH2005. 
  
   @author Ryo Nakasone
-  @date 2013-10
+  @date 2014-7
 */
 
 #include "Ice_SM.h"
@@ -55,6 +55,7 @@ Ice_SM::~Ice_SM()
 {
 }
 
+//GPU計算のための初期化
 void Ice_SM::InitGPU(const vector<Ice_SM*>& ice_sm, float* d_pos, cudaGraphicsResource* d_pos_vbo, float* d_vel)
 {
 	//デバイスポインタのアドレスを保存
@@ -76,7 +77,7 @@ void Ice_SM::InitGPU(const vector<Ice_SM*>& ice_sm, float* d_pos, cudaGraphicsRe
 
 	//CPUのデータを１次元配列にコピー
 	//ホスト側のデータをデバイス側へ転送して初期化
-		//メモリが確保できないので、分割してコピーする
+		//一気に大量のメモリは確保できないので、分割してコピーする
 	float* oPoses = new float[MAXPARTICLE * SM_DIM];
 	float* cPoses = new float[MAXPARTICLE * SM_DIM];
 	float* veles  = new float[MAXPARTICLE * SM_DIM];
@@ -385,7 +386,7 @@ bool Ice_SM::CheckHole(int oIndx)
  *  - 各粒子にαとβを持たせたバージョン
  * @param[in] dt タイムステップ幅
  */
-void Ice_SM::ShapeMatching(float* newPos, double dt)
+void Ice_SM::ShapeMatching(double dt)
 {
 	if(m_iNumVertices <= 1) return;
 
@@ -427,15 +428,10 @@ void Ice_SM::ShapeMatching(float* newPos, double dt)
 		//Apq(2,2) = Apq(2,1);
 		//Apq(2,1) = tmp;
 	//}
-	
-	//cout << "計測開始1" << endl;
-	//qc.Start();
 
 	rxMatrix3 R, S;
 	//PolarDecomposition(m_mtrx3Apq, R, S, m_mtrxBeforeU);
 	PolarDecomposition(m_mtrx3Apq, R, S);
-
-	//double end1 = qc.End()/*/100*/;
 
 	if(m_bLinearDeformation)
 	{
@@ -453,39 +449,25 @@ void Ice_SM::ShapeMatching(float* newPos, double dt)
 			}
 		}
 
-		//cout << "計測開始2" << endl;
-		//qc.Start();
-
 		// 目標座標を計算し，現在の頂点座標を移動
 		for(int i = 0; i <  m_iIndxNum; ++i)
 		{
 			if( CheckHole(i) ){	continue;	}
 			if(m_pFix[i]) continue;
-			// 回転行列Rの代わりの行列RL=βA+(1-β)Rを計算
-			//rxMatrix3 RL = m_dBetas[i]*A+(1.0-m_dBetas[i])*R;
-			//q = m_vOrgPos[i]-cm_org;
-			//m_vGoalPos[i] = RL*q+cm;
-			//m_vNewPos[i] += (m_vGoalPos[i]-m_vNewPos[i])*m_dAlphas[i];
 
-			//Vec3 np(m_pNewPos[i*SM_DIM+0], m_pNewPos[i*SM_DIM+1], m_pNewPos[i*SM_DIM+2]);
+			// 回転行列Rの代わりの行列RL=βA+(1-β)Rを計算
 			int cIndx = i*SM_DIM;
 			Vec3 op(m_pOrgPos[cIndx+0], m_pOrgPos[cIndx+1], m_pOrgPos[cIndx+2]);
 
 			q = op-cm_org;
 			Vec3 gp(R*q+cm);
-			//m_vGoalPos[i] = R*m_vvec3OrgQ[i]+cm;
 
 			for(int j = 0; j < SM_DIM; j++)
 			{
 				int jcIndx = cIndx+j;
-				//m_pGoalPos[i*SM_DIM+j] = gp[j];
-				//m_pNewPos[i*SM_DIM+j] += (gp[j]-np[j])*m_fpAlphas[i];
 				m_pCurPos[jcIndx] += (gp[j]-m_pCurPos[jcIndx])*m_fpAlphas[i];
 			}
 		}
-		//double end2 = qc.End()/*/100*/;
-		//cout << "計測終了1::" << end1 << endl;
-		//cout << "計測終了2::" << end2 << endl;
 	}
 	else{
 		//// Quadratic Deformations
@@ -584,7 +566,7 @@ void Ice_SM::ShapeMatching(float* newPos, double dt)
  *  - 重力と境界壁からの力の影響
  * @param[in] dt タイムステップ幅
  */
-void Ice_SM::calExternalForces(float* newPos, double dt)
+void Ice_SM::calExternalForces(double dt)
 {
 	// 重力の影響を付加，速度を反映
 	for(int i = 0; i < m_iIndxNum; ++i)
@@ -597,12 +579,7 @@ void Ice_SM::calExternalForces(float* newPos, double dt)
 		{
 			int jpIndx = pIndx+j;
 			int jcIndx = cIndx+j;
-
-			//m_pNewPos[jcIndx] = s_pfPrtPos[jpIndx]+s_pfPrtVel[jpIndx]*dt;
-			//m_pGoalPos[jcIndx] = m_pOrgPos[jcIndx];
 			
-			//newPos[jcIndx] = s_pfPrtPos[jpIndx]+s_pfPrtVel[jpIndx]*dt;
-
 			m_pCurPos[jcIndx] = s_pfPrtPos[jpIndx]+s_pfPrtVel[jpIndx]*dt;
 		}
 	}
@@ -633,7 +610,6 @@ void Ice_SM::calExternalForces(float* newPos, double dt)
 		//	np[1] = p[1];
 		//}
 
-		//clamp(newPos, i*SM_DIM);
 		clamp(m_pCurPos, i*SM_DIM);
 	}
 }
@@ -646,11 +622,9 @@ void Ice_SM::calExternalForces(float* newPos, double dt)
  *  - 各粒子にαとβを持たせたバージョン
  * @param[in] dt タイムステップ幅
  */
-void Ice_SM::ShapeMatchingSolid(float* newPos, double dt)
+void Ice_SM::ShapeMatchingSolid(double dt)
 {
 	if(m_iNumVertices <= 1) return;
-
-	QueryCounter qc;
 
 	Vec3 cm(0.0), cm_org(0.0);	// 重心
 	double mass = 0.0;	// 総質量
@@ -667,19 +641,12 @@ void Ice_SM::ShapeMatchingSolid(float* newPos, double dt)
 
 		for(int j = 0; j < SM_DIM; j++)
 		{
-			//cm[j] += m_pNewPos[cIndx+j]*m;
-			//cm[j] += newPos[cIndx+j]*m;
 			cm[j] += m_pCurPos[cIndx+j]*m;
 		}
 	}
 
 	cm /= mass;
 	cm_org = m_vec3OrgCm;
-
-	//if(m_iObjectNo < 1)
-	//{
-	//	cout << "cpu, number::" << m_iObjectNo << " cm = " << cm << ", cm_org = " << cm_org << endl;
-	//}
 
 	rxMatrix3 Apq(0.0), Aqq(0.0);
 	Vec3 p, q;
@@ -694,9 +661,6 @@ void Ice_SM::ShapeMatchingSolid(float* newPos, double dt)
 
 		for(int j = 0; j < SM_DIM; j++)
 		{
-			//p[j] = m_pNewPos[cIndx+j]-cm[j];
-
-			//p[j] = newPos[cIndx+j]-cm[j];
 			p[j] = m_pCurPos[cIndx+j]-cm[j];
 			q[j] = m_pOrgPos[cIndx+j]-cm_org[j];
 		}
@@ -724,11 +688,6 @@ void Ice_SM::ShapeMatchingSolid(float* newPos, double dt)
 		Aqq(2,2) += m*q[2]*q[2];
 	}
 
-	//if(m_iObjectNo < 1)
-	//{
-	//	cout << "cpu, number::" << m_iObjectNo << " Apq = " << Apq << ", Aqq = " << Apq << endl;
-	//}
-
 	//Apqの行列式を求め，反転するかを判定
 	//不安定な場合が多いので×
 	//if( Apq.Determinant() < 0.0 && m_iNumVertices >= 4)
@@ -753,19 +712,10 @@ void Ice_SM::ShapeMatchingSolid(float* newPos, double dt)
 		//Apq(2,2) = Apq(2,1);
 		//Apq(2,1) = tmp;
 	//}
-	
-	//qc.Start();
 
 	rxMatrix3 R, S;
 	//PolarDecomposition(Apq, R, S, m_mtrxBeforeU);
 	PolarDecomposition(Apq, R, S);
-
-	//if(m_iObjectNo < 1)
-	//{
-	//	cout << "cpu, number::" << m_iObjectNo << " R = " << R << ", S = " << S << endl;
-	//}
-
-	//double end1 = qc.End()/*/100*/;
 
 	if(m_bLinearDeformation)
 	{
@@ -807,16 +757,9 @@ void Ice_SM::ShapeMatchingSolid(float* newPos, double dt)
 			{
 				int jcIndx = cIndx+j;
 
-				//m_pGoalPos[jcIndx] = gp[j];
-				//m_pNewPos[jcIndx] += (gp[j]-m_pNewPos[jcIndx])*m_dAlphas[i];
-				//newPos[jcIndx] += (gp[j]-newPos[jcIndx])*m_dAlphas[i];
 				m_pCurPos[jcIndx] += (gp[j]-m_pCurPos[jcIndx])*m_fpAlphas[i];
 			}
 		}
-
-		//double end2 = qc.End()/*/100*/;
-		//cout << "計測終了1::" << end1 << endl;
-		//cout << "計測終了2::" << end2 << endl;
 	}
 }
 
@@ -827,7 +770,7 @@ void Ice_SM::ShapeMatchingSolid(float* newPos, double dt)
  *  - 新しい位置と現在の位置座標から速度を算出
  * @param[in] dt タイムステップ幅
  */
-void Ice_SM::integrate(float* newPos, double dt)
+void Ice_SM::integrate(double dt)
 {
 	double dt1 = 1.0/dt;
 	for(int i = 0; i < m_iIndxNum; ++i)
@@ -838,10 +781,6 @@ void Ice_SM::integrate(float* newPos, double dt)
 		for(int j = 0; j < SM_DIM; j++)
 		{
 			int cIndx = i*SM_DIM+j;
-			//m_pVel[cIndx] = (m_pNewPos[cIndx] - s_pfPrtPos[pIndx+j]) * dt1;/*+ m_v3Gravity * dt * 1.0*/;
-			//m_pCurPos[cIndx] = m_pNewPos[cIndx];
-			//m_pVel[cIndx] = (newPos[cIndx] - s_pfPrtPos[pIndx+j]) * dt1;/*+ m_v3Gravity * dt * 1.0*/;
-			//m_pCurPos[cIndx] = newPos[cIndx];
 			m_pVel[cIndx] = (m_pCurPos[cIndx] - s_pfPrtPos[pIndx+j]) * dt1 + m_v3Gravity[j] * dt * 0.1f;
 		}
 	}
@@ -872,48 +811,27 @@ void Ice_SM::CalcDisplaceMentVectorCm()
 }
 
 /*!
- * シミュレーションステップを進める
+ *　CPUで運動計算
  */
-void Ice_SM::Update()
+void Ice_SM::UpdateCPU()
 {//	cout << "Ice_update" << endl;
-	//calCollision(m_dDt);
-	QueryCounter qc;
 
-	float* newPos = new float[m_iNumVertices*SM_DIM];
+	calExternalForces(m_dDt);
 
-	qc.Start();
-	calExternalForces(newPos, m_dDt);
-	double end1 = qc.End()/*/100*/;
+	//ShapeMatching(m_dDt);		//パスを用いた高速化
+	ShapeMatchingSolid(m_dDt);	//普通の計算
 
-	qc.Start();
-	//ShapeMatching(newPos, m_dDt);		//パスを用いた高速化
-	ShapeMatchingSolid(newPos, m_dDt);	//普通の計算
-	double end2 = qc.End()/*/100*/;
-
-	qc.Start();
-	integrate(newPos, m_dDt);
-	double end3 = qc.End()/*/100*/;
-
-	//cout << "計測終了1::" << end1 << endl;
-	//cout << "計測終了2::" << end2 << endl;
-	//cout << "計測終了3::" << end3 << endl;
+	integrate(m_dDt);
 
 	//CalcDisplaceMentVectorCm();	//重心移動量
-
-	delete newPos;
 }
 
 /*
- *	GPUを用いてシミュレーションを進める OpenMPは使えないのに注意
+ *	GPUを用いて運動計算
  */
 void Ice_SM::UpdateGPU()
 {
-	//ホスト側のデータをデバイス側へ転送
-	//cudaMemcpy(d_CurPos, m_pCurPos, sizeof(float) * m_iNumVertices * SM_DIM, cudaMemcpyHostToDevice);
-	//cudaMemcpy(d_Vel,		m_pVel,	sizeof(float) * m_iNumVertices * SM_DIM, cudaMemcpyHostToDevice);
-
-	//GPU処理
-	LaunchShapeMatchingGPU(sd_PrtPos, sd_PrtPosVbo, sd_PrtVel, d_OrgPos, d_CurPos, d_Vel, d_PIndxes, d_IndxSet, 0.02, s_vertSum);
+	LaunchShapeMatchingGPU(sd_PrtPos, sd_PrtVel, d_OrgPos, d_CurPos, d_Vel, d_PIndxes, d_IndxSet, 0.02, s_vertSum);
 }
 
 //GPUの計算結果を各インスタンスへコピーする
@@ -936,17 +854,6 @@ void Ice_SM::CopyDeviceToInstance(int num)
 		//位置，速度
 		Vec3 cPos = Vec3(cPoses[j*SM_DIM + 0], cPoses[j*SM_DIM + 1], cPoses[j*SM_DIM + 2]);
 		Vec3 vel  = Vec3(veles [j*SM_DIM + 0], veles [j*SM_DIM + 1], veles [j*SM_DIM + 2]);
-
-		//if(num < 2)
-		//{
-		//	////CPUでの運動計算結果と比較
-		//	Vec3 cpuPos = GetVertexPos(j);
-		//	Vec3 cpuVel = GetVertexVel(j);
-
-		//	cout << "num = " << num << endl;
-		//	cout << "posDiv = " << norm2(cpuPos)-norm2(cPos) << endl;
-		//	cout << "velDiv = " << norm2(cpuVel)-norm2(vel) << endl;
-		//}
 
 		SetCurrentPos(j, cPos);
 		SetVelocity(j, vel);
