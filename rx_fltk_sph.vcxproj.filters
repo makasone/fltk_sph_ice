@@ -28,17 +28,20 @@
     <Filter Include="Heat Files">
       <UniqueIdentifier>{bdb1348a-b626-4b06-8d10-3b29b6e47575}</UniqueIdentifier>
     </Filter>
-    <Filter Include="SM Files">
-      <UniqueIdentifier>{3b5a247f-3d44-4482-ac27-431567bb3791}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="IceStructure Files">
-      <UniqueIdentifier>{4941f763-8b41-4b1f-87b5-4a643c5d4e04}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Tetgen">
       <UniqueIdentifier>{ca8595b1-6c61-4581-a7ae-10556a6db832}</UniqueIdentifier>
     </Filter>
     <Filter Include="UnilityScript">
       <UniqueIdentifier>{f4217391-751c-462f-9842-1bc21b0f15cd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="IceObject">
+      <UniqueIdentifier>{decb15db-ac3e-43bf-aa01-10f5026be4de}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="IceObject\SM Files">
+      <UniqueIdentifier>{3b5a247f-3d44-4482-ac27-431567bb3791}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="IceObject\IceStructure Files">
+      <UniqueIdentifier>{4941f763-8b41-4b1f-87b5-4a643c5d4e04}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -103,19 +106,22 @@
       <Filter>Heat Files</Filter>
     </ClCompile>
     <ClCompile Include="ShapeMatching.cpp">
-      <Filter>SM Files</Filter>
+      <Filter>IceObject\SM Files</Filter>
     </ClCompile>
     <ClCompile Include="Ice_SM.cpp">
-      <Filter>SM Files</Filter>
+      <Filter>IceObject\SM Files</Filter>
     </ClCompile>
     <ClCompile Include="IceStructure.cpp">
-      <Filter>IceStructure Files</Filter>
+      <Filter>IceObject\IceStructure Files</Filter>
     </ClCompile>
     <ClCompile Include="Surf_SM.cpp">
-      <Filter>SM Files</Filter>
+      <Filter>IceObject\SM Files</Filter>
     </ClCompile>
     <ClCompile Include="test.cpp">
       <Filter>GUI Files</Filter>
+    </ClCompile>
+    <ClCompile Include="IceObject.cpp">
+      <Filter>IceObject</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -195,13 +201,13 @@
       <Filter>Heat Files</Filter>
     </ClInclude>
     <ClInclude Include="ShapeMatching.h">
-      <Filter>SM Files</Filter>
+      <Filter>IceObject\SM Files</Filter>
     </ClInclude>
     <ClInclude Include="Ice_SM.h">
-      <Filter>SM Files</Filter>
+      <Filter>IceObject\SM Files</Filter>
     </ClInclude>
     <ClInclude Include="IceStructure.h">
-      <Filter>IceStructure Files</Filter>
+      <Filter>IceObject\IceStructure Files</Filter>
     </ClInclude>
     <ClInclude Include="tetgen.h">
       <Filter>Tetgen</Filter>
@@ -213,13 +219,16 @@
       <Filter>UnilityScript</Filter>
     </ClInclude>
     <ClInclude Include="Surf_SM.h">
-      <Filter>SM Files</Filter>
+      <Filter>IceObject\SM Files</Filter>
     </ClInclude>
     <ClInclude Include="QueryCounter.h">
       <Filter>UnilityScript</Filter>
     </ClInclude>
     <ClInclude Include="test.h">
       <Filter>GUI Files</Filter>
+    </ClInclude>
+    <ClInclude Include="IceObject.h">
+      <Filter>IceObject</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -296,7 +305,10 @@
       <Filter>CUDA</Filter>
     </CudaCompile>
     <CudaCompile Include="ShapeMatching.cu">
-      <Filter>SM Files</Filter>
+      <Filter>IceObject\SM Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="IceStructure.cu">
+      <Filter>IceObject\IceStructure Files</Filter>
     </CudaCompile>
   </ItemGroup>
 </Project>

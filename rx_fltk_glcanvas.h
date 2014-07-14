@@ -47,6 +47,7 @@
 #include "HeatTransfar.h"
 #include "Ice_SM.h"
 #include "IceStructure.h"
+#include "IceObject.h"
 #include "tetgen.h"
 #include <UtilityScript\mk_Vector2D.h>
 #include <time.h>
@@ -321,6 +322,12 @@ public:
 	vector<int> m_ht_vSelectedVertices;
 
 	float m_fMakeParticleTemp;
+
+	//
+	//追加　相変化オブジェクト
+	//
+	IceObject* m_iceObj;
+
 	//
 	// 追加　SM法関連変数
 	//

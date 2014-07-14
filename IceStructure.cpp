@@ -637,11 +637,6 @@ void IceStructure::SetNeighborTetraFromLayer(int tIndx, int searchLayer, int del
 	}
 }
 
-void IceStructure::UpdatePrefixSum()
-{
-	m_SurfSm.UpdatePrefixSum();
-}
-
 //-------------------------------------------書き込み----------------------------------------
 
 /*!
@@ -911,6 +906,13 @@ int IceStructure::CheckNeighborTetra(int tIndx, int checkTIndx)
 	}
 
 	return findIndx;
+}
+
+//-------------------------------------更新----------------------------------------
+//高速なSM法のためのPrefixSum更新
+void IceStructure::UpdatePrefixSum()
+{
+	m_SurfSm.UpdatePrefixSum();
 }
 
 //-------------------------------------粒子ベース処理----------------------------------------

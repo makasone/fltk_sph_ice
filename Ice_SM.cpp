@@ -18,17 +18,17 @@ float* Ice_SM::sd_PrtPos;
 cudaGraphicsResource* Ice_SM::sd_PrtPosVbo;
 float* Ice_SM::sd_PrtVel;
 
+float* Ice_SM::d_FinalPos;
+float* Ice_SM::d_FinalVel;
+
 float* Ice_SM::d_OrgPos;
 float* Ice_SM::d_CurPos;
-float* Ice_SM::d_NewPos;
-float* Ice_SM::d_GoalPos;
 float* Ice_SM::d_Mass;
 float* Ice_SM::d_Vel;
 
 bool* Ice_SM::d_Fix;
 
 int* Ice_SM::d_PIndxes;
-
 int* Ice_SM::d_IndxSet;					//クラスタのデータの開始添字と終了添字を保存
 
 int Ice_SM::s_vertSum;					//全クラスタに含まれる粒子の総数
@@ -74,6 +74,10 @@ void Ice_SM::InitGPU(const vector<Ice_SM*>& ice_sm, float* d_pos, cudaGraphicsRe
 	cudaMalloc((void**)&d_PIndxes,	sizeof(int)   * MAXCLUSTER * MAXPARTICLE);
 
 	cudaMalloc((void**)&d_IndxSet,	sizeof(int)   * MAXCLUSTER * 2);
+
+	//各粒子の最終的な位置・速度データ
+	cudaMalloc((void**)&d_FinalPos,	sizeof(float) * MAXCLUSTER * SM_DIM);
+	cudaMalloc((void**)&d_FinalVel,	sizeof(float) * MAXCLUSTER * SM_DIM);
 
 	//CPUのデータを１次元配列にコピー
 	//ホスト側のデータをデバイス側へ転送して初期化
@@ -137,7 +141,27 @@ void Ice_SM::InitGPU(const vector<Ice_SM*>& ice_sm, float* d_pos, cudaGraphicsRe
 		cudaMemcpy(d_IndxSet+i*2,		set,	sizeof(int) * 2, cudaMemcpyHostToDevice);
 	}
 
-	////リセット
+	//最終位置・速度を現在のデータで初期化
+	float* fPoses = new float[MAXCLUSTER * SM_DIM];
+	float* fVeles = new float[MAXCLUSTER * SM_DIM];
+
+	//s_pfPrtPosなどはデータの中身がDIM=4で作られているので，こうしないといけない
+	//TODO::粒子サイズが大きくなると，メモリが確保できないかもしれないのに注意
+	int sphDIM = 4;
+	for(int i = 0; i < MAXCLUSTER; ++i)
+	{
+		for(int j = 0; j < SM_DIM; ++j)
+		{
+			fPoses[i*SM_DIM+j] = s_pfPrtPos[i*sphDIM+j];
+			fVeles[i*SM_DIM+j] = s_pfPrtVel[i*sphDIM+j];
+		}
+	}
+
+	cudaMemcpy(d_FinalPos, fPoses, sizeof(float) * MAXCLUSTER * SM_DIM, cudaMemcpyHostToDevice);
+	cudaMemcpy(d_FinalVel, fVeles, sizeof(float) * MAXCLUSTER * SM_DIM, cudaMemcpyHostToDevice);
+
+//デバッグ
+	////一時配列のリセット
 	//for(int i = 0; i < MAXCLUSTER; i++)
 	//{
 	//	Ice_SM* sm = ice_sm[i];
@@ -211,10 +235,38 @@ void Ice_SM::InitGPU(const vector<Ice_SM*>& ice_sm, float* d_pos, cudaGraphicsRe
 	//	//cout << endl;
 	//}
 
-	//転送直後のデータを比べてみる
+//転送直後のデータを比べてみる
 	//for(int i = 0; i < MAXCLUSTER;i++)
 	//{
 	//	ice_sm[i]->CopyDeviceToInstance(i);
+	//}
+
+////初期化の転送がうまくいったかの確認
+	////一時配列のリセット
+	//for(int i = 0; i < MAXCLUSTER; ++i)
+	//{
+	//	for(int j = 0; j < SM_DIM; ++j)
+	//	{
+	//		fPoses[i*SM_DIM+j] = 0.0f;
+	//		fVeles[i*SM_DIM+j] = 0.0f;
+	//	}
+	//}
+
+	////データを転送
+	//cudaMemcpy(fPoses, d_FinalPos, sizeof(float) * MAXCLUSTER * SM_DIM, cudaMemcpyDeviceToHost);
+	//cudaMemcpy(fVeles, d_FinalVel, sizeof(float) * MAXCLUSTER * SM_DIM, cudaMemcpyDeviceToHost);
+
+	////ホスト側のデータを転送した結果をダンプ
+	//ofstream ofs( "DtoH_Test.txt" );
+	//ofs << "DtoH_Test" << endl;
+	//
+	////デバイス側のデータを転送
+	//for(int i = 0; i < MAXCLUSTER; i++)
+	//{
+	//	ofs << "particle" << i << " pos::(" << fPoses[i*SM_DIM+0] << ", " << fPoses[i*SM_DIM+1] << ", " << fPoses[i*SM_DIM+2] << ")" << endl;
+	//	ofs << "sph     " << i << " pos::(" << s_pfPrtPos[i*sphDIM+0] << ", " << s_pfPrtPos[i*sphDIM+1] << ", " << s_pfPrtPos[i*sphDIM+2] << ")" << endl;
+	//	ofs << "particle" << i << " vel::(" << fVeles[i*SM_DIM+0] << ", " << fVeles[i*SM_DIM+1] << ", " << fVeles[i*SM_DIM+2] << ")" << endl;
+	//	ofs << "sph     " << i << " vel::(" << s_pfPrtVel[i*sphDIM+0] << ", " << s_pfPrtVel[i*sphDIM+1] << ", " << s_pfPrtVel[i*sphDIM+2] << ")" << endl;
 	//}
 
 	delete[] oPoses;
@@ -224,6 +276,9 @@ void Ice_SM::InitGPU(const vector<Ice_SM*>& ice_sm, float* d_pos, cudaGraphicsRe
 	delete[] fix;
 	delete[] indx;
 	delete[] set;
+
+	delete[] fPoses;
+	delete[] fVeles;
 }
 
 void Ice_SM::InitGPU_Instance()
@@ -832,6 +887,12 @@ void Ice_SM::UpdateCPU()
 void Ice_SM::UpdateGPU()
 {
 	LaunchShapeMatchingGPU(sd_PrtPos, sd_PrtVel, d_OrgPos, d_CurPos, d_Vel, d_PIndxes, d_IndxSet, 0.02, s_vertSum);
+}
+
+//各クラスタの値を平均して運動結果を求める　GPUで処理
+void Ice_SM::CalcAverage()
+{
+	LaunchCalcAverageGPU();
 }
 
 //GPUの計算結果を各インスタンスへコピーする

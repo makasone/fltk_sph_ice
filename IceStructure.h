@@ -35,8 +35,6 @@ public:
 	
 	void InitPath(const float* pos, const float* vel, const vector<Ice_SM*> iceSM, int size);	//パス作成
 
-	void UpdatePrefixSum();
-
 	void SetParticleNum(int pNum){	m_iPNum = pNum; }		//現在の粒子数
 	void SetClusterNum(int cNum){	m_iCNum = cNum; }		//現在のクラスタ数
 	void SetTetraNum(int tNum){		m_iTNum = tNum;	}		//現在の四面体数
@@ -115,6 +113,9 @@ public:
 
 	//判定
 	int  CheckNeighborTetra(int tIndx, int checkTIndx);
+
+	//更新
+	void UpdatePrefixSum();
 
 	//デバッグ
 	void DebugPtoT(int pIndx);

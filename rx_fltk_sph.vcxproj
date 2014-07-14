@@ -238,6 +238,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="HeatTransfar.cpp" />
+    <ClCompile Include="IceObject.cpp" />
     <ClCompile Include="IceStructure.cpp" />
     <ClCompile Include="Ice_SM.cpp" />
     <ClCompile Include="rx_fltk_glcanvas.cpp" />
@@ -266,6 +267,7 @@
   <ItemGroup>
     <ClInclude Include="..\..\..\common\shared\inc\rx_timer.h" />
     <ClInclude Include="HeatTransfar.h" />
+    <ClInclude Include="IceObject.h" />
     <ClInclude Include="IceStructure.h" />
     <ClInclude Include="Ice_SM.h" />
     <ClInclude Include="QueryCounter.h" />
@@ -300,6 +302,7 @@
     <ClInclude Include="UtilityScript\mk_Vector3D.h" />
   </ItemGroup>
   <ItemGroup>
+    <CudaCompile Include="IceStructure.cu" />
     <CudaCompile Include="rx_aniso_kernel.cu">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release(Boundary Particle)|Win32'">true</ExcludedFromBuild>

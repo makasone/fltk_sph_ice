@@ -19,7 +19,8 @@
 using namespace std;
 
 //GPU処理
-extern void LaunchShapeMatchingGPU(
+extern void LaunchShapeMatchingGPU
+(
 	float* prtPos,
 	float* prtVel, 
 	float* orgPos,
@@ -31,6 +32,10 @@ extern void LaunchShapeMatchingGPU(
 	int prtNum
 );
 
+extern void LaunchCalcAverageGPU
+(
+
+);
 
 class Ice_SM : public rxShapeMatching
 {
@@ -55,29 +60,28 @@ protected:
 	vector<int> m_iLinearDeformation;			//!< Linear/Quadratic deformation切り替えフラグ　未使用
 	vector<int> m_iVolumeConservation;			//!< 変形時の体積保存性(√det(A)で割るかどうか)　未使用
 
-	static const float* s_pfPrtPos;				//読み込み専用
-	static const float* s_pfPrtVel;				//読み込み専用
-
-	static float* sd_PrtPos;					//位置のデバイスポインタ
-	static cudaGraphicsResource* sd_PrtPosVbo;
-	static float* sd_PrtVel;					//速度のデバイスポインタ
+	static const float* s_pfPrtPos;				//位置のポインタ　読み込み専用
+	static const float* s_pfPrtVel;				//速度のポインタ　読み込み専用
 
 //--------------------------------------GPU------------------------------------------------------------
-	//デバイス側へのポインタ
+	static float* sd_PrtPos;					//粒子位置のデバイスポインタ
+	static cudaGraphicsResource* sd_PrtPosVbo;
+	static float* sd_PrtVel;					//粒子速度のデバイスポインタ
+
+	static float* d_FinalPos;					//総和計算による最終的な粒子位置
+	static float* d_FinalVel;					//速度
+
 	static float* d_OrgPos;
 	static float* d_CurPos;
-	static float* d_NewPos;
-	static float* d_GoalPos;
 	static float* d_Mass;
 	static float* d_Vel;
 
 	static bool* d_Fix;
 
 	static int* d_PIndxes;
+	static int* d_IndxSet;						//クラスタのデータの開始添字と終了添字を保存
 
-	static int* d_IndxSet;					//クラスタのデータの開始添字と終了添字を保存
-
-	static int s_vertSum;					//全クラスタに含まれる粒子の総数
+	static int s_vertSum;						//全クラスタに含まれる粒子の総数
 
 //--------------------------------------GPU------------------------------------------------------------
 
@@ -106,7 +110,8 @@ public:
 	
 	void UpdateCPU();
 	static void UpdateGPU();
-
+	
+	static void CalcAverage();
 	void CopyDeviceToInstance(int num);
 
 	void ShapeMatching(double dt);

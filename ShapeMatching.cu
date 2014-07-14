@@ -24,7 +24,6 @@
 #define SM_DIM 3
 
 //引き渡す変数名が間違っていてもエラーが出ないので注意
-
 void LaunchShapeMathcingGPU(float* prtPos, float* prtVel, float* orgPos, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum);
 __global__ void Update(float* prtPos, float* prtVel, float* orgPos, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum);
 __device__ void ExternalForce(float* prtPos, float* prtVel, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum);
@@ -32,6 +31,10 @@ __device__ void ProjectPos(float* prtPos, float* prtVel, float* orgPos, float* c
 __device__ void Integrate(float* prtPos, float* prtVel, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum);
 
 __device__ void PolarDecomposition(matrix3x3 &A, matrix3x3 &R, matrix3x3 &S);
+
+void LaunchCalcAverageGPU();
+//__global__ void CalcAverage();
+
 
 //行列演算
 //TODO::てきとうなのでもう少し使いやすく
@@ -42,18 +45,28 @@ __device__ matrix3x3 Inverse(const matrix3x3 &M);
 __device__ matrix3x3 Multiple(matrix3x3 &M1, matrix3x3 &M2);
 __device__ float3 Multiple(matrix3x3 &M1, float3& V);
 
-//GPU処理
+//運動計算
 void LaunchShapeMatchingGPU(float* prtPos, float* prtVel, float* orgPos, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum)
 {
 	//printf("LaunchGPUKernel");
-
+	
 	dim3 grid(1, 1);
 	dim3 block(729, 1, 1);
 
 	//運動計算
-	Update <<< grid , block >>> (prtPos, prtVel, orgPos, curPos, vel, pIndxes, indxSet, dt, prtNum);
+	Update<<<grid ,block>>>(prtPos, prtVel, orgPos, curPos, vel, pIndxes, indxSet, dt, prtNum);
 }
 
+//総和計算
+void LaunchCalcAverageGPU()
+{
+	//各クラスタの平均を求め，結果を作成
+	//粒子がどのクラスタに属するか，の情報が必要 IceStructureでやらせたほうがいい！
+	dim3 grid(1, 1);
+	dim3 block(729, 1, 1);
+
+	//CalcAverage<<<grid, block>>>();
+}
 
 //GPUの位置・速度更新
 __global__
@@ -327,6 +340,16 @@ __device__
 	//if(pos[cIndx+2] < m_v3Min[2]) pos[cIndx+2] = m_v3Min[2];
 	//if(pos[cIndx+2] > m_v3Max[2]) pos[cIndx+2] = m_v3Max[2];
 }
+
+
+
+
+
+
+
+
+
+
 
 /*!
  * Jacobi法による固有値の算出
