@@ -15,6 +15,7 @@
 #include <iostream>
 #include <vector>
 #include <algorithm>
+#include <math.h>
 
 #include <UtilityScript\mk_Vector2D.h>
 #include <UtilityScript\mk_Vector3D.h>
@@ -29,10 +30,16 @@ public:
 	IceStructure(int pNum, int cNum, int tNum);
 	~IceStructure(void);
 
+	static int* GetDevicePtoCIndxPointer(){	return sd_piPtoCIndx;	}
+	static int* GetDevicePtoCPointer(){		return sd_piPtoC;	}
+
 	//初期化
 	void InitTetraInfo();									//四面体情報のメモリ確保
 	void InitClusterInfo();									//クラスタ情報のメモリ確保
 	
+	void InitGPU();									//GPU処理で用いるデータの初期化
+
+	//TODO::IceObjectに移動
 	void InitPath(const float* pos, const float* vel, const vector<Ice_SM*> iceSM, int size);	//パス作成
 
 	void SetParticleNum(int pNum){	m_iPNum = pNum; }		//現在の粒子数
@@ -42,6 +49,8 @@ public:
 	int GetParticleNum(void){	return m_iPNum;	}
 	int GetClusterNum(void){	return m_iCNum;	}
 	int GetTetraNum(void){		return m_iTNum;	}
+
+	int GetPNumMax(void){	return m_iPNumMax;	}
 
 	int GetCtoPMax(void){	return m_iCtoPMax;	}
 	int GetPtoCMax(void){	return m_iPtoCMax;	}
@@ -191,6 +200,43 @@ protected:
 	mk_Vector3D<int> m_mk3DiNeighborTetra;		//近傍四面体
 
 	int*   m_piNTNum;							//各近傍四面体の個数
+
+//--------------------------------------GPU__------------------------------------------------------------
+	//粒子→
+	static int* sd_piPtoC;
+	static int* sd_piPtoT;
+
+	static int* sd_piPtoCNum;
+	static int* sd_piPtoTNum;							//粒子→四面体の個数
+
+	static int* sd_piPtoCIndx;
+	static int* sd_piPtoTIndx;
+
+	//クラスタ→
+	static int* sd_piCtoP;
+
+	static int* sd_piCtoPNum;
+	//static int* sd_piCtoTNum;
+	
+	static int* sd_piCtoPIndx;
+	//static int*   sd_piCtoTIndx;
+	
+	//四面体→
+	static int* sd_piTtoP;
+
+	static int* sd_piTtoPNum;
+	static int* sd_piTtoCNum;
+
+	static int* sd_piTtoPIndx;
+	static int* sd_piTtoCIndx;
+
+	//近傍四面体
+	static int* sd_piNeighborTetra;
+
+	static int* sd_piNeighborTetraTNum;
+//--------------------------------------__GPU------------------------------------------------------------
+
+
 
 	//高速計算用モジュール
 	Surf_SM m_SurfSm;

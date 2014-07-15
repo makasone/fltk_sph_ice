@@ -32,11 +32,6 @@ extern void LaunchShapeMatchingGPU
 	int prtNum
 );
 
-extern void LaunchCalcAverageGPU
-(
-
-);
-
 class Ice_SM : public rxShapeMatching
 {
 protected:
@@ -68,9 +63,6 @@ protected:
 	static cudaGraphicsResource* sd_PrtPosVbo;
 	static float* sd_PrtVel;					//粒子速度のデバイスポインタ
 
-	static float* d_FinalPos;					//総和計算による最終的な粒子位置
-	static float* d_FinalVel;					//速度
-
 	static float* d_OrgPos;
 	static float* d_CurPos;
 	static float* d_Mass;
@@ -91,18 +83,17 @@ protected:
 public:
 	Ice_SM(int obj);
 	~Ice_SM();
-
-	static void SetParticlePosAndVel(const float* pos, const float* vel)
-	{
-		s_pfPrtPos = pos;	s_pfPrtVel = vel;
-	}
-
-	static void SetDevicePosPointer(float* d_pos)
-	{
-		sd_PrtPos = d_pos;
-	}
-
+	
 	static void Ice_SM::InitGPU(const vector<Ice_SM*>& sm, float* d_pos, cudaGraphicsResource* d_pos_vbo, float* d_vel);
+
+	static void SetParticlePosAndVel(const float* pos, const float* vel){	s_pfPrtPos = pos;	s_pfPrtVel = vel;	}
+	static void SetDevicePosPointer(float* d_pos){	sd_PrtPos = d_pos;	}
+	
+	static float* GetDeviceSPHPosPointer(){	return sd_PrtPos;	}
+	static float* GetDeviceSPHVelPointer(){	return sd_PrtVel;	}
+	static float* GetDevicePosPointer(){	return d_CurPos;	}
+	static float* GetDeviceVelPointer(){	return d_Vel;	}
+	static int* GetDeviceIndexSetPointer(){	return d_IndxSet;	}
 
 	void InitGPU_Instance();
 

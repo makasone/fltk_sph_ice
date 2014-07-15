@@ -3,6 +3,36 @@
 //-----------------------------------------------------------------------------
 #include "IceStructure.h"
 
+//粒子→
+int* IceStructure::sd_piPtoC;
+int* IceStructure::sd_piPtoT;
+
+int* IceStructure::sd_piPtoCNum;
+int* IceStructure::sd_piPtoTNum;
+
+int* IceStructure::sd_piPtoCIndx;
+int* IceStructure::sd_piPtoTIndx;
+
+//クラスタ→
+int* IceStructure::sd_piCtoP;
+
+int* IceStructure::sd_piCtoPNum;
+
+int* IceStructure::sd_piCtoPIndx;
+
+//四面体→
+int* IceStructure::sd_piTtoP;
+
+int* IceStructure::sd_piTtoPNum;
+int* IceStructure::sd_piTtoCNum;
+
+int* IceStructure::sd_piTtoPIndx;
+int* IceStructure::sd_piTtoCIndx;
+
+int* IceStructure::sd_piNeighborTetra;
+
+int* IceStructure::sd_piNeighborTetraTNum;
+
 /*!
  * @param[in] pNumMax　最大粒子数
  * @param[in] cNumMax　最大クラスタ数
@@ -242,7 +272,110 @@ void IceStructure::InitClusterInfo()
 		m_piCtoPIndx[i] = m_piCtoPNum[i];
 	}
 }
-//------------------------------------------初期化-------------------------------------------------
+
+//GPU処理で用いるデータの初期化
+//今のところはコピーでまかなう
+void IceStructure::InitGPU()
+{	cout << __FUNCTION__ << endl;
+
+	//デバイス側のメモリを確保
+		//粒子→
+	cudaMalloc((void**)&sd_piPtoT,		sizeof(int) * m_iPNumMax * m_iPtoTMax * 2);
+	cudaMalloc((void**)&sd_piPtoC,		sizeof(int) * m_iPNumMax * m_iPtoCMax * 3);
+
+	cudaMalloc((void**)&sd_piPtoCNum,	sizeof(int) * m_iPNumMax);
+	cudaMalloc((void**)&sd_piPtoTNum,	sizeof(int) * m_iPNumMax);
+
+	cudaMalloc((void**)&sd_piPtoCIndx,	sizeof(int) * m_iPNumMax);
+	cudaMalloc((void**)&sd_piPtoTIndx,	sizeof(int) * m_iPNumMax);
+
+		//クラスタ→
+	cudaMalloc((void**)&sd_piCtoP,		sizeof(int) * m_iCNumMax * m_iCtoPMax * 2);
+
+	cudaMalloc((void**)&sd_piCtoPNum,	sizeof(int) * m_iCNumMax);
+	cudaMalloc((void**)&sd_piCtoPIndx,	sizeof(int) * m_iCNumMax);
+
+		//四面体→
+	cudaMalloc((void**)&sd_piTtoP,	sizeof(int) * m_iTNumMax * 4);
+
+	cudaMalloc((void**)&sd_piTtoPNum,	sizeof(int) * m_iTNumMax);
+	cudaMalloc((void**)&sd_piTtoCNum,	sizeof(int) * m_iTNumMax);
+
+	cudaMalloc((void**)&sd_piTtoPIndx,	sizeof(int) * m_iTNumMax);
+	cudaMalloc((void**)&sd_piTtoCIndx,	sizeof(int) * m_iTNumMax);
+
+		//近傍四面体
+	cudaMalloc((void**)&sd_piNeighborTetra,		sizeof(int) * m_iTNumMax * m_iNeighborMax * 2);
+	cudaMalloc((void**)&sd_piNeighborTetraTNum,	sizeof(int) * m_iTNumMax);
+
+	//初期化
+	cudaMemcpy(sd_piPtoCNum, m_piPtoCNum, sizeof(int) * m_iPNumMax, cudaMemcpyHostToDevice);
+	cudaMemcpy(sd_piPtoTNum, m_piPtoTNum, sizeof(int) * m_iPNumMax, cudaMemcpyHostToDevice);
+
+	cudaMemcpy(sd_piPtoCIndx, m_piPtoCIndx, sizeof(int) * m_iPNumMax, cudaMemcpyHostToDevice);
+	cudaMemcpy(sd_piPtoTIndx, m_piPtoTIndx, sizeof(int) * m_iPNumMax, cudaMemcpyHostToDevice);
+
+	cudaMemcpy(sd_piCtoPNum,	m_piCtoPNum,	sizeof(int) * m_iCNumMax, cudaMemcpyHostToDevice);
+	cudaMemcpy(sd_piCtoPIndx,	m_piCtoPIndx,	sizeof(int) * m_iCNumMax, cudaMemcpyHostToDevice);
+
+	cudaMemcpy(sd_piTtoPNum,	m_piTtoPNum,	sizeof(int) * m_iTNumMax, cudaMemcpyHostToDevice);
+	cudaMemcpy(sd_piTtoCNum,	m_piTtoCNum,	sizeof(int) * m_iTNumMax, cudaMemcpyHostToDevice);
+
+	cudaMemcpy(sd_piTtoPIndx,	m_piTtoPIndx,	sizeof(int) * m_iTNumMax, cudaMemcpyHostToDevice);
+	cudaMemcpy(sd_piTtoCIndx,	m_piTtoCIndx,	sizeof(int) * m_iTNumMax, cudaMemcpyHostToDevice);
+
+		//Vectorで管理しているデータを配列にするためにdata()を使っている
+	cudaMemcpy(sd_piNeighborTetra,		m_mk3DiNeighborTetra.Get().data(),	sizeof(int) * m_iTNumMax * m_iNeighborMax * 2,	cudaMemcpyHostToDevice);
+	cudaMemcpy(sd_piNeighborTetraTNum,	m_piNTNum,							sizeof(int) * m_iTNumMax,						cudaMemcpyHostToDevice);
+
+	cudaMemcpy(sd_piPtoT,	m_mk3DiPtoT.Get().data(),	sizeof(int) * m_iPNumMax * m_iPtoTMax * 2,	cudaMemcpyHostToDevice);
+	cudaMemcpy(sd_piPtoC,	m_mk3DiPtoC.Get().data(),	sizeof(int) * m_iPNumMax * m_iPtoCMax * 3,	cudaMemcpyHostToDevice);
+
+	cudaMemcpy(sd_piTtoP,	m_mk2DiTtoP.Get().data(),	sizeof(int) * m_iTNumMax * 4,				cudaMemcpyHostToDevice);
+
+	cudaMemcpy(sd_piCtoP,	m_mk3DiCtoP.Get().data(),	sizeof(int) * m_iCNumMax * m_iCtoPMax * 2,	cudaMemcpyHostToDevice);
+
+////デバッグ
+//	int* testA = new int[m_iPNumMax];
+//	int* testB = new int[m_iPNumMax];
+//	int* testC = new int[m_iCNumMax];
+//	int* testD = new int[m_iCNumMax];
+//
+//	//デバイスからホストへのコピー
+//	cudaMemcpy(testA, sd_piPtoCIndx, sizeof(int) * m_iPNumMax, cudaMemcpyDeviceToHost);
+//	cudaMemcpy(testB, sd_piPtoTIndx, sizeof(int) * m_iPNumMax, cudaMemcpyDeviceToHost);
+//	cudaMemcpy(testC, sd_piCtoPNum,	 sizeof(int) * m_iCNumMax, cudaMemcpyDeviceToHost);
+//	cudaMemcpy(testD, sd_piCtoPIndx, sizeof(int) * m_iCNumMax, cudaMemcpyDeviceToHost);
+//
+	////ホスト側のデータを転送した結果をダンプ
+	//ofstream ofs( "DtoH_Test.txt" );
+	//ofs << "DtoH_Test" << endl;
+
+	////for(int i = 0; i < m_iPNumMax; i++)
+	//for(int i = 0; i < m_iTNumMax * m_iNeighborMax * 2; i++)
+	//{
+	//	////等しいなら0になるはず
+	//	//ofs << i << "      host-device:: "
+	//	//	<< abs(m_piPtoCIndx[i]-testA[i]) << ", "
+	//	//	<< abs(m_piPtoTIndx[i]-testB[i]) << ", "
+	//	//	<< abs(m_piCtoPNum[i] -testC[i]) << ", "
+	//	//	<< abs(m_piCtoPIndx[i]-testD[i]) << ", "
+	//	//	<< endl;
+
+	//	//if(m_mk3DiNeighborTetra.Get()[i] == -1 && m_mk3DiNeighborTetra.Get().data()[i]){	continue;	}
+
+	//	//ofs << i << "        data()-Get() = " << m_mk3DiNeighborTetra.Get().data()[i] - m_mk3DiNeighborTetra.Get()[i] << endl;
+	//	//ofs << i << " Get() = " << m_mk3DiNeighborTetra.Get()[i] << endl;
+	//	//ofs << i << " Get() = " << m_mk3DiNeighborTetra.Get().data()[i] << endl;
+	//}
+//
+//	delete[] testA;
+//	delete[] testB;
+//	delete[] testC;
+//	delete[] testD;
+}
+
+//------------------------------------------__初期化-------------------------------------------------
 
 
 //-------------------------------------------取得----------------------------------------

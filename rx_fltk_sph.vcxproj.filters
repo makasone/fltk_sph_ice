@@ -310,5 +310,8 @@
     <CudaCompile Include="IceStructure.cu">
       <Filter>IceObject\IceStructure Files</Filter>
     </CudaCompile>
+    <CudaCompile Include="IceInterPolation.cu">
+      <Filter>IceObject</Filter>
+    </CudaCompile>
   </ItemGroup>
 </Project>

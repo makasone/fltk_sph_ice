@@ -302,6 +302,7 @@
     <ClInclude Include="UtilityScript\mk_Vector3D.h" />
   </ItemGroup>
   <ItemGroup>
+    <CudaCompile Include="IceInterPolation.cu" />
     <CudaCompile Include="IceStructure.cu" />
     <CudaCompile Include="rx_aniso_kernel.cu">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>

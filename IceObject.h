@@ -13,20 +13,44 @@
 
 using namespace std;
 
+//GPU処理
+//各クラスタの運動計算結果と固体構造のデータが必要なので，ここにおいている
+extern void LaunchCalcAverageGPU
+(
+	float* sldPrtPos,
+	float* sldPrtVel,
+	float* sphPrtPos,
+	float* sphPrtVel,
+	float* smPrtPos,
+	float* smPrtVel,
+	int* smIndxSet,
+	int* PtoCIndx,
+	int* PtoC,
+	int PNumMax,
+	int PtoCMax,
+	int PtoCParamSize
+);
+
+//いずれはクラスにしたいが，とりあえずここにおいている
+extern void LaunchInterPolationGPU
+(
+
+);
+
 class IceObject
 {
 private:
 	//TODO::液体運動計算クラスも置きたい
 	//TODO::四面体処理も置く
-	static float* s_sphPrtPos;				//位置のポインタ　読み込み専用
-	static float* s_sphPrtVel;				//速度のポインタ　読み込み専用
+	static float* s_sphPrtPos;						//sph粒子位置のホストポインタ
+	static float* s_sphPrtVel;						//sph粒子速度のホストポインタ
 
 //--------------------------------------GPU__------------------------------------------------------------
-	static float* sd_sldPrtPos;						//粒子位置のデバイスポインタ
-	static float* sd_sldPrtVel;						//粒子速度のデバイスポインタ
+	static float* sd_sphPrtPos;						//sph粒子位置のデバイスポインタ
+	static float* sd_sphPrtVel;						//sph粒子速度のデバイスポインタ
 
-	static float* sd_ObjPrtPos;						//総和計算による最終的な粒子位置
-	static float* sd_ObjPrtVel;						//速度
+	static float* sd_sldPrtPos;						//総和計算による最終的な粒子位置のデバイスポインタ
+	static float* sd_sldPrtVel;						//総和計算による最終的な粒子速度のデバイスポインタ
 //--------------------------------------__GPU------------------------------------------------------------
 
 	static int sm_particleNum;						//粒子数
@@ -50,6 +74,7 @@ public:
 	void InitIceObj(int pMaxNum, int cMaxNum, int tMaxNum);
 	void InitCluster(Ice_SM* sm){	m_iceMove.push_back(sm);	}	//ポインタをコピーしているだけ　一時的な実装
 	static void InitInterPolation();
+	void InitGPU();
 
 	void StepObjMove();
 	void StepInterPolation();								//線形補間　いずれは処理が複雑になるのでクラスにしたい．

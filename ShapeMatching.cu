@@ -32,9 +32,6 @@ __device__ void Integrate(float* prtPos, float* prtVel, float* curPos, float* ve
 
 __device__ void PolarDecomposition(matrix3x3 &A, matrix3x3 &R, matrix3x3 &S);
 
-void LaunchCalcAverageGPU();
-//__global__ void CalcAverage();
-
 
 //行列演算
 //TODO::てきとうなのでもう少し使いやすく
@@ -55,17 +52,6 @@ void LaunchShapeMatchingGPU(float* prtPos, float* prtVel, float* orgPos, float* 
 
 	//運動計算
 	Update<<<grid ,block>>>(prtPos, prtVel, orgPos, curPos, vel, pIndxes, indxSet, dt, prtNum);
-}
-
-//総和計算
-void LaunchCalcAverageGPU()
-{
-	//各クラスタの平均を求め，結果を作成
-	//粒子がどのクラスタに属するか，の情報が必要 IceStructureでやらせたほうがいい！
-	dim3 grid(1, 1);
-	dim3 block(729, 1, 1);
-
-	//CalcAverage<<<grid, block>>>();
 }
 
 //GPUの位置・速度更新
@@ -114,8 +100,6 @@ __device__
 		//printf("pIndxes[i] = %d, prtPos(%f, %f, %f)\n", pIndxes[i], prtPos[pIndx], prtPos[pIndx+1], prtPos[pIndx+2]);
 		//printf("gpu:: i = %d, cIndx = %d, curPos(%f, %f, %f)\n", i, cIndx, curPos[cIndx], curPos[cIndx+1], curPos[cIndx+2]);
 	}
-
-
 
 	// 境界壁の影響
 	//処理がかなり重くなるが，安定はするみたい
@@ -261,8 +245,8 @@ __device__
 	//if(m_bLinearDeformation)
 	{
 		// Linear Deformations
-		matrix3x3 A;
-		A = Multiple(Apq, Inverse(Aqq));	// A = Apq*Aqq^-1
+		//matrix3x3 A;
+		//A = Multiple(Apq, Inverse(Aqq));	// A = Apq*Aqq^-1
 
 		//// 体積保存のために√(det(A))で割る
 		//if(m_bVolumeConservation){

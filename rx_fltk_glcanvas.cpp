@@ -507,9 +507,13 @@ void rxFlGLWindow::InitGL(void)
 
 	//DumpParticleData();		//初期粒子情報をダンプ
 
+	//TODO::InitIceObj()みたいにまとめてしまう．
 	InitTetra();
-	InitCluster();			//クラスタ初期化
-	InitICE_Cluster();		//粒子とクラスタの関係情報を初期化
+	InitCluster();				//クラスタ初期化
+	InitICE_Cluster();			//粒子とクラスタの関係情報を初期化
+	
+	IceObject::InitInterPolation();
+	m_iceObj->InitGPU();	//構造の情報が完成したらコピー
 
 	// GLSLのコンパイル
 	g_glslPointSprite = CreateGLSL(ps_vs, ps_fs, "point sprite");
@@ -3017,7 +3021,7 @@ void rxFlGLWindow::InitICE(void)
 	////m_ice = new IceStructure(10000, 10000, 1);
 	////m_ice = new IceStructure(16000, 16000, 1);
 
-	m_iceObj = new IceObject(p, v, 5000, 5000, 26000);
+	m_iceObj = new IceObject(p, v, 2500, 2500, 15000);
 #endif
 
 #ifdef SURF
@@ -3027,7 +3031,6 @@ void rxFlGLWindow::InitICE(void)
 
 	//m_ice->SetParticleNum(ICENUM);								//粒子数の登録
 	m_iceObj->SetParticleNum(ICENUM);
-	IceObject::InitInterPolation();
 }
 
 /*
@@ -3910,6 +3913,7 @@ void rxFlGLWindow::StepCluster(double dt)
 	//GPUを用いたクラスタの運動計算
 	Ice_SM::SetDevicePosPointer(dvbo_pos);	//マップしたポインタを渡す
 	Ice_SM::UpdateGPU();
+	m_iceObj->StepInterPolation();	//総和計算，線形補間
 
 	//位置情報をアンマップ
 	cudaGraphicsUnmapResources(1, &d_resource_pos, 0);
@@ -4023,11 +4027,11 @@ void rxFlGLWindow::StepInterpolation(double dt)
 	double shapeNum = 0.0, intrps = 0.0;
 	Vec3 pos,vel,veltemp;
 	
-	RXREAL *p = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
-	RXREAL *v = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_VELOCITY);
+	//RXREAL *p = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
+	//RXREAL *v = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_VELOCITY);
 	
-	IceObject::SetSPHPointer(p, v);
-	m_iceObj->StepInterPolation();	//総和計算，線形補間
+	//IceObject::SetSPHPointer(p, v);
+	//m_iceObj->StepInterPolation();	//総和計算，線形補間
 
 	////線形補間
 	////#pragma omp parallel
@@ -4106,8 +4110,8 @@ void rxFlGLWindow::StepInterpolation(double dt)
 	//}//end #pragma omp parallel
 
 	//SPHのデータの更新　位置・速度
-	m_pPS->SetArrayVBO(rxParticleSystemBase::RX_POSITION, p, 0, m_pPS->GetNumParticles());
-	m_pPS->SetArrayVBO(rxParticleSystemBase::RX_VELOCITY, v, 0, m_pPS->GetNumParticles());
+	//m_pPS->SetArrayVBO(rxParticleSystemBase::RX_POSITION, p, 0, m_pPS->GetNumParticles());
+	//m_pPS->SetArrayVBO(rxParticleSystemBase::RX_VELOCITY, v, 0, m_pPS->GetNumParticles());
 }
 
 //------------------------------------------------------------------------------------------------------------
