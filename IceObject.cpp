@@ -15,16 +15,10 @@ float* IceObject::sd_sldPrtVel;
 int IceObject::sm_particleNum;
 int IceObject::sm_tetraNum;
 int IceObject::sm_clusterNum;
+int IceObject::sm_layerNum;
 
-
-IceObject::IceObject(float* pos, float* vel, int pMaxNum, int cMaxNum, int tMaxNum)
+IceObject::IceObject()
 {
-	//今のところあんまり意味ないみたい
-	s_sphPrtPos = pos;
-	s_sphPrtVel = vel;
-
-	InitIceObj(pMaxNum, cMaxNum, tMaxNum);
-
 }
 
 IceObject::~IceObject()
@@ -44,9 +38,60 @@ void IceObject::InitIceObj(int pMaxNum, int cMaxNum, int tMaxNum)
 
 }
 
+void IceObject::InitTetra()
+{	cout << __FUNCTION__ << endl;
+
+	IceTetrahedra &tetra = IceTetrahedra::GetInstance();		//シングルトンな四面体管理クラスを用意してみた
+	tetra.InitTetra(s_sphPrtPos, sm_particleNum);
+
+	cout << __FUNCTION__ << " check1" << endl;
+
+	m_iceStrct->SetTetraNum(tetra.GetTetraListSize());			//現四面体数を登録
+
+	cout << __FUNCTION__ << " check2" << endl;
+
+	//各四面体に含まれる粒子数のカウント
+	for(unsigned i = 0; i < tetra.GetTetraListSize(); i++)
+	{
+		m_iceStrct->CountTetrahedra(i, tetra.GetTetraList(i));
+	}
+	cout << __FUNCTION__ << " check3" << endl;
+
+	//メモリ確保
+	m_iceStrct->InitTetraInfo();
+	cout << __FUNCTION__ << " check4" << endl;
+
+	//粒子が所属しているクラスタ数の配列をコピー
+	int *PtoTNum = new int[sm_particleNum];
+
+	for(int i = 0; i < sm_particleNum; i++)
+	{
+		PtoTNum[i] = m_iceStrct->GetPtoTNum(i);
+	}
+	cout << __FUNCTION__ << " check5" << endl;
+
+	//四面体データ登録
+	for(unsigned i = 0; i < tetra.GetTetraListSize(); i++)
+	{
+		m_iceStrct->SetTetraInfo(i, PtoTNum);
+	}
+	delete[] PtoTNum;
+	cout << __FUNCTION__ << " check6" << endl;
+
+	//近傍四面体データ登録
+	for(unsigned i = 0; i < tetra.GetTetraListSize(); i++)
+	{
+		m_iceStrct->SetNeighborTetra(i, sm_layerNum);
+	}
+	cout << __FUNCTION__ << " check7" << endl;
+
+	//デバッグ
+	//m_iceObj->DebugTetraInfo();
+}
+
 //補間処理のためのパラメータの初期化
 void IceObject::InitInterPolation()
-{
+{	cout << __FUNCTION__ << endl;
 	m_fInterPolationCoefficience = new float[sm_particleNum];	//線形補間係数
 
 	for(int i = 0; i < sm_particleNum; ++i)
@@ -140,9 +185,9 @@ void IceObject::StepInterPolation()
 	//{
 	//	if(GetParticleNum() <= i){	continue;	}	//融解のみの実験のときに必要になる．
 	//	if(GetPtoCNum(i) <= 0){		continue;	}
-	
+	//
 	//	Vec3 pos,vel;
-	
+	//
 	//	//固体運動の最終位置計算
 	//	CalcAverageCPU(i, pos, vel);
 
@@ -165,7 +210,7 @@ void IceObject::StepInterPolation()
 	int PtoCMax = m_iceStrct->GetPtoCMax();
 	int PtoCParamSize = 3;
 
-	LaunchCalcAverageGPU(sd_sldPrtPos, sd_sldPrtVel, sd_sphPrtPos, sd_sphPrtVel, smPrtPos, smPrtVel, indxSet, PtoCIndx, PtoC, PNumMax, PtoCMax, PtoCParamSize);
+	LaunchCalcAverageGPU(sm_particleNum, sd_sldPrtPos, sd_sldPrtVel, sd_sphPrtPos, sd_sphPrtVel, smPrtPos, smPrtVel, indxSet, PtoCIndx, PtoC, PNumMax, PtoCMax, PtoCParamSize);
 
 	//液体と固体の補間
 	LaunchInterPolationGPU();
@@ -220,4 +265,31 @@ void IceObject::LinerInterPolationCPU(const int pIndx, const Vec3& pos, const Ve
 	s_sphPrtPos[sphIndx+0] = pos[0] * m_fInterPolationCoefficience[pIndx] + s_sphPrtPos[sphIndx+0] * intrps;
 	s_sphPrtPos[sphIndx+1] = pos[1] * m_fInterPolationCoefficience[pIndx] + s_sphPrtPos[sphIndx+1] * intrps;
 	s_sphPrtPos[sphIndx+2] = pos[2] * m_fInterPolationCoefficience[pIndx] + s_sphPrtPos[sphIndx+2] * intrps;
+}
+
+
+//デバッグ
+
+//四面体
+void IceObject::DebugTetraInfo()
+{
+	unsigned tetraSize = IceTetrahedra::GetInstance().GetTetraListSize();
+
+	//四面体→粒子
+	for(unsigned i = 0; i < tetraSize; i++ )
+	{
+		m_iceStrct->DebugTtoP(i);
+	}
+
+	//粒子→四面体
+	for(int i = 0; i < sm_particleNum; i++)
+	{
+		m_iceStrct->DebugPtoT(i);
+	}
+
+	//近傍四面体
+	for(unsigned i = 0; i < tetraSize; i++ )
+	{
+		m_iceStrct->DebugNeighborTetra(i);
+	}
 }

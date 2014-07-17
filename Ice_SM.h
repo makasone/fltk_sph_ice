@@ -21,6 +21,7 @@ using namespace std;
 //GPU処理
 extern void LaunchShapeMatchingGPU
 (
+	int prtNum,
 	float* prtPos,
 	float* prtVel, 
 	float* orgPos,
@@ -28,8 +29,7 @@ extern void LaunchShapeMatchingGPU
 	float* vel,
 	int* pIndxes, 
 	int* d_IndxSet,
-	float dt,
-	int prtNum
+	float dt
 );
 
 class Ice_SM : public rxShapeMatching
@@ -73,6 +73,7 @@ protected:
 	static int* d_PIndxes;
 	static int* d_IndxSet;						//クラスタのデータの開始添字と終了添字を保存
 
+	static int s_vertNum;						//全てのクラスタが対象とする粒子数
 	static int s_vertSum;						//全クラスタに含まれる粒子の総数
 
 //--------------------------------------GPU------------------------------------------------------------
@@ -84,16 +85,18 @@ public:
 	Ice_SM(int obj);
 	~Ice_SM();
 	
-	static void Ice_SM::InitGPU(const vector<Ice_SM*>& sm, float* d_pos, cudaGraphicsResource* d_pos_vbo, float* d_vel);
+	static void Ice_SM::InitGPU(const vector<Ice_SM*>& sm, float* d_pos, cudaGraphicsResource* d_pos_vbo, float* d_vel, int prtNum);
 
 	static void SetParticlePosAndVel(const float* pos, const float* vel){	s_pfPrtPos = pos;	s_pfPrtVel = vel;	}
 	static void SetDevicePosPointer(float* d_pos){	sd_PrtPos = d_pos;	}
 	
 	static float* GetDeviceSPHPosPointer(){	return sd_PrtPos;	}
 	static float* GetDeviceSPHVelPointer(){	return sd_PrtVel;	}
+
 	static float* GetDevicePosPointer(){	return d_CurPos;	}
 	static float* GetDeviceVelPointer(){	return d_Vel;	}
 	static int* GetDeviceIndexSetPointer(){	return d_IndxSet;	}
+	static int GetVertexNum(){				return s_vertNum;	}
 
 	void InitGPU_Instance();
 

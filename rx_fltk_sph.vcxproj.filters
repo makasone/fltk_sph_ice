@@ -43,6 +43,9 @@
     <Filter Include="IceObject\IceStructure Files">
       <UniqueIdentifier>{4941f763-8b41-4b1f-87b5-4a643c5d4e04}</UniqueIdentifier>
     </Filter>
+    <Filter Include="IceObject\Tetrahedra">
+      <UniqueIdentifier>{ab841314-394f-4365-b529-b195e33dd522}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="rx_sph_solid.cpp">
@@ -122,6 +125,9 @@
     </ClCompile>
     <ClCompile Include="IceObject.cpp">
       <Filter>IceObject</Filter>
+    </ClCompile>
+    <ClCompile Include="IceTetrahedra.cpp">
+      <Filter>IceObject\Tetrahedra</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -229,6 +235,9 @@
     </ClInclude>
     <ClInclude Include="IceObject.h">
       <Filter>IceObject</Filter>
+    </ClInclude>
+    <ClInclude Include="IceTetrahedra.h">
+      <Filter>IceObject\Tetrahedra</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

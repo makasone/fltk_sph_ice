@@ -43,7 +43,8 @@ IceStructure::IceStructure()
 }
 
 IceStructure::IceStructure(int pNumMax, int cNumMax, int tNumMax)
-{
+{	cout << __FUNCTION__ << endl;
+
 	//最大数の登録
 	m_iPNumMax = pNumMax;
 	m_iCNumMax = cNumMax;
@@ -113,10 +114,10 @@ IceStructure::IceStructure(int pNumMax, int cNumMax, int tNumMax)
 	//高速化のための実験ではコメントにしておく
 	m_piNTNum = new int[m_iTNumMax];
 
-	m_iNeighborMax = m_iTNumMax*0.1;		//1331 layer2 0.3 layer3 0.75
+	//m_iNeighborMax = m_iTNumMax*0.1;		//1331 layer2 0.3 layer3 0.75
 											//2197 layer2 0.3 layre3 0.3 layer4 0.4
 											//3375 layer2
-	//m_iNeighborMax = 300;					//layer1なら大丈夫
+	m_iNeighborMax = 300;					//layer1なら大丈夫
 
 	m_mk3DiNeighborTetra.SetSize(m_iTNumMax, m_iNeighborMax, 2);
 
@@ -543,6 +544,40 @@ void IceStructure::SetCtoP(int cIndx, const vector<int>& pIndxList, int* pLayerL
 
 /*!
  * 登録処理　初期の近傍四面体
+ * @param[in] tIndx　　四面体番号
+ * @param[in] PtoTNum　
+ */
+void IceStructure::SetTetraInfo(int tIndx, int* PtoTNum)
+{
+	IceTetrahedra &tetra = IceTetrahedra::GetInstance();		//あんまりここでは呼びたくなかった
+
+	//粒子が属している四面体の番号を登録するための準備
+	//pCountListには，tIndx番目の四面体に含まれる各粒子が，それぞれいくつの四面体に属するかを求めて保存する
+	int* pCountList = new int[tetra.GetTetraList(tIndx).size()];
+
+	for(int j = 0; j < tetra.GetTetraList(tIndx).size(); j++)
+	{
+		int pIndx = tetra.GetTetraList(tIndx)[j];
+		pCountList[j] = GetPtoTNum(pIndx)-PtoTNum[pIndx];
+		PtoTNum[pIndx]--;
+	}
+
+	//粒子と四面体の情報登録
+	vector<int>& pIndxList = tetra.GetTetraList(tIndx);
+
+	for(int i = 0; i < GetTtoPNum(tIndx); i++)
+	{
+		SetPtoT(pIndxList[i], pCountList[i], tIndx, i);
+	}
+
+	SetTtoP(tIndx, pIndxList);
+
+	delete[] pCountList;
+}
+
+
+/*!
+ * 登録処理　初期の近傍四面体
  * @param[in] tIndx　四面体番号
  * @param[in] layer　探索階層
  */
@@ -825,6 +860,34 @@ const int& IceStructure::GetCtoP(const int& cIndx, const int& lIndx, const int& 
 int IceStructure::GetNeighborTetra(int tIndx, int lIndx, int oIndx)
 {
 	return m_mk3DiNeighborTetra(tIndx, lIndx, oIndx);
+}
+
+/*!
+ * 四面体に含まれている粒子数のカウント，粒子が所属する四面体数のカウント
+ * @param[in] tIndx　四面体番号
+ * @param[in] pList　四面体に含まれる粒子リスト
+ */
+void IceStructure::CountTetrahedra(int tIndx, vector<int>& pList)
+{
+	for(unsigned i = 0; i < pList.size(); i++)
+	{
+		int pIndx = pList[i];		
+
+		CountPtoT(pIndx);
+		CountTtoP(tIndx);
+
+		//Indxの更新
+		if(GetPtoTNum(pIndx) >= GetPtoTIndx(pIndx))
+		{
+			SetPtoTIndx(pIndx, GetPtoTNum(pIndx));
+		}
+	}
+	
+	//Indxの更新
+	if(GetTtoPNum(tIndx) >= GetTtoPIndx(tIndx))
+	{
+		SetTtoPIndx(tIndx, GetTtoPNum(tIndx));
+	}
 }
 
 /*!

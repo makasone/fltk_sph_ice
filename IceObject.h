@@ -5,6 +5,7 @@
 
 #include "Ice_SM.h"
 #include "IceStructure.h"
+#include "IceTetrahedra.h"
 #include "QueryCounter.h"
 
 #include <time.h>
@@ -17,6 +18,7 @@ using namespace std;
 //各クラスタの運動計算結果と固体構造のデータが必要なので，ここにおいている
 extern void LaunchCalcAverageGPU
 (
+	int prtNum,
 	float* sldPrtPos,
 	float* sldPrtVel,
 	float* sphPrtPos,
@@ -53,9 +55,10 @@ private:
 	static float* sd_sldPrtVel;						//総和計算による最終的な粒子速度のデバイスポインタ
 //--------------------------------------__GPU------------------------------------------------------------
 
-	static int sm_particleNum;						//粒子数
-	static int sm_tetraNum;							//四面体数
-	static int sm_clusterNum;						//クラスタ数
+	static int sm_particleNum;						//現在の粒子数
+	static int sm_tetraNum;							//現在の四面体数
+	static int sm_clusterNum;						//現在のクラスタ数
+	static int sm_layerNum;							//探索レイヤー数
 
 	//固体運動計算クラス
 	vector<Ice_SM*> m_iceMove;
@@ -66,23 +69,29 @@ private:
 	static float* m_fInterPolationCoefficience;			//線形補間係数
 
 public:
-	IceObject(float* pos, float* vel, int pMaxNum, int cMaxNum, int tMaxNum);
+	IceObject();
 	~IceObject();
 
-	static void SetSPHPointer(float* pos, float* vel){		s_sphPrtPos = pos;	s_sphPrtVel = vel;	};
-
 	void InitIceObj(int pMaxNum, int cMaxNum, int tMaxNum);
+	void InitTetra();
 	void InitCluster(Ice_SM* sm){	m_iceMove.push_back(sm);	}	//ポインタをコピーしているだけ　一時的な実装
 	static void InitInterPolation();
 	void InitGPU();
 
-	void StepObjMove();
+	void SetSPHPointer(float* pos, float* vel){		s_sphPrtPos = pos;	s_sphPrtVel = vel;	};
+	void SetSearchLayerNum(int layer){				sm_layerNum = layer;	}
+
+	void StepObjMove();										//運動計算
 	void StepInterPolation();								//線形補間　いずれは処理が複雑になるのでクラスにしたい．
 	
 	void CalcAverageCPU(const int pIndx, Vec3& pos, Vec3& vel);
 	void LinerInterPolationCPU(const int pIndx, const Vec3& pos, const Vec3& vel);
 
+	//デバッグ
+	void DebugTetraInfo();
+
 	//--------------IceStructureと同じ動きをするために一時的に作った関数__----------------------------------
+	//ちゃんと実装すれば全部消せる
 	void SetParticleNum(int pNum){	sm_particleNum = pNum;	m_iceStrct->SetParticleNum(pNum);	}
 	void SetTetraNum(int tNum){		sm_tetraNum = tNum;	m_iceStrct->SetTetraNum(tNum);		}
 	void SetClusterNum(int cNum){	sm_clusterNum = cNum; m_iceStrct->SetClusterNum(cNum);	}

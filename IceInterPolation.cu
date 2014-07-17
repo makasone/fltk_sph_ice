@@ -13,7 +13,8 @@ __global__ void CalcAverage();		//ŽÀŒ±‚Æ‚µ‚Ä•âŠÔ‚Ü‚Å‚¢‚ê‚¿‚á‚¤
 __device__ int GetPtoC(int pIndx, int lIndx, int oIndx);
 
 void LaunchInterPolationGPU()
-{	cout << __FUNCTION__ << endl;
+{	//cout << __FUNCTION__ << endl;
+	return;
 	dim3 grid(1, 1);
 	dim3 block(729, 1, 1);
 

@@ -263,6 +263,7 @@
     <ClCompile Include="ShapeMatching.cpp" />
     <ClCompile Include="Surf_SM.cpp" />
     <ClCompile Include="test.cpp" />
+    <ClCompile Include="IceTetrahedra.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\common\shared\inc\rx_timer.h" />
@@ -298,6 +299,7 @@
     <ClInclude Include="Surf_SM.h" />
     <ClInclude Include="test.h" />
     <ClInclude Include="tetgen.h" />
+    <ClInclude Include="IceTetrahedra.h" />
     <ClInclude Include="UtilityScript\mk_Vector2D.h" />
     <ClInclude Include="UtilityScript\mk_Vector3D.h" />
   </ItemGroup>

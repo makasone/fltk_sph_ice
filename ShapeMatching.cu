@@ -6,7 +6,10 @@
 
 #include <math.h>
 #include <stdio.h>
+#include <iostream>
 #include <cuda_runtime.h>
+
+using namespace std;
 
 //以下はうまくインクルードできなかった
 //#include <cstdio>
@@ -22,9 +25,13 @@
 #include <rx_cu_common.cuh>	//先生が定義した便利機能が使える　なぜか、インクルードすると赤くならない
 
 #define SM_DIM 3
+#define BLOCKDIM_X 16
+#define BLOCKDIM_Y 16
+#define BLOCKDIM_Z 16
+#define EDGE 17
 
 //引き渡す変数名が間違っていてもエラーが出ないので注意
-void LaunchShapeMathcingGPU(float* prtPos, float* prtVel, float* orgPos, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum);
+void LaunchShapeMathcingGPU(int prtNum, float* prtPos, float* prtVel, float* orgPos, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt);
 __global__ void Update(float* prtPos, float* prtVel, float* orgPos, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum);
 __device__ void ExternalForce(float* prtPos, float* prtVel, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum);
 __device__ void ProjectPos(float* prtPos, float* prtVel, float* orgPos, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum);
@@ -43,12 +50,13 @@ __device__ matrix3x3 Multiple(matrix3x3 &M1, matrix3x3 &M2);
 __device__ float3 Multiple(matrix3x3 &M1, float3& V);
 
 //運動計算
-void LaunchShapeMatchingGPU(float* prtPos, float* prtVel, float* orgPos, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum)
+void LaunchShapeMatchingGPU(int prtNum, float* prtPos, float* prtVel, float* orgPos, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt)
 {
 	//printf("LaunchGPUKernel");
-	
-	dim3 grid(1, 1);
-	dim3 block(729, 1, 1);
+	int n = pow( prtNum, 1.0/3.0 ) + 0.5;	//立方体の１辺の頂点数
+
+	dim3 grid(n, n);
+	dim3 block(n, 1, 1);
 
 	//運動計算
 	Update<<<grid ,block>>>(prtPos, prtVel, orgPos, curPos, vel, pIndxes, indxSet, dt, prtNum);
@@ -76,7 +84,7 @@ __device__
 	void ExternalForce(float* prtPos, float* prtVel, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum)
 {
 	//計算するクラスタの判定
-	int clusterIndx = threadIdx.x;
+	int clusterIndx = blockIdx.x * EDGE * EDGE + blockIdx.y * EDGE + threadIdx.x;
 
 	int startIndx = indxSet[clusterIndx*2+0];
 	int endIndx = indxSet[clusterIndx*2+1];
@@ -133,7 +141,7 @@ __device__
 	void ProjectPos(float* prtPos, float* prtVel, float* orgPos, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum)
 {
 	//計算するクラスタの判定
-	int clusterIndx = threadIdx.x;
+	int clusterIndx = blockIdx.x * EDGE * EDGE + blockIdx.y * EDGE + threadIdx.x;
 
 	int startIndx = indxSet[clusterIndx*2+0];
 	int endIndx = indxSet[clusterIndx*2+1];
@@ -293,7 +301,7 @@ __device__
 	void Integrate(float* prtPos, float* prtVel, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum)
 {
 	//計算するクラスタの判定
-	int clusterIndx = threadIdx.x;
+	int clusterIndx = blockIdx.x * EDGE * EDGE + blockIdx.y * EDGE + threadIdx.x;
 
 	int startIndx = indxSet[clusterIndx*2+0];
 	int endIndx = indxSet[clusterIndx*2+1];

@@ -28,6 +28,7 @@ bool* Ice_SM::d_Fix;
 int* Ice_SM::d_PIndxes;
 int* Ice_SM::d_IndxSet;					//クラスタのデータの開始添字と終了添字を保存
 
+int Ice_SM::s_vertNum;
 int Ice_SM::s_vertSum;					//全クラスタに含まれる粒子の総数
 
 
@@ -53,12 +54,14 @@ Ice_SM::~Ice_SM()
 }
 
 //GPU計算のための初期化
-void Ice_SM::InitGPU(const vector<Ice_SM*>& ice_sm, float* d_pos, cudaGraphicsResource* d_pos_vbo, float* d_vel)
+void Ice_SM::InitGPU(const vector<Ice_SM*>& ice_sm, float* d_pos, cudaGraphicsResource* d_pos_vbo, float* d_vel, int prtNum)
 {
 	//デバイスポインタのアドレスを保存
 	sd_PrtPos = d_pos;
 	sd_PrtPosVbo = d_pos_vbo;
 	sd_PrtVel = d_vel;
+
+	s_vertNum = prtNum;
 
 	//デバイス側のメモリを確保
 	//（最大クラスタ数）×（クラスタが保存できる最大粒子数）　でメモリを確保．
@@ -831,7 +834,7 @@ void Ice_SM::UpdateCPU()
  */
 void Ice_SM::UpdateGPU()
 {
-	LaunchShapeMatchingGPU(sd_PrtPos, sd_PrtVel, d_OrgPos, d_CurPos, d_Vel, d_PIndxes, d_IndxSet, 0.02, s_vertSum);
+	LaunchShapeMatchingGPU(s_vertNum, sd_PrtPos, sd_PrtVel, d_OrgPos, d_CurPos, d_Vel, d_PIndxes, d_IndxSet, 0.02);
 }
 
 //各クラスタの値を平均して運動結果を求める　GPUで処理

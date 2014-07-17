@@ -20,6 +20,7 @@
 #include <UtilityScript\mk_Vector2D.h>
 #include <UtilityScript\mk_Vector3D.h>
 #include <Surf_SM.h>
+#include <IceTetrahedra.h>
 
 using namespace std;
 
@@ -54,6 +55,8 @@ public:
 
 	int GetCtoPMax(void){	return m_iCtoPMax;	}
 	int GetPtoCMax(void){	return m_iPtoCMax;	}
+
+	void CountTetrahedra(int tIndx, vector<int>& tetraList);			//四面体情報の登録
 
 	void CountPtoC(int pIndx){	m_piPtoCNum[pIndx]++;	}
 	void CountPtoT(int pIndx){	m_piPtoTNum[pIndx]++;	}
@@ -95,6 +98,8 @@ public:
 	void SetCtoP(int cIndx, const vector<int>& pIndxList, int* pLayerList);	//クラスタに属する粒子の登録　クラスタ番号，粒子リスト
 	void SetTtoP(int tIndx, vector<int>& pIndxList);						//四面体に属する粒子の登録　　四面体番号，粒子リスト
 	
+	void SetTetraInfo(int tIndx, int* PtoTNum);								//初期化に用いる四面体情報の登録
+
 	void SetNeighborTetra(int tIndx, int layer);
 	void SetNeighborTetraFromLayer(int tIndx, int searchLayer, int deleteLayer);
 
@@ -236,9 +241,7 @@ protected:
 	static int* sd_piNeighborTetraTNum;
 //--------------------------------------__GPU------------------------------------------------------------
 
-
-
-	//高速計算用モジュール
+	//高速計算用構造
 	Surf_SM m_SurfSm;
 
 	//探索用フラグ　未使用

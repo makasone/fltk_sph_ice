@@ -105,15 +105,19 @@ class rxSSMeshGPU;
 #ifdef SOLID
 //#define ICENUM 27
 //#define ICENUM 125
-#define ICENUM	729
+//#define ICENUM	729
 //#define ICENUM	1331
 //#define ICENUM	2197	//13_13_13
 #define SIDE	13
 //#define ICENUM	3463		//バニーモデル
-//#define ICENUM	4913	//17_17_17
-//#define ICENUM 6859 //19_19_19
+#define ICENUM		4913	//17_17_17
+#define TETRANUM	26000
+//#define ICENUM	6859	//19_19_19
 //#define ICENUM	9261	//21_21_21
+//#define ICENUM 12167
 //#define ICENUM 15625		//25_25_25
+//#define ICENUM	19683	//27_27_27
+//#define ICENUM	24389		//29_29_29
 
 //#define ICENUM 4335	//直方体の実験
 //#define CUBE_X 17
@@ -137,7 +141,7 @@ class rxSSMeshGPU;
 #endif
 
 #define HIGHNUM 8
-#define TETGENCOMMAND "-q10.0a0.5"		//点の追加を許可するコマンド
+
 #define MODEL_NAME "obj/bunny1331.obj"
 #define ELE_FILE	"obj/bunny1331.ele"
 #define NODE_FILE	"obj/bunny1331.node"
@@ -595,7 +599,7 @@ protected:
 	void RenderSphScene(void);
 
 	//追加：：氷
-	void InitICE(void);
+	void InitIceObj(void);
 	void TimeStepEvent(void);
 
 	//追加：：熱処理
@@ -604,9 +608,6 @@ protected:
 	void MeltParticle(int indx);
 	void WarmParticle(int pIndx, float temp, float heat);
 
-	//追加：：粒子ベース：：四面体
-	void InitTetra(void);
-	void DebugTetra(void);
 	void CountTetraHedra(int tIndx, vector<int>& pList);
 	void MakeTetraInfo(int tIndx, int* PtoTNum);
 	void MakeTetraInfo(int tIndx, vector<int> pList);
@@ -700,21 +701,12 @@ protected:
 	void UpdateInfo();
 
 	//追加：：四面体作成のための処理
-	void MakeTetrahedraFromCube();				//初期に使っていた立方体のためのコード
-	void MakeTetrahedraRectParallele(int x, int y, int z);
-	void MakeTetrahedraFromObj();
-	void MakeTetrahedraOnlySurface();
 	void MakeFreezeTetrahedra(vector<int>& pList, vector<int>& tList);
 	void MakeFreezeTetrahedra_OnlyFreezeParticle(const vector<int>& pList, vector<int>& tList);
 	void AddFreezeTetrahedra(const vector<int>& pList, vector<int>& tList);
-	void Save_NODE_File();
-	void Save_POLY_File();
 
 	void InitObjFile();
 	void SetObjFile();
-
-	void Load_ELE_File(string name);
-	void Load_NODE_File(string name, float* p);
 
 	void DumpParticleData();
 
