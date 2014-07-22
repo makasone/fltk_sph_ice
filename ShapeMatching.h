@@ -43,14 +43,14 @@ typedef void (*CollisionFunc)(Vec3&, Vec3&, Vec3&, int);
 #define MAXCLUSTER	4913
 //#define MAXCLUSTER	6859
 //#define MAXCLUSTER	9261
-//#define MAXCLUSTER 12167
+//#define MAXCLUSTER	12167
 //#define MAXCLUSTER	15625
 //#define MAXCLUSTER	19683	//27_27_27
 //#define MAXCLUSTER	24389	//29_29_29
 
-#define MAXPARTICLE 150
+//#define MAXPARTICLE 150
 //#define MAXPARTICLE 200		//2.0
-//#define MAXPARTICLE 500	//layer2 300, 3.0 500
+#define MAXPARTICLE 300	//layer2 300, 3.0 500
 //#define MAXPARTICLE 15625	//MakeOneCluster�̏ꍇ
 #define SM_DIM 3
 

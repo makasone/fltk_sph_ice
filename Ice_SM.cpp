@@ -13,9 +13,11 @@
 const float* Ice_SM::s_pfPrtPos;
 const float* Ice_SM::s_pfPrtVel;
 
+float* Ice_SM::s_pfSldPos;
+float* Ice_SM::s_pfSldVel;
+
 //デバイスポインタ
 float* Ice_SM::sd_PrtPos;	
-cudaGraphicsResource* Ice_SM::sd_PrtPosVbo;
 float* Ice_SM::sd_PrtVel;
 
 float* Ice_SM::d_OrgPos;
@@ -53,12 +55,29 @@ Ice_SM::~Ice_SM()
 {
 }
 
+void Ice_SM::InitFinalParamPointer(int vrtxNum)
+{
+	s_pfSldPos = new float[vrtxNum*SM_DIM];
+	s_pfSldVel = new float[vrtxNum*SM_DIM];
+
+	for(int i = 0; i < vrtxNum; ++i)
+	{
+		int pIndx = i*4;
+		int cIndx = i*SM_DIM;
+
+		for(int j = 0; j < SM_DIM; j++)
+		{
+			s_pfSldPos[cIndx+j] = s_pfPrtPos[pIndx+j];
+			s_pfSldVel[cIndx+j] = s_pfPrtVel[pIndx+j];
+		}
+	}
+}
+
 //GPU計算のための初期化
-void Ice_SM::InitGPU(const vector<Ice_SM*>& ice_sm, float* d_pos, cudaGraphicsResource* d_pos_vbo, float* d_vel, int prtNum)
+void Ice_SM::InitGPU(const vector<Ice_SM*>& ice_sm, float* d_pos, float* d_vel, int prtNum)
 {
 	//デバイスポインタのアドレスを保存
 	sd_PrtPos = d_pos;
-	sd_PrtPosVbo = d_pos_vbo;
 	sd_PrtVel = d_vel;
 
 	s_vertNum = prtNum;
@@ -629,8 +648,11 @@ void Ice_SM::ShapeMatchingSolid(double dt)
 {
 	if(m_iNumVertices <= 1) return;
 
+	rxMatrix3 Apq(0.0), Aqq(0.0);
+	Vec3 p, q;
 	Vec3 cm(0.0), cm_org(0.0);	// 重心
 	double mass = 0.0;	// 総質量
+	rxMatrix3 R, S;
 
 	// 重心座標の計算
 	for(int i = 0; i < m_iIndxNum; ++i)
@@ -650,9 +672,6 @@ void Ice_SM::ShapeMatchingSolid(double dt)
 
 	cm /= mass;
 	cm_org = m_vec3OrgCm;
-
-	rxMatrix3 Apq(0.0), Aqq(0.0);
-	Vec3 p, q;
 
 	// Apq = Σmpq^T
 	// Aqq = Σmqq^T
@@ -693,13 +712,13 @@ void Ice_SM::ShapeMatchingSolid(double dt)
 
 	//Apqの行列式を求め，反転するかを判定
 	//不安定な場合が多いので×
-	//if( Apq.Determinant() < 0.0 && m_iNumVertices >= 4)
-	//{
+	if( Apq.Determinant() < 0.0 && m_iNumVertices >= 4)
+	{
 		//cout << "before det < 0" << endl;
 		//１　符号を反転
-		//Apq(0,2) = -Apq(0,2);
-		//Apq(1,2) = -Apq(1,2);
-		//Apq(2,2) = -Apq(2,2);
+		Apq(0,2) = -Apq(0,2);
+		Apq(1,2) = -Apq(1,2);
+		Apq(2,2) = -Apq(2,2);
 
 		//２　a2とa3を交換
 		//double tmp;
@@ -714,9 +733,8 @@ void Ice_SM::ShapeMatchingSolid(double dt)
 		//tmp = Apq(2,2);
 		//Apq(2,2) = Apq(2,1);
 		//Apq(2,1) = tmp;
-	//}
+	}
 
-	rxMatrix3 R, S;
 	//PolarDecomposition(Apq, R, S, m_mtrxBeforeU);
 	PolarDecomposition(Apq, R, S);
 
@@ -814,33 +832,257 @@ void Ice_SM::CalcDisplaceMentVectorCm()
 }
 
 /*!
+ * 最終位置を各クラスタに反映
+ * @param[in] dt タイムステップ幅
+ */
+void Ice_SM::calExternalForcesIteration(double dt)
+{
+	// 重力の影響を付加，速度を反映
+	for(int i = 0; i < m_iIndxNum; ++i)
+	{
+		if( CheckHole(i) ){	continue;	}
+		int pIndx = m_iPIndxes[i]*SM_DIM;
+		int cIndx = i*SM_DIM;
+
+		for(int j = 0; j < SM_DIM; j++)
+		{
+			int jpIndx = pIndx+j;
+			int jcIndx = cIndx+j;
+			
+			m_pCurPos[jcIndx] = s_pfSldPos[jpIndx];
+		}
+	}
+
+	// 境界壁の影響
+	//処理がかなり重くなるが，安定する
+	double res = 0.9;	// 反発係数
+	for(int i = 0; i < m_iIndxNum; ++i)
+	{
+	//	//if( CheckHole(i) ){	continue;	}
+	//	////if(m_pFix[i]) continue;
+	//	//Vec3 &p = m_pCurPos[i];
+
+	//	//Vec3 &v = m_pVel[i];
+	//	//if(np[0] < m_v3Min[0] || np[0] > m_v3Max[0]){
+	//	//	np[0] = p[0]-v[0]*dt*res;
+	//	//	np[1] = p[1];
+	//	//	np[2] = p[2];
+	//	//}
+	//	//if(np[1] < m_v3Min[1] || np[1] > m_v3Max[1]){
+	//	//	np[1] = p[1]-v[1]*dt*res;
+	//	//	np[0] = p[0] ;
+	//	//	np[2] = p[2];
+	//	//}
+	//	//if(np[2] < m_v3Min[2] || np[2] > m_v3Max[2]){
+	//	//	np[2] = p[2]-v[2]*dt*res;
+	//	//	np[0] = p[0];
+	//	//	np[1] = p[1];
+	//	//}
+
+		clamp(m_pCurPos, i*SM_DIM);
+	}
+}
+
+
+//----------------------------------------------ソリッド版---------------------------------------------
+/*!
+ * Shape Matching法
+ *  - 目標位置を計算して，m_vNewPosをその位置に近づける
+ *  - 各粒子にαとβを持たせたバージョン
+ * @param[in] dt タイムステップ幅
+ */
+void Ice_SM::ShapeMatchingIteration(double dt)
+{
+	if(m_iNumVertices <= 1) return;
+
+	rxMatrix3 Apq(0.0), Aqq(0.0);
+	Vec3 p, q;
+	Vec3 cm(0.0), cm_org(0.0);	// 重心
+	double mass = 0.0;	// 総質量
+	rxMatrix3 R, S;
+
+	// 重心座標の計算
+	for(int i = 0; i < m_iIndxNum; ++i)
+	{
+		if( CheckHole(i) ){	continue;	}
+		double m = m_pMass[i];
+		if(m_pFix[i]) m *= 300.0;	// 固定点の質量を大きくする
+		
+		int cIndx = i*SM_DIM;
+		mass += m;
+
+		for(int j = 0; j < SM_DIM; j++)
+		{
+			cm[j] += m_pCurPos[cIndx+j]*m;
+		}
+	}
+
+	cm /= mass;
+	cm_org = m_vec3OrgCm;
+
+	// Apq = Σmpq^T
+	// Aqq = Σmqq^T
+	for(int i = 0; i < m_iIndxNum; ++i)
+	{
+		if( CheckHole(i) ){	continue;	}
+
+		int cIndx = i*SM_DIM;
+
+		for(int j = 0; j < SM_DIM; j++)
+		{
+			p[j] = m_pCurPos[cIndx+j]-cm[j];
+			q[j] = m_pOrgPos[cIndx+j]-cm_org[j];
+		}
+
+		double m = m_pMass[i];
+
+		Apq(0,0) += m*p[0]*q[0];
+		Apq(0,1) += m*p[0]*q[1];
+		Apq(0,2) += m*p[0]*q[2];
+		Apq(1,0) += m*p[1]*q[0];
+		Apq(1,1) += m*p[1]*q[1];
+		Apq(1,2) += m*p[1]*q[2];
+		Apq(2,0) += m*p[2]*q[0];
+		Apq(2,1) += m*p[2]*q[1];
+		Apq(2,2) += m*p[2]*q[2];
+
+		Aqq(0,0) += m*q[0]*q[0];
+		Aqq(0,1) += m*q[0]*q[1];
+		Aqq(0,2) += m*q[0]*q[2];
+		Aqq(1,0) += m*q[1]*q[0];
+		Aqq(1,1) += m*q[1]*q[1];
+		Aqq(1,2) += m*q[1]*q[2];
+		Aqq(2,0) += m*q[2]*q[0];
+		Aqq(2,1) += m*q[2]*q[1];
+		Aqq(2,2) += m*q[2]*q[2];
+	}
+
+	//Apqの行列式を求め，反転するかを判定
+	//不安定な場合が多いので×
+	if( Apq.Determinant() < 0.0 && m_iNumVertices >= 4)
+	{
+		//cout << "before det < 0" << endl;
+		//１　符号を反転
+		Apq(0,2) = -Apq(0,2);
+		Apq(1,2) = -Apq(1,2);
+		Apq(2,2) = -Apq(2,2);
+
+		////２　a2とa3を交換
+		//double tmp;
+		//tmp = Apq(0,2);
+		//Apq(0,2) = Apq(0,1);
+		//Apq(0,1) = tmp;
+
+		//tmp = Apq(1,2);
+		//Apq(1,2) = Apq(1,1);
+		//Apq(1,1) = tmp;
+
+		//tmp = Apq(2,2);
+		//Apq(2,2) = Apq(2,1);
+		//Apq(2,1) = tmp;
+	}
+
+	//PolarDecomposition(Apq, R, S, m_mtrxBeforeU);
+	PolarDecomposition(Apq, R, S);
+
+	if(m_bLinearDeformation)
+	{
+		// Linear Deformations
+		rxMatrix3 A;
+		A = Apq*Aqq.Inverse();	// A = Apq*Aqq^-1
+
+		// 体積保存のために√(det(A))で割る
+		if(m_bVolumeConservation){
+			double det = fabs(A.Determinant());
+			if(det > RX_FEQ_EPS){
+				det = 1.0/sqrt(det);
+				if(det > 2.0) det = 2.0;
+				A *= det;
+			}
+		}
+
+		//cout << "計測開始2" << endl;
+		//qc.Start();
+
+		// 目標座標を計算し，現在の頂点座標を移動
+		for(int i = 0; i < m_iIndxNum; ++i)
+		{
+			if( CheckHole(i) ){	continue;	}
+
+			if(m_pFix[i]) continue;
+
+			int cIndx = i*SM_DIM;
+
+			// 回転行列Rの代わりの行列RL=βA+(1-β)Rを計算
+			for(int j = 0; j < SM_DIM; j++)
+			{
+				q[j] = m_pOrgPos[cIndx+j]-cm_org[j];
+			}
+
+			Vec3 gp(R*q+cm);
+
+			for(int j = 0; j < SM_DIM; j++)
+			{
+				int jcIndx = cIndx+j;
+
+				m_pCurPos[jcIndx] += (gp[j]-m_pCurPos[jcIndx])*m_fpAlphas[i];
+			}
+		}
+	}
+}
+
+/*!
+ * 速度と位置の更新
+ *  - 新しい位置と現在の位置座標から速度を算出
+ * @param[in] dt タイムステップ幅
+ */
+void Ice_SM::integrateIteration(double dt)
+{
+	double dt1 = 1.0/dt;
+	for(int i = 0; i < m_iIndxNum; ++i)
+	{
+		if( CheckHole(i) ){	continue;	}
+		int pIndx = m_iPIndxes[i]*4;
+
+		for(int j = 0; j < SM_DIM; j++)
+		{
+			int cIndx = i*SM_DIM+j;
+			m_pVel[cIndx] = (m_pCurPos[cIndx] - s_pfPrtPos[pIndx+j]) * dt1 + m_v3Gravity[j] * dt;
+		}
+	}
+}
+
+/*!
  *　CPUで運動計算
  */
 void Ice_SM::UpdateCPU()
 {//	cout << "Ice_update" << endl;
 
-	calExternalForces(m_dDt);
+	calExternalForces(m_dDt);	//現在位置の計算
 
+	//現在位置の更新
 	//ShapeMatching(m_dDt);		//パスを用いた高速化
 	ShapeMatchingSolid(m_dDt);	//普通の計算
 
-	integrate(m_dDt);
+	integrate(m_dDt);			//速度の計算
 
 	//CalcDisplaceMentVectorCm();	//重心移動量
 }
 
 /*
- *	GPUを用いて運動計算
+ *	GPUを用いた運動計算
  */
 void Ice_SM::UpdateGPU()
 {
-	LaunchShapeMatchingGPU(s_vertNum, sd_PrtPos, sd_PrtVel, d_OrgPos, d_CurPos, d_Vel, d_PIndxes, d_IndxSet, 0.02);
+	LaunchShapeMatchingGPU(s_vertNum, sd_PrtPos, sd_PrtVel, d_OrgPos, d_CurPos, d_Vel, d_PIndxes, d_IndxSet, 0.01);
 }
 
-//各クラスタの値を平均して運動結果を求める　GPUで処理
-void Ice_SM::CalcAverage()
+/*
+ *	GPUを用いた運動計算　反復処理あり
+ */
+void Ice_SM::UpdateIterationGPU(float* sldPos, float* sldVel)
 {
-
+	LaunchShapeMatchingIterationGPU(s_vertNum, sd_PrtPos, sd_PrtVel, sldPos, sldVel, d_OrgPos, d_CurPos, d_Vel, d_PIndxes, d_IndxSet, 0.01);
 }
 
 //GPUの計算結果を各インスタンスへコピーする

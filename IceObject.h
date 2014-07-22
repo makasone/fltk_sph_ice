@@ -3,6 +3,9 @@
 #ifndef _ICE_OBJECT_
 #define _ICE_OBJECT_
 
+#include "rx_utility.h"
+#include "rx_matrix.h"
+
 #include "Ice_SM.h"
 #include "IceStructure.h"
 #include "IceTetrahedra.h"
@@ -13,6 +16,10 @@
 #include <cuda_gl_interop.h>
 
 using namespace std;
+
+//#define MK_USE_GPU
+
+const int g_iterationNum = 10;
 
 //GPU処理
 //各クラスタの運動計算結果と固体構造のデータが必要なので，ここにおいている
@@ -36,7 +43,11 @@ extern void LaunchCalcAverageGPU
 //いずれはクラスにしたいが，とりあえずここにおいている
 extern void LaunchInterPolationGPU
 (
-
+	int prtNum,
+	float* sldPrtPos,
+	float* sldPrtVel,
+	float* sphPrtPos,
+	float* sphPrtVel
 );
 
 class IceObject
@@ -74,21 +85,33 @@ public:
 
 	void InitIceObj(int pMaxNum, int cMaxNum, int tMaxNum);
 	void InitTetra();
-	void InitCluster(Ice_SM* sm){	m_iceMove.push_back(sm);	}	//ポインタをコピーしているだけ　一時的な実装
+	void InitCluster(Ice_SM* sm);	//一時的な実装
+	void InitCluster(Vec3 boundarySpaceHigh, Vec3 boundarySpaceLow, float timeStep);
+	void InitStrct();
+
 	static void InitInterPolation();
 	void InitGPU();
 
-	void SetSPHPointer(float* pos, float* vel){		s_sphPrtPos = pos;	s_sphPrtVel = vel;	};
-	void SetSearchLayerNum(int layer){				sm_layerNum = layer;	}
+	void SetSPHDevicePointer(float* pos, float* vel){	sd_sphPrtPos = pos; sd_sphPrtVel = vel;	}
+	void SetSPHHostPointer(float* pos, float* vel){		s_sphPrtPos = pos;	s_sphPrtVel = vel;	}
+	void SetSearchLayerNum(int layer){					sm_layerNum = layer;	}
+	void SetClusterMoveInfo(int pIndx);
+	void SetClusterStrctInfo(int cIndx, int *PtoCNum);
+
+	int GetClusterNum(){			return sm_clusterNum;		}
+	Ice_SM* GetMoveObj(int cIndx){	return m_iceMove[cIndx];	}
 
 	void StepObjMove();										//運動計算
+	void StepObjCalcWidhIteration();						//固体の運動計算，総和計算，補間処理　GPU処理　反復処理あり
 	void StepInterPolation();								//線形補間　いずれは処理が複雑になるのでクラスにしたい．
-	
-	void CalcAverageCPU(const int pIndx, Vec3& pos, Vec3& vel);
-	void LinerInterPolationCPU(const int pIndx, const Vec3& pos, const Vec3& vel);
+	void StepInterPolationForCluster();
 
+	void CalcAverageCPU(int pIndx, Vec3& pos, Vec3& vel);
+	void LinerInterPolationCPU(int pIndx, const Vec3& pos, const Vec3& vel);
+	void LinerInterPolationForClusterCPU(const int pIndx, const Vec3& pos, const Vec3& vel);
 	//デバッグ
 	void DebugTetraInfo();
+	void DebugClusterInfo();
 
 	//--------------IceStructureと同じ動きをするために一時的に作った関数__----------------------------------
 	//ちゃんと実装すれば全部消せる

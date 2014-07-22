@@ -8,20 +8,42 @@
 
 using namespace std;
 
-void LaunchInterPolationGPU();
-__global__ void CalcAverage();		//é¿å±Ç∆ÇµÇƒï‚ä‘Ç‹Ç≈Ç¢ÇÍÇøÇ·Ç§
-__device__ int GetPtoC(int pIndx, int lIndx, int oIndx);
+#define EDGE 17
+//#define EDGE 27
 
-void LaunchInterPolationGPU()
+void LaunchInterPolationGPU(int prtNum, float* sldPrtPos, float* sldPrtVel, float* sphPrtPos, float* sphPrtVel);
+
+__global__ void LinerInterPolation(float* sldPrtPos, float* sldPrtVel, float* sphPrtPos, float* sphPrtVel);
+
+void LaunchInterPolationGPU(int prtNum, float* sldPrtPos, float* sldPrtVel, float* sphPrtPos, float* sphPrtVel)
 {	//cout << __FUNCTION__ << endl;
-	return;
-	dim3 grid(1, 1);
-	dim3 block(729, 1, 1);
 
-	//â^ìÆåvéZ
-//	CalcAverage<<<grid ,block>>>();
+	int n = pow(prtNum, 1.0/3.0) + 0.5;	//óßï˚ëÃÇÃÇPï”ÇÃí∏ì_êî
+
+	dim3 grid(n, n);
+	dim3 block(n, 1, 1);
+
+	//ê¸å`ï‚ä‘
+	LinerInterPolation<<<grid ,block>>>(sldPrtPos, sldPrtVel, sphPrtPos, sphPrtVel);
+
+	cudaThreadSynchronize();
 }
 
+__global__
+	void LinerInterPolation(float* sldPrtPos, float* sldPrtVel, float* sphPrtPos, float* sphPrtVel)
+{
+	//åvéZÇ∑ÇÈó±éqÇÃîªíË
+	int pIndx = blockIdx.x * EDGE * EDGE + blockIdx.y * EDGE + threadIdx.x;
+
+	//ê¸å`ï‚ä‘
+	sphPrtPos[pIndx*4+0] = sldPrtPos[pIndx*3+0];
+	sphPrtPos[pIndx*4+1] = sldPrtPos[pIndx*3+1];
+	sphPrtPos[pIndx*4+2] = sldPrtPos[pIndx*3+2];
+
+	sphPrtVel[pIndx*4+0] = sldPrtVel[pIndx*3+0];
+	sphPrtVel[pIndx*4+1] = sldPrtVel[pIndx*3+1];
+	sphPrtVel[pIndx*4+2] = sldPrtVel[pIndx*3+2];
+}
 
 
 

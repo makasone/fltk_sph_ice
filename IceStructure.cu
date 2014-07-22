@@ -11,6 +11,7 @@
 using namespace std;
 
 #define EDGE 17
+//#define EDGE 27
 
 void LaunchCalcAverageGPU
 	(
@@ -43,6 +44,8 @@ void LaunchCalcAverageGPU(int prtNum, float* sldPrtPos, float* sldPrtVel, float*
 
 	//運動計算
 	CalcAverage<<<grid ,block>>>(sldPrtPos, sldPrtVel, sphPrtPos, sphPrtVel, smPrtPos, smPrtVel, smIndxSet, PtoCIndx, PtoC, PNumMax, PtoCMax, PtoCParamSize);
+	
+	cudaThreadSynchronize();
 }
 
 __global__
@@ -105,15 +108,13 @@ __global__
 	//どのクラスタにも含まれていない場合，運動はSPH法に従う
 	else
 	{
-		int sphIndx = pIndx*4;
+		pos.x = sphPrtPos[pIndx*4+0];
+		pos.y = sphPrtPos[pIndx*4+1];
+		pos.z = sphPrtPos[pIndx*4+2];
 
-		pos.x = sphPrtPos[sphIndx+0];
-		pos.y = sphPrtPos[sphIndx+1];
-		pos.z = sphPrtPos[sphIndx+2];
-
-		vel.x = sphPrtVel[sphIndx+0];
-		vel.y = sphPrtVel[sphIndx+1];
-		vel.z = sphPrtVel[sphIndx+2];
+		vel.x = sphPrtVel[pIndx*4+0];
+		vel.y = sphPrtVel[pIndx*4+1];
+		vel.z = sphPrtVel[pIndx*4+2];
 	}
 
 	//固体の最終的な運動計算結果
@@ -127,14 +128,14 @@ __global__
 	sldPrtVel[sldIndx+1] = vel.y;
 	sldPrtVel[sldIndx+2] = vel.z;
 
-	//適当に線形補間もどき
-	sphPrtPos[pIndx*4+0] = pos.x;
-	sphPrtPos[pIndx*4+1] = pos.y;
-	sphPrtPos[pIndx*4+2] = pos.z;
+	////適当に線形補間もどき
+	//sphPrtPos[pIndx*4+0] = pos.x;
+	//sphPrtPos[pIndx*4+1] = pos.y;
+	//sphPrtPos[pIndx*4+2] = pos.z;
 
-	sphPrtVel[pIndx*4+0] = vel.x;
-	sphPrtVel[pIndx*4+1] = vel.y;
-	sphPrtVel[pIndx*4+2] = vel.z;
+	//sphPrtVel[pIndx*4+0] = vel.x;
+	//sphPrtVel[pIndx*4+1] = vel.y;
+	//sphPrtVel[pIndx*4+2] = vel.z;
 }
 
 //__device__ int GetPtoCIndx(int pIndx)

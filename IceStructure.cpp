@@ -53,8 +53,12 @@ IceStructure::IceStructure(int pNumMax, int cNumMax, int tNumMax)
 	//粒子情報の初期化
 	m_iPtoCMax = m_iCNumMax*0.1;	//1331 layer2 0.4 layer3 0.75
 									//2197 layer2 0.4 layer3 0.4 layer4 0.5
+									//4913 layer2 0.3
+									//19683 layer1 0.01
 	m_iPtoTMax = m_iTNumMax*0.1;	//1331 layer2 0.3 layer3 0.5
 									//2197 layer2 0.3 layer3 0.3
+									//4913 layer2 0.3
+									//19683 layer1 0.01
 
 	//高速化をテストするときはPtoTはコメントに
 	m_piPtoCNum = new int[m_iPNumMax];
@@ -77,10 +81,11 @@ IceStructure::IceStructure(int pNumMax, int cNumMax, int tNumMax)
 	//高速化をテストするときはCtoTはコメントに
 	m_iCtoPMax = m_iPNumMax*0.1;	//1331 layer2 0.5 layer3 0.75
 									//2197 layer2 0.5 layre3 0.5
+									//4913 layer2
+									//19683 layer1 0.01
 	//m_iCtoPMax = m_iPNumMax;		//単一クラスタ
 
 	m_piCtoPNum = new int[m_iCNumMax];
-
 	m_piCtoPIndx = new int[m_iCNumMax];
 
 	for(int i = 0; i < m_iCNumMax; i++)
@@ -116,7 +121,7 @@ IceStructure::IceStructure(int pNumMax, int cNumMax, int tNumMax)
 
 	//m_iNeighborMax = m_iTNumMax*0.1;		//1331 layer2 0.3 layer3 0.75
 											//2197 layer2 0.3 layre3 0.3 layer4 0.4
-											//3375 layer2
+											//4913 layer2 0.1
 	m_iNeighborMax = 300;					//layer1なら大丈夫
 
 	m_mk3DiNeighborTetra.SetSize(m_iTNumMax, m_iNeighborMax, 2);
@@ -231,7 +236,8 @@ void IceStructure::InitTetraInfo()
  * 計算情報　クラスタ情報の領域確保　粒子ベース処理
  */
 void IceStructure::InitClusterInfo()
-{
+{	cout << __FUNCTION__ << endl;
+
 	//粒子→クラスタ
 	m_mk3DiPtoC.SetSize(m_iPNumMax, m_iPtoCMax, 3);
 
@@ -887,6 +893,33 @@ void IceStructure::CountTetrahedra(int tIndx, vector<int>& pList)
 	if(GetTtoPNum(tIndx) >= GetTtoPIndx(tIndx))
 	{
 		SetTtoPIndx(tIndx, GetTtoPNum(tIndx));
+	}
+}
+
+/*!
+ * クラスタに含まれている粒子数のカウント，粒子が所属する四面体数のカウント
+ * @param[in] cIndx　粒子番号
+ * @param[in] pList　クラスタに含まれる粒子リスト
+ */
+void IceStructure::CountClusterParticle(int cIndx, vector<int>& pList, int pNum)
+{
+	for(int j = 0; j < pNum; j++)
+	{
+		int jpIndx = pList[j];
+		CountPtoC(jpIndx);										//粒子が接続クラスタに所属する個数のカウント
+		CountCtoP(cIndx);										//接続クラスタが粒子を含む個数のカウント
+	
+		//Indxの更新
+		if(GetPtoCNum(jpIndx) >= GetPtoCIndx(jpIndx))
+		{
+			SetPtoCIndx(jpIndx, GetPtoCNum(jpIndx));
+		}
+	}
+
+	//Indxの更新
+	if(GetCtoPNum(cIndx) >= GetCtoPIndx(cIndx))
+	{
+		SetCtoPIndx(cIndx, GetCtoPNum(cIndx));
 	}
 }
 

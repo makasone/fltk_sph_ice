@@ -25,10 +25,8 @@ using namespace std;
 #include <rx_cu_common.cuh>	//先生が定義した便利機能が使える　なぜか、インクルードすると赤くならない
 
 #define SM_DIM 3
-#define BLOCKDIM_X 16
-#define BLOCKDIM_Y 16
-#define BLOCKDIM_Z 16
 #define EDGE 17
+//#define EDGE 27
 
 //引き渡す変数名が間違っていてもエラーが出ないので注意
 void LaunchShapeMathcingGPU(int prtNum, float* prtPos, float* prtVel, float* orgPos, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt);
@@ -37,11 +35,19 @@ __device__ void ExternalForce(float* prtPos, float* prtVel, float* curPos, float
 __device__ void ProjectPos(float* prtPos, float* prtVel, float* orgPos, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum);
 __device__ void Integrate(float* prtPos, float* prtVel, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum);
 
+
+void LaunchShapeMathcingIterationGPU(int prtNum, float* prtPos, float* prtVel, float* sldPos, float* sldVel, float* orgPos, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt);
+__global__ void UpdateIteration(float* prtPos, float* prtVel, float* sldPos, float* sldVel, float* orgPos, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum);
+__device__ void ExternalForceIteration(float* sldPos, float* sldVel, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum);
+__device__ void ProjectPosIteration(float* prtPos, float* prtVel, float* orgPos, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum);
+
+
 __device__ void PolarDecomposition(matrix3x3 &A, matrix3x3 &R, matrix3x3 &S);
 
 
 //行列演算
 //TODO::てきとうなのでもう少し使いやすく
+__device__ void Clamp(float* curPos, int pIndx);
 __device__ void MakeIdentity(matrix3x3 &M);
 __device__ matrix3x3 Transpose(const matrix3x3 &M);
 __device__ matrix3x3 Inverse(const matrix3x3 &M);
@@ -52,7 +58,7 @@ __device__ float3 Multiple(matrix3x3 &M1, float3& V);
 //運動計算
 void LaunchShapeMatchingGPU(int prtNum, float* prtPos, float* prtVel, float* orgPos, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt)
 {
-	//printf("LaunchGPUKernel");
+	//TODO::立方体を前提ににグリッドをきっているので，あらゆる物体に対応できるようにする
 	int n = pow( prtNum, 1.0/3.0 ) + 0.5;	//立方体の１辺の頂点数
 
 	dim3 grid(n, n);
@@ -60,6 +66,23 @@ void LaunchShapeMatchingGPU(int prtNum, float* prtPos, float* prtVel, float* org
 
 	//運動計算
 	Update<<<grid ,block>>>(prtPos, prtVel, orgPos, curPos, vel, pIndxes, indxSet, dt, prtNum);
+	
+	cudaThreadSynchronize();
+}
+
+//運動計算
+void LaunchShapeMatchingIterationGPU(int prtNum, float* prtPos, float* prtVel, float* sldPos, float* sldVel, float* orgPos, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt)
+{
+	//TODO::立方体を前提ににグリッドをきっているので，あらゆる物体に対応できるようにする
+	int n = pow( prtNum, 1.0/3.0 ) + 0.5;	//立方体の１辺の頂点数
+
+	dim3 grid(n, n);
+	dim3 block(n, 1, 1);
+
+	//運動計算
+	UpdateIteration<<<grid ,block>>>(prtPos, prtVel, sldPos, sldVel, orgPos, curPos, vel, pIndxes, indxSet, dt, prtNum);
+
+	cudaThreadSynchronize();
 }
 
 //GPUの位置・速度更新
@@ -78,6 +101,82 @@ void Update(
 	ExternalForce(prtPos, prtVel, curPos, vel, pIndxes, indxSet, dt, prtNum);
 	ProjectPos(prtPos, prtVel, orgPos, curPos, vel, pIndxes, indxSet, dt, prtNum);
 	Integrate(prtPos, prtVel, curPos, vel, pIndxes, indxSet, dt, prtNum);
+}
+
+//GPUの位置・速度更新
+__global__
+void UpdateIteration(
+	float* prtPos,
+	float* prtVel,
+	float* sldPos,
+	float* sldVel, 
+	float* orgPos,
+	float* curPos, 
+	float* vel,
+	int* pIndxes,
+	int* indxSet,
+	float dt,
+	int prtNum)
+{
+	ExternalForceIteration(sldPos, sldVel, curPos, vel, pIndxes, indxSet, dt, prtNum);
+	ProjectPos(prtPos, prtVel, orgPos, curPos, vel, pIndxes, indxSet, dt, prtNum);
+}
+
+__device__
+	void ExternalForceIteration(float* sldPos, float* sldVel, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum)
+{
+	//計算するクラスタの判定
+	int clusterIndx = blockIdx.x * EDGE * EDGE + blockIdx.y * EDGE + threadIdx.x;
+
+	int startIndx = indxSet[clusterIndx*2+0];
+	int endIndx = indxSet[clusterIndx*2+1];
+	//printf("startIndx = %d, endIndx = %d\n", startIndx, endIndx);
+
+	// 重力の影響を付加，速度を反映
+	for(int i = startIndx; i < endIndx+1; ++i)
+	{
+		int pIndx = pIndxes[i]*3;
+		int cIndx = i*SM_DIM;
+
+		for(int j = 0; j < SM_DIM; ++j)
+		{
+			int jpIndx = pIndx+j;
+			int jcIndx = cIndx+j;
+
+			curPos[jcIndx] = sldPos[jpIndx];
+		}
+		
+		//printf("prtVel(%f, %f, %f)\n", prtVel[pIndx], prtVel[pIndx+1], prtVel[pIndx+2]);
+		//printf("pIndxes[i] = %d, prtPos(%f, %f, %f)\n", pIndxes[i], prtPos[pIndx], prtPos[pIndx+1], prtPos[pIndx+2]);
+		//printf("gpu:: i = %d, cIndx = %d, curPos(%f, %f, %f)\n", i, cIndx, curPos[cIndx], curPos[cIndx+1], curPos[cIndx+2]);
+	}
+
+	// 境界壁の影響
+	//処理がかなり重くなるが，安定はするみたい
+	float res = 0.9;	// 反発係数
+	for(int i = startIndx; i < endIndx; ++i){
+	//	//if(m_pFix[i]) continue;
+	//	//Vec3 &p = m_vCurPos[i];
+	//	//Vec3 &np = m_vNewPos[i];
+	//	//Vec3 &v = m_vVel[i];
+	//	//if(np[0] < m_v3Min[0] || np[0] > m_v3Max[0]){
+	//	//	np[0] = p[0]-v[0]*dt*res;
+	//	//	np[1] = p[1];
+	//	//	np[2] = p[2];
+	//	//}
+	//	//if(np[1] < m_v3Min[1] || np[1] > m_v3Max[1]){
+	//	//	np[1] = p[1]-v[1]*dt*res;
+	//	//	np[0] = p[0] ;
+	//	//	np[2] = p[2];
+	//	//}
+	//	//if(np[2] < m_v3Min[2] || np[2] > m_v3Max[2]){
+	//	//	np[2] = p[2]-v[2]*dt*res;
+	//	//	np[0] = p[0];
+	//	//	np[1] = p[1];
+	//	//}
+
+		Clamp(curPos, i*SM_DIM);
+	}
 }
 
 __device__
@@ -103,38 +202,34 @@ __device__
 
 			curPos[jcIndx] = prtPos[jpIndx]+prtVel[jpIndx]*dt;
 		}
-		
-		//printf("prtVel(%f, %f, %f)\n", prtVel[pIndx], prtVel[pIndx+1], prtVel[pIndx+2]);
-		//printf("pIndxes[i] = %d, prtPos(%f, %f, %f)\n", pIndxes[i], prtPos[pIndx], prtPos[pIndx+1], prtPos[pIndx+2]);
-		//printf("gpu:: i = %d, cIndx = %d, curPos(%f, %f, %f)\n", i, cIndx, curPos[cIndx], curPos[cIndx+1], curPos[cIndx+2]);
 	}
 
 	// 境界壁の影響
 	//処理がかなり重くなるが，安定はするみたい
-	//float res = 0.9;	// 反発係数
-	//for(int i = 0; i < prtNum; ++i){
-	//	//if(m_pFix[i]) continue;
-	//	//Vec3 &p = m_vCurPos[i];
-	//	//Vec3 &np = m_vNewPos[i];
-	//	//Vec3 &v = m_vVel[i];
-	//	//if(np[0] < m_v3Min[0] || np[0] > m_v3Max[0]){
-	//	//	np[0] = p[0]-v[0]*dt*res;
-	//	//	np[1] = p[1];
-	//	//	np[2] = p[2];
-	//	//}
-	//	//if(np[1] < m_v3Min[1] || np[1] > m_v3Max[1]){
-	//	//	np[1] = p[1]-v[1]*dt*res;
-	//	//	np[0] = p[0] ;
-	//	//	np[2] = p[2];
-	//	//}
-	//	//if(np[2] < m_v3Min[2] || np[2] > m_v3Max[2]){
-	//	//	np[2] = p[2]-v[2]*dt*res;
-	//	//	np[0] = p[0];
-	//	//	np[1] = p[1];
-	//	//}
+	float res = 0.9;	// 反発係数
+	for(int i = startIndx; i < endIndx; ++i){
+		//if(m_pFix[i]) continue;
+		//Vec3 &p = m_vCurPos[i];
+		//Vec3 &np = m_vNewPos[i];
+		//Vec3 &v = m_vVel[i];
+		//if(np[0] < m_v3Min[0] || np[0] > m_v3Max[0]){
+		//	np[0] = p[0]-v[0]*dt*res;
+		//	np[1] = p[1];
+		//	np[2] = p[2];
+		//}
+		//if(np[1] < m_v3Min[1] || np[1] > m_v3Max[1]){
+		//	np[1] = p[1]-v[1]*dt*res;
+		//	np[0] = p[0] ;
+		//	np[2] = p[2];
+		//}
+		//if(np[2] < m_v3Min[2] || np[2] > m_v3Max[2]){
+		//	np[2] = p[2]-v[2]*dt*res;
+		//	np[0] = p[0];
+		//	np[1] = p[1];
+		//}
 
-	//	//clamp(curPos, i*SM_DIM);
-	//}
+		Clamp(curPos, i*SM_DIM);
+	}
 }
 
 __device__
@@ -317,13 +412,14 @@ __device__
 		{
 			int cIndx = i*SM_DIM+j;
 
-			vel[cIndx] = (curPos[cIndx] - prtPos[pIndx+j]) * dt1 + gravity[j] * dt * 0.1f;
+			//vel[cIndx] = (curPos[cIndx] - prtPos[pIndx+j]) * dt1 + gravity[j] * dt * 0.1f;	//SPHも動かす場合はこっち
+			vel[cIndx] = (curPos[cIndx] - prtPos[pIndx+j]) * dt1 + gravity[j] * dt * 1.0f;
 		}
 	}
 }
 
 __device__  
-	void clamp(float* pos, int cIndx)
+	void Clamp(float* pos, int cIndx)
 {
 	//if(pos[cIndx+0] < m_v3Min[0]) pos[cIndx+0] = m_v3Min[0];
 	//if(pos[cIndx+0] > m_v3Max[0]) pos[cIndx+0] = m_v3Max[0];
@@ -331,12 +427,13 @@ __device__
 	//if(pos[cIndx+1] > m_v3Max[1]) pos[cIndx+1] = m_v3Max[1];
 	//if(pos[cIndx+2] < m_v3Min[2]) pos[cIndx+2] = m_v3Min[2];
 	//if(pos[cIndx+2] > m_v3Max[2]) pos[cIndx+2] = m_v3Max[2];
+	if(pos[cIndx+0] > 0.75f) pos[cIndx+0] = 0.75f;
+	if(pos[cIndx+0] < -0.75f) pos[cIndx+0] = -0.75f;
+	if(pos[cIndx+1] > 1.5f) pos[cIndx+1] = 1.5f;
+	if(pos[cIndx+1] < -1.5f) pos[cIndx+1] = -1.5f;
+	if(pos[cIndx+2] > 2.0f) pos[cIndx+2] = 2.0f;
+	if(pos[cIndx+2] < -2.0f) pos[cIndx+2] = -2.0f;
 }
-
-
-
-
-
 
 
 

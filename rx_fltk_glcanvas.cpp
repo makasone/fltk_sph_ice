@@ -919,15 +919,15 @@ void rxFlGLWindow::ClearPick(void)
 
 	if( m_iPickedParticle != -1 )
 	{
-		if(m_ice == 0)	return;
+		if(m_iceObj == 0)	return;
 		if(m_ht == 0)	return;
-		if(m_ice->GetParticleNum() <= m_iPickedParticle){	return;	}	//融解のみの実験のときに必要になる．
+		if(m_iceObj->GetParticleNum() <= m_iPickedParticle){	return;	}	//融解のみの実験のときに必要になる．
 
 		//粒子ベースクラスタ
-		for( int i = 0; i < m_ice->GetPtoCIndx(m_iPickedParticle); i++ )
+		for( int i = 0; i < m_iceObj->GetPtoCIndx(m_iPickedParticle); i++ )
 		{
-			int cIndx = m_ice->GetPtoC(m_iPickedParticle, i, 0);
-			int oIndx = m_ice->GetPtoC(m_iPickedParticle, i, 1);
+			int cIndx = m_iceObj->GetPtoC(m_iPickedParticle, i, 0);
+			int oIndx = m_iceObj->GetPtoC(m_iPickedParticle, i, 1);
 
 			if(cIndx == -1 || oIndx == -1)
 			{
@@ -988,9 +988,9 @@ void rxFlGLWindow::Motion(int x, int y)
 		//クラスタに属する粒子の移動
 		else if( m_iPickedParticle != -1 )
 		{
-			if(m_ice == 0)	return;
+			if(m_iceObj == 0)	return;
 			if(m_ht == 0)	return;
-			if(m_ice->GetParticleNum() <= m_iPickedParticle){	return;	}	//融解のみの実験のときに必要になる．
+			if(m_iceObj->GetParticleNum() <= m_iPickedParticle){	return;	}	//融解のみの実験のときに必要になる．
 
 			Vec3 ray_from, ray_to;
 			Vec3 init_pos = Vec3(0.0);
@@ -1002,10 +1002,10 @@ void rxFlGLWindow::Motion(int x, int y)
 			//int v = g_vSelectedVertices[0];
 
 			//粒子が属するクラスタの数値を更新
-			for( int i = 0; i < m_ice->GetPtoCIndx(m_iPickedParticle); i++ )
+			for( int i = 0; i < m_iceObj->GetPtoCIndx(m_iPickedParticle); i++ )
 			{
-				int cIndx = m_ice->GetPtoC(m_iPickedParticle, i, 0);
-				int oIndx = m_ice->GetPtoC(m_iPickedParticle, i, 1);
+				int cIndx = m_iceObj->GetPtoC(m_iPickedParticle, i, 0);
+				int oIndx = m_iceObj->GetPtoC(m_iPickedParticle, i, 1);
 				if(cIndx == -1 || oIndx == -1) continue;
 	
 				m_sm_cluster[cIndx]->FixVertex(oIndx, new_pos);
@@ -1021,6 +1021,8 @@ void rxFlGLWindow::Motion(int x, int y)
 			p[DIM*m_iPickedParticle+0] = new_pos[0];
 			p[DIM*m_iPickedParticle+1] = new_pos[1];
 			p[DIM*m_iPickedParticle+2] = new_pos[2];
+
+			m_pPS->SetArrayVBO(rxParticleSystemBase::RX_POSITION, p, 0, m_pPS->GetNumParticles());
 		}
 	}
 	//RXCOUT << "        " << (m_iMouseButton >> 3) << ", " << (m_iMouseButton & 1) << endl;
@@ -1280,7 +1282,7 @@ void rxFlGLWindow::Idle(void)
 		TimeStepEvent();
 
 	RXTIMER("StepPS start");
-		StepPS(m_fDt);						//粒子法の運動
+		//StepPS(m_fDt);							//粒子法の運動
 	RXTIMER("StepPS end");
 
 	RXTIMER("StepHt start");
@@ -1292,19 +1294,37 @@ void rxFlGLWindow::Idle(void)
 	RXTIMER("StepMelt end");
 	
 	RXTIMER("StepFreeze start");
-		//StepSolid_Freeze(m_fDt);			//凝固処理
+		//StepSolid_Freeze(m_fDt);				//凝固処理
 	RXTIMER("StepFreeze end");
 
-		//StepCalcParam(m_fDt);				//温度による線形補間係数決定　中間状態あり
+		//StepCalcParam(m_fDt);					//温度による線形補間係数決定　中間状態あり
 		//StepClusterHigh(m_fDt);
 
+#if defined(MK_USE_GPU)
 	RXTIMER("StepCluster start");
-		StepCluster(m_fDt);					//クラスタの計算
+		StepClusterGPU(m_fDt);					//クラスタの計算
 	RXTIMER("StepCluster end");
 
-	RXTIMER("StepInterpolation start");
- 		StepInterpolation(m_fDt);			//液体と固体の運動を線形補間
-	RXTIMER("StepInterpolation end");
+	////QueryCounter qc;
+	////cout << "計測開始" << endl;
+	//RXTIMER("StepClusterIteration start");
+	////qc.Start();
+	//	StepClusterIterationGPU(m_fDt);			//反復処理を用いたクラスタの運動計算
+	////double endTime = qc.End();
+	//RXTIMER("StepClusterIteration end");
+	////cout << "計測終了　" << endTime << endl;
+#else
+	//RXTIMER("StepCluster start");
+	//	StepClusterCPU(m_fDt);					//クラスタの運動計算
+	//RXTIMER("StepCluster end");
+	//RXTIMER("StepInterpolation start");
+	//	StepInterpolation(m_fDt);				//液体と固体の運動を線形補間	CPU版ではコメントアウトする
+	//RXTIMER("StepInterpolation end");
+
+	RXTIMER("StepClusterIteration start");
+		StepClusterIterationCPU(m_fDt);			//反復処理を用いたクラスタの運動計算
+	RXTIMER("StepClusterIteration end");
+#endif
 	}
 
 	//
@@ -2977,7 +2997,7 @@ void rxFlGLWindow::Collision(Vec3 &p, Vec3 &np, Vec3 &v, int obj)
  */
 void rxFlGLWindow::InitIceObj(void)
 {	cout << __FUNCTION__ << endl;
-	
+
 #ifdef _OPENMP
     cout << "OpenMP : On, threads =" << omp_get_max_threads() << endl;	//OpenMPによる簡易並列処理
 #endif
@@ -2987,52 +3007,46 @@ void rxFlGLWindow::InitIceObj(void)
 	RXREAL *p = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
 	RXREAL *v = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_VELOCITY);
 
+	// Shape Matchingの設定　パラメータ読み込み
+	rxSPHEnviroment sph_env = m_Scene.GetSphEnv();
+
+	//ポインタの初期化
 	m_ht = 0;
 	m_ice = 0;
+	m_iceObj = 0;
 
 	InitHT(m_Scene);				//熱処理初期化
 
-#ifdef SOLID
-	////ソリッドモデル
-	////m_ice = new IceStructure(1000, 1000, 1000);
-	////m_ice = new IceStructure(3000, 3000, 12000);
-	////m_ice = new IceStructure(5000, 5000, 26000);			//粒子数4913個の場合のパラメータ
-	////m_ice = new IceStructure(10000, 10000, 1);
-	////m_ice = new IceStructure(16000, 16000, 1);
-
-	//(7000, 7000, 37000);
-	//(13000, 13000, 50000);
-	//(16000, 16000, 90000);
-	//(20000, 20000, 110000);
-	//(24400, 24400, 137000);									//動かなかった．
-
+	//ソリッドモデル
 	m_iceObj = new IceObject();									//相変化オブジェクトを扱うクラスの初期化
-#endif
-
-#ifdef SURF
-	//ポリゴンモデル
-	m_ice = new IceStructure(6000, 6000, 1);					//表面粒子のみの場合
-#endif
-
-	//m_ice->SetParticleNum(ICENUM);
 
 	m_iceObj->InitIceObj(ICENUM+1000, ICENUM+1000, TETRANUM);	//構造の初期化
+
 	m_iceObj->SetParticleNum(ICENUM);							//粒子数の登録
-	m_iceObj->SetSPHPointer(p, v);								//CPU処理で用いるポインタの登録
+	m_iceObj->SetSPHHostPointer(p, v);							//CPU処理で用いるポインタの登録
+	m_iceObj->SetSPHDevicePointer(
+		((RXSPH*)m_pPS)->GetDevicePointer_Pos(),
+		((RXSPH*)m_pPS)->GetDevicePointer_Vel());				//GPU処理で用いるポインタの登録
 	m_iceObj->SetSearchLayerNum(m_iLayer);						//探索レイヤー数
+
 	m_iceObj->InitTetra();										//四面体の初期化
+	m_iceObj->InitCluster(sph_env.boundary_ext, -sph_env.boundary_ext, sph_env.smTimeStep);
 
-	//TODO::この処理をうまい位置に
-	//InitObjFile();				//objファイルを読み込んで粒子位置を初期化
+		//クラスタのポインタをglcanvasへコピー
+		for(int i = 0; i < ICENUM; i++)
+		{
+			Ice_SM* sm = m_iceObj->GetMoveObj(i);
+			m_sm_cluster.push_back(sm);
+		}
 
-	//TODO::IceObjのなかにまとめてしまう．
-	InitCluster();					//クラスタ初期化
-	InitICE_Cluster();				//粒子とクラスタの関係情報を初期化
+	m_iceObj->InitStrct();										//粒子とクラスタの関係情報を初期化
 	
 	IceObject::InitInterPolation();
-	m_iceObj->InitGPU();			//構造の情報が完成したらコピー
+	m_iceObj->InitGPU();										//構造の情報が完成したらコピー
 
-	//test.test();					//CGALテスト
+	m_iClusteresNum = m_iceObj->GetClusterNum();
+	m_iShowClusterIndx = m_iClusteresNum;
+
 	//DumpParticleData();			//初期粒子情報をダンプ
 }
 
@@ -3174,202 +3188,6 @@ void rxFlGLWindow::MakeTetraInfo(int tIndx, vector<int> pList)
 //-------------------------------------------------------------------------------------------------------------
 //　クラスタ情報
 //-------------------------------------------------------------------------------------------------------------
-/*! 
- * クラスタ構造の初期化
- */
-void rxFlGLWindow::InitCluster()
-{	cout << __FUNCTION__ << endl;
-
-	//変数の初期化
-	for( vector<Ice_SM*>::iterator it = m_sm_cluster.begin(); it != m_sm_cluster.end(); ++it )
-	{
-		if(*it) delete *it;
-	}
-
-	//粒子毎に定義するものを用意
-	for( int i = 0; i < ICENUM; i++)
-	{	
-		m_fIntrps.push_back( 1.0f-(m_ht->getTemps()[i] / m_ht->getTempMax()) );	//線形補間係数
-	}
-	
-	//クラスタ作成
-	RXREAL *p = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
-	RXREAL *v = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_VELOCITY);
-
-	m_iClusteresNum = 0;	//クラスタ数
-
-	Ice_SM::SetParticlePosAndVel(p, v);
-	
-
-	//階層構造による剛性の確保
-	//実験１
-	//MakeClusterHigh();
-
-#ifdef SOLID
-	//パターン１：四面体リストを元に，粒子毎にクラスタ作成
-	for(int i = 0; i < ICENUM; i++)
-	{
-		// Shape Matchingの設定　パラメータ読み込み
-		rxSPHEnviroment sph_env = m_Scene.GetSphEnv();
-
-		//クラスタ初期化
-		m_sm_cluster.push_back(new Ice_SM(m_iClusteresNum));
-		m_sm_cluster[m_iClusteresNum]->SetSimulationSpace(-sph_env.boundary_ext, sph_env.boundary_ext);
-		m_sm_cluster[m_iClusteresNum]->SetTimeStep(sph_env.smTimeStep);
-		m_sm_cluster[m_iClusteresNum]->SetCollisionFunc(0);
-		m_sm_cluster[m_iClusteresNum]->SetStiffness(1.0, 0.0);
-
-		//四面体リストを元に，粒子毎にクラスタ作成
-		MakeCluster(i);
-
-		m_iClusteresNum++;
-	}
-#endif
-
-	//MakeClusterFromNeight();
-	//MakeOneCluster();
-
-#ifdef SURF
-	//パターン２：近傍情報のみでクラスタ作成
-	MakeClusterFromNeight();
-#endif
-
-	//クラスタに関するGPUの初期化
-	//すべてのクラスタにアクセスできるようにポインタを渡している
-	Ice_SM::InitGPU(m_sm_cluster, ((RXSPH*)m_pPS)->GetDevicePointer_Pos(), ((RXSPH*)m_pPS)->GetDevicePointer_PosVBO(), ((RXSPH*)m_pPS)->GetDevicePointer_Vel(), ICENUM);
-
-	//クラスタのデータをGPUへ初期化
-	for(int i = 0; i < ICENUM; i++)
-	{
-		m_sm_cluster[i]->InitGPU_Instance();
-	}
-
-	//実験的に，クラスタのポインタをIceObjectへコピー
-	for(int i = 0; i < ICENUM; i++)
-	{
-		Ice_SM* sm = m_sm_cluster[i];
-		m_iceObj->InitCluster(sm);
-	}
-
-	//表面粒子に重みを付ける
-	//((RXSPH*)m_pPS)->DetectSurfaceParticles();								//表面粒子検出
-	//int *surfaceParticles = (int *)( ((RXSPH*)m_pPS)->GetArraySurf() );		//表面粒子
-	//float weightedMass = 300.0f;
-
-	////表面粒子の質量だけ
-	//for(int pIndx = 0; pIndx < ICENUM; pIndx++)
-	//{
-	//	if(surfaceParticles[pIndx] != 1){ continue;	}
-	//	else{	cout << "surfaceParticles[" << pIndx << "] = " << surfaceParticles[pIndx] << endl;	}
-
-	//	for(int pNum = 0; pNum < m_ice->GetPtoCIndx(pIndx); ++pNum)
-	//	{
-	//		int cIndx = m_ice->GetPtoT(pIndx, pNum, 0);
-	//		int oIndx = m_ice->GetPtoT(pIndx, pNum, 1);
-
-	//		if(cIndx == -1 || oIndx == -1){ continue;	}
-
-	//		m_sm_cluster[cIndx]->SetMass(oIndx, weightedMass);
-	//	}
-	//}
-
-	//表面粒子のクラスタすべての粒子
-	//for(int cIndx = 0; cIndx < ICENUM; ++cIndx)
-	//{
-	//	if(surfaceParticles[cIndx] != 1){ continue;	}
-	//	else{	cout << "surfaceParticles[" << cIndx << "] = " << surfaceParticles[cIndx] << endl;	}
-
-	//	for(int pIndx = 0; pIndx < /*m_ice->GetCtoPIndx(cIndx)*/m_sm_cluster[cIndx]->GetNumVertices(); ++pIndx)
-	//	{
-	//		m_sm_cluster[cIndx]->SetMass(pIndx, weightedMass);
-	//	}
-
-	//	//	for(int pNum = 0; pNum < m_ice->GetPtoCIndx(pIndx); ++pNum)
-	//	//	{
-	//	//		int cIndx = m_ice->GetPtoT(pIndx, pNum, 0);
-	//	//		int oIndx = m_ice->GetPtoT(pIndx, pNum, 1);
-
-	//	//		if(cIndx == -1 || oIndx == -1){ continue;	}
-
-	//	//		m_sm_cluster[cIndx]->SetMass(oIndx, weightedMass);
-	//	//	}
-	//}
-
-	//全体の半分の粒子
-	//なぜかうまくいかない？
-	//for(int cIndx = 0; cIndx < ICENUM; cIndx++)
-	//{
-	//	//for(int pNum = 0; pNum < m_sm_cluster[cIndx]->GetNumVertices(); pNum++)
-	//	//{
-	//	//	int pIndx = m_sm_cluster[cIndx]->GetParticleIndx(pNum);
-	//	//	
-	//	//	if(surfaceParticles[pIndx] != 1){ continue;	}
-	//	//	else{	cout << "surfaceParticles[" << pIndx << "] = " << surfaceParticles[pIndx] << endl;	}
-	//	//
-	//	//	m_sm_cluster[cIndx]->SetMass(pNum, weightedMass);
-	//	//}
-	//	
-	//	for(int pNum = 0; pNum < m_sm_cluster[cIndx]->GetNumVertices(); pNum++)
-	//	{
-	//		int pIndx = m_sm_cluster[cIndx]->GetParticleIndx(pNum);
-	//		
-	//		//if(surfaceParticles[pIndx] != 1){ continue;	}
-	//		//else{	cout << "surfaceParticles[" << pIndx << "] = " << surfaceParticles[pIndx] << endl;	}
-	//	
-	//		if(pIndx > ICENUM/2 || pIndx < 0){ continue;	}
-	//		else{	/*cout << "pInx = " << pIndx << endl;*/	}
-
-	//		m_sm_cluster[cIndx]->SetMass(pNum, weightedMass);
-	//	}
-	//}
-	
-
-	//TODO::浮力を生むために粒子質量を下げる
-
-	//m_ice->SetClusterNum(m_iClusteresNum);				//クラスタ数の登録
-	m_iceObj->SetClusterNum(m_iClusteresNum);
-	m_iShowClusterIndx = m_iClusteresNum;
-
-	//デバッグ
-	//クラスタに含まれる粒子
-	//for(int i = 0; i < ICENUM; i++)
-	//{
-	//	cout << "pIndx = " << endl;
-
-	//	for(int j = 0; j < m_sm_cluster[i]->GetNumVertices(); j++)
-	//	{
-	//		cout << " j = " << m_sm_cluster[i]->GetParticleIndx(j);
-	//	}
-	//	cout << endl;
-	//}
-
-	//TODO::関数にする
-	////含有粒子数の総数，平均，最小値，最大値
-	//int sum = 0;
-	//int max = m_sm_cluster[0]->GetNumVertices();
-	//int min = m_sm_cluster[0]->GetNumVertices();
-
-	//for(int i = 0; i < m_iClusteresNum; i++)
-	//{
-	//	int num =  m_sm_cluster[i]->GetNumVertices();
-	//	
-	//	if(max < num)
-	//	{
-	//		max = num;
-	//	}
-
-	//	if(min > num)
-	//	{
-	//		min = num;
-	//	}
-
-	//	sum += num;
-	//}
-
-	//cout << "sum = " << sum << " ave = " << (float)(sum/m_iClusteresNum) << endl;
-	//cout << "max = " << max << " min = " << min << endl;
-}
-
 /*! 
  * クラスタ作成
  * @param[in] pIndx 粒子番号
@@ -3782,18 +3600,13 @@ void rxFlGLWindow::StepCalcParam(double dt)
 }
 
 /*!
- * ShapeMatching法のタイムステップを進める
+ * ShapeMatching法のタイムステップを進める　CPU
  * @param[in] dt タイムステップ幅
  */
-void rxFlGLWindow::StepCluster(double dt)
+void rxFlGLWindow::StepClusterCPU(double dt)
 {//	cout << __FUNCTION__ << endl;
 
 	if(m_bPause){	return;}
-	
-	RXREAL *p = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
-	RXREAL *v = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_VELOCITY);
-
-//クラスタの運動処理
 
 //#ifdef SURF
 //CPU 高速化手法を用いた場合
@@ -3811,7 +3624,7 @@ void rxFlGLWindow::StepCluster(double dt)
 	//{	
 	//	if(m_ice->GetPtoCNum(i) == 0){	continue;	}
 
-	//	//TODO::配列を参照渡しにして書き込ませる
+		//TODO::配列を参照渡しにして書き込ませる
 		//TODO::インターフェースを整理
 	//	m_ice->GetCmSum(i, vec);
 	//	m_sm_cluster[i]->SetNowCm(vec);				//重心の更新
@@ -3823,17 +3636,89 @@ void rxFlGLWindow::StepCluster(double dt)
 //#endif
 
 //CPU OpenMPで並列処理
-	//#pragma omp parallel
-	//{
-	//#pragma omp for
-		//for(int i = 0; i < m_iClusteresNum; ++i)
-		//{	
-		//	if(m_ice->GetPtoCNum(i) == 0){	continue;	}
-		//	m_sm_cluster[i]->UpdateCPU();									//運動計算
-		//}
-	//}//#pragma omp parallel
+	//GPUのデータをCPUにコピー
+	RXREAL *p = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
+	RXREAL *v = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_VELOCITY);
+
+	#pragma omp parallel
+	{
+	#pragma omp for
+		for(int i = 0; i < m_iClusteresNum; ++i)
+		{	
+			if(m_iceObj->GetPtoCNum(i) == 0){	continue;	}
+			m_sm_cluster[i]->UpdateCPU();									//運動計算
+		}
+	}//#pragma omp parallel
+}
+
+/*!
+ * ShapeMatching法のタイムステップを進める　反復処理
+ * @param[in] dt タイムステップ幅
+ */
+void rxFlGLWindow::StepClusterIterationCPU(double dt)
+{
+//CPU OpenMPで並列処理
+	//GPUのデータをCPUにコピー
+	RXREAL *p = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
+	RXREAL *v = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_VELOCITY);
+	m_iceObj->SetSPHHostPointer(p, v);
+
+	for(int itr = 0; itr < g_iteration; ++itr)
+	{
+		if(itr == 0)
+		{
+#pragma omp parallel
+{
+#pragma omp for
+			for(int i = 0; i < m_iClusteresNum; ++i)
+			{	
+				if(m_iceObj->GetPtoCNum(i) == 0){	continue;	}
+				m_sm_cluster[i]->calExternalForces(dt);					//速度を反映して位置更新
+				m_sm_cluster[i]->ShapeMatchingSolid(dt);				//現在の位置でSM法
+			}
+}
+		}
+		else
+		{
+#pragma omp parallel
+{
+#pragma omp for
+			for(int i = 0; i < m_iClusteresNum; ++i)
+			{	
+				if(m_iceObj->GetPtoCNum(i) == 0){	continue;	}
+				m_sm_cluster[i]->calExternalForcesIteration(dt);		//現在の位置を各クラスタに反映
+				m_sm_cluster[i]->ShapeMatchingIteration(dt);			//現在の位置でSM法
+			}
+}
+		}
+		m_iceObj->StepInterPolationForCluster();						//各クラスタの総和計算，線形補間をして固体の最終位置を決定
+	}
+
+#pragma omp parallel
+{
+#pragma omp for
+	for(int i = 0; i < m_iClusteresNum; ++i)
+	{	
+		if(m_iceObj->GetPtoCNum(i) == 0){	continue;	}
+		m_sm_cluster[i]->integrateIteration(dt);						//前フレームと現在の位置から速度を算出
+	}
+}//#pragma omp parallel
+
+	StepInterpolation(m_fDt);											//各クラスタの総和計算，線形補間をして物体の最終位置を決定
+}
+
+/*!
+ * ShapeMatching法のタイムステップを進める　GPU
+ * @param[in] dt タイムステップ幅
+ */
+void rxFlGLWindow::StepClusterGPU(double dt)
+{
+	if(m_bPause){	return;}
 
 //GPUで並列処理
+	RXREAL *p = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
+	RXREAL *v = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_VELOCITY);
+
 	//位置情報はVBOを使っているので，マップしないといけない
 	//頂点バッファオブジェクトをマップ
 	float* dvbo_pos = ((RXSPH*)m_pPS)->GetDevicePointer_Pos();
@@ -3849,10 +3734,37 @@ void rxFlGLWindow::StepCluster(double dt)
 
 	//位置情報をアンマップ
 	cudaGraphicsUnmapResources(1, &d_resource_pos, 0);
-
-	m_iceObj->StepObjMove();	//運動計算
 }
 
+/*!
+ * ShapeMatching法のタイムステップを進める　反復処理　GPU
+ * @param[in] dt タイムステップ幅
+ */
+void rxFlGLWindow::StepClusterIterationGPU(double dt)
+{
+	if(m_bPause){	return;}
+
+//GPUで並列処理
+	//位置情報はVBOを使っているので，マップしないといけない
+	//頂点バッファオブジェクトをマップ
+	float* dvbo_pos = ((RXSPH*)m_pPS)->GetDevicePointer_Pos();
+	cudaGraphicsResource* d_resource_pos = ((RXSPH*)m_pPS)->GetDevicePointer_PosVBO();
+
+	cudaGraphicsMapResources(1, &d_resource_pos, 0);
+	cudaGraphicsResourceGetMappedPointer((void**)&dvbo_pos, NULL, d_resource_pos);
+	
+	//GPUを用いたクラスタの運動計算
+	Ice_SM::SetDevicePosPointer(dvbo_pos);	//マップしたポインタを渡す
+	m_iceObj->StepObjCalcWidhIteration();
+
+	//位置情報をアンマップ
+	cudaGraphicsUnmapResources(1, &d_resource_pos, 0);
+}
+
+/*!
+ * ShapeMatching法のタイムステップを進める　階層構造
+ * @param[in] dt タイムステップ幅
+ */
 void rxFlGLWindow::StepClusterHigh(double dt)
 {
 	RXREAL *p = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
@@ -3953,247 +3865,21 @@ void rxFlGLWindow::StepClusterHigh(double dt)
 void rxFlGLWindow::StepInterpolation(double dt)
 {
 	if(m_bPause){	return;}
-
-	int j = 0;
-	int jpIndx = 0, jcIndx = 0, joIndx = 0;
-	double shapeNum = 0.0, intrps = 0.0;
-	Vec3 pos,vel,veltemp;
 	
-	//RXREAL *p = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
-	//RXREAL *v = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_VELOCITY);
-	//
-	//IceObject::SetSPHPointer(p, v);
-	//m_iceObj->StepInterPolation();	//総和計算，線形補間
+	RXREAL *p = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
+	RXREAL *v = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_VELOCITY);
+	
+	m_iceObj->SetSPHHostPointer(p, v);
+	m_iceObj->StepInterPolation();		//総和計算，線形補間
 
-	//////線形補間
-	//////#pragma omp parallel
-	//////{
-	//////#pragma omp for private(j, jpIndx, jcIndx, joIndx, pos, vel, shapeNum, intrps, veltemp)
-	////	for(int i = 0; i < m_pPS->GetNumParticles(); ++i)
-	////	{
-	////		////粒子の速度制限
-	////		//veltemp = Vec3(v[i*4+0], v[i*4+1], v[i*4+2]);
-	////		//while(norm2(veltemp)>=50)
-	////		//{
-	////		//	//cout << "vel = " << veltemp << endl;
-	////		//	v[i*4+0] = v[i*4+0] * 0.75;
-	////		//	v[i*4+1] = v[i*4+1] * 0.75;
-	////		//	v[i*4+2] = v[i*4+2] * 0.75;
-	////		//	veltemp = Vec3(v[i*4+0], v[i*4+1], v[i*4+2]);
-	////		//}
-
-	////		//if(m_ice->GetParticleNum() <= i){		continue;	}	//融解のみの実験のときに必要になる．
-	////		//if(m_ice->GetPtoCNum(i) <= 0)	{		continue;	}
-	////		if(m_iceObj->GetParticleNum() <= i){	continue;	}	//融解のみの実験のときに必要になる．
-	////		if(m_iceObj->GetPtoCNum(i) <= 0){		continue;	}
-
-	////		//それぞれのベクトルを合成し平均をとる
-	////		pos = Vec3(0.0, 0.0, 0.0);
-	////		vel = Vec3(0.0, 0.0, 0.0);
-	////		shapeNum = 0.0;											//クラスタの数
-
-	////		//値の取得，合成
-	////		//for(j = 0; j < m_ice->GetPtoCIndx(i); ++j)
-	////		for(j = 0; j < m_iceObj->GetPtoCIndx(i); ++j)
-	////		{
-	////			//jcIndx = m_ice->GetPtoC(i, j, 0);
-	////			//joIndx = m_ice->GetPtoC(i, j, 1);
-	////			jcIndx = m_iceObj->GetPtoC(i, j, 0);
-	////			joIndx = m_iceObj->GetPtoC(i, j, 1);
-
-	////			if(jcIndx == -1 || joIndx == -1){	continue;	}
-
-	////			pos += m_sm_cluster[jcIndx]->GetVertexPos(joIndx);
-	////			vel += m_sm_cluster[jcIndx]->GetVertexVel(joIndx);
-
-	////			shapeNum += 1.0;
-	////		}
-
-	////		jpIndx = i*4;
-	////		intrps = 1.0-m_fIntrps[i];
-
-	////		//クラスタの数で割る
-	////		//どのクラスタにも含まれていない場合，運動はSPH法に従う
-	////		if(shapeNum != 0.0)
-	////		{
-	////			pos /= shapeNum;
-	////			vel /= shapeNum;
-	////		}		
-	////		else
-	////		{
-	////			pos = Vec3(p[jpIndx+0], p[jpIndx+1], p[jpIndx+2]);
-	////			vel = Vec3(v[jpIndx+0], v[jpIndx+1], v[jpIndx+2]);
-	////		}
-
-	////		//SPH法とSM法で求めた速度と位置を補間
-	////		v[jpIndx+0] = vel[0] * m_fIntrps[i] + v[jpIndx+0] * intrps;
-	////		v[jpIndx+1] = vel[1] * m_fIntrps[i] + v[jpIndx+1] * intrps;
-	////		v[jpIndx+2] = vel[2] * m_fIntrps[i] + v[jpIndx+2] * intrps;
-
-	////		p[jpIndx+0] = pos[0] * m_fIntrps[i] + p[jpIndx+0] * intrps;
-	////		p[jpIndx+1] = pos[1] * m_fIntrps[i] + p[jpIndx+1] * intrps;
-	////		p[jpIndx+2] = pos[2] * m_fIntrps[i] + p[jpIndx+2] * intrps;
-
-	////		//安定しなかった
-	////		//p[i*4+0] += v[i*4*0] * dt;
-	////		//p[i*4+1] += v[i*4*1] * dt;
-	////		//p[i*4+2] += v[i*4*2] * dt;
-	////	}
-	////}//end #pragma omp parallel
-
-	////SPHのデータの更新　位置・速度
-	//m_pPS->SetArrayVBO(rxParticleSystemBase::RX_POSITION, p, 0, m_pPS->GetNumParticles());
-	//m_pPS->SetArrayVBO(rxParticleSystemBase::RX_VELOCITY, v, 0, m_pPS->GetNumParticles());
+	//SPHのデータの更新　位置・速度
+	m_pPS->SetArrayVBO(rxParticleSystemBase::RX_POSITION, p, 0, m_pPS->GetNumParticles());
+	m_pPS->SetArrayVBO(rxParticleSystemBase::RX_VELOCITY, v, 0, m_pPS->GetNumParticles());
 }
 
 //------------------------------------------------------------------------------------------------------------
 // 固体構造関数
 //------------------------------------------------------------------------------------------------------------
-/*! 
- * 固体構造の初期化
- */
-void rxFlGLWindow::InitICE_Cluster()
-{	cout << __FUNCTION__ << endl;
-
-	//カウント
-	for(int i = 0; i < ICENUM; i++)
-	{
-		CountSolid(i);
-	}
-	cout << __FUNCTION__ << " check0" << endl;
-	//メモリ確保
-	//m_ice->InitClusterInfo();
-	m_iceObj->InitClusterInfo();
-	cout << __FUNCTION__ << " check1" << endl;
-	//粒子が所属しているクラスタ数の配列をコピー
-	int *PtoCNum = new int[ICENUM];
-	cout << __FUNCTION__ << " check2" << endl;
-	for(int i = 0; i < ICENUM; i++)
-	{
-		//PtoCNum[i] = m_ice->GetPtoCNum(i);
-		PtoCNum[i] = m_iceObj->GetPtoCNum(i);
-	}
-	cout << __FUNCTION__ << " check3" << endl;
-	//クラスタと粒子の関連情報の登録
-	for(int i = 0; i < ICENUM; i++)
-	{
-		MakeClusterInfo(i, PtoCNum);	//カウントを前で行っているため，こちらを使う
-	}
-	cout << __FUNCTION__ << " check4" << endl;
-	delete[] PtoCNum;
-	cout << __FUNCTION__ << " check5" << endl;
-	//TODO::クラスタと四面体の関連情報の登録
-
-	RXREAL *p = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
-	RXREAL *v = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_VELOCITY);
-	cout << __FUNCTION__ << " check6" << endl;
-	//m_ice->InitPath(p, v, m_sm_cluster, ICENUM);			//高速化のためのパス作成
-
-	//デバッグ
-	//for(int i = 0; i < m_iClusteresNum; i++)
-	//{
-	//	m_ice->DebugCtoP(i);
-	//}
-
-	//for(int i = 0; i < m_pPS->GetNumParticles(); i++)
-	//{
-	//	m_ice->DebugPtoC(i);
-	//}
-}
-
-/*!
- * クラスタに含まれている粒子数のカウント，粒子が所属するクラスタ数のカウント
- * @param[in] cIndx クラスタ番号
- */
-void rxFlGLWindow::CountSolid(int cIndx)
-{//	cout << __FUNCTION__ << " start cIndx = " << cIndx << endl;
-	for(int j = 0; j < m_sm_cluster[cIndx]->GetNumVertices(); j++)
-	{
-		int jpIndx = m_sm_cluster[cIndx]->GetParticleIndx(j);
-		//m_ice->CountPtoC(jpIndx);										//粒子が接続クラスタに所属する個数のカウント
-		//m_ice->CountCtoP(cIndx);										//接続クラスタが粒子を含む個数のカウント
-		m_iceObj->CountPtoC(jpIndx);										//粒子が接続クラスタに所属する個数のカウント
-		m_iceObj->CountCtoP(cIndx);										//接続クラスタが粒子を含む個数のカウント
-	
-		//Indxの更新
-		//if(m_ice->GetPtoCNum(jpIndx) >= m_ice->GetPtoCIndx(jpIndx))
-		//{
-		//	m_ice->SetPtoCIndx(jpIndx, m_ice->GetPtoCNum(jpIndx));
-		//}
-		if(m_iceObj->GetPtoCNum(jpIndx) >= m_iceObj->GetPtoCIndx(jpIndx))
-		{
-			m_iceObj->SetPtoCIndx(jpIndx, m_iceObj->GetPtoCNum(jpIndx));
-		}
-	}
-
-	//Indxの更新
-	//if(m_ice->GetCtoPNum(cIndx) >= m_ice->GetCtoPIndx(cIndx))
-	//{
-	//	m_ice->SetCtoPIndx(cIndx, m_ice->GetCtoPNum(cIndx));
-	//}
-	if(m_iceObj->GetCtoPNum(cIndx) >= m_iceObj->GetCtoPIndx(cIndx))
-	{
-		m_iceObj->SetCtoPIndx(cIndx, m_iceObj->GetCtoPNum(cIndx));
-	}
-//	cout << __FUNCTION__ << " end" << endl;
-}
-
-/*!
- * クラスタに含まれている情報の登録　初期化専用関数
- * @param[in] tNum クラスタ番号
- */
-void rxFlGLWindow::MakeClusterInfo(int cIndx, int* PtoCNum)
-{
-	//粒子が属している四面体の番号を登録するための準備
-	//pCountListには，cIndx番目のクラスタに含まれる各粒子が，それぞれいくつのクラスタに属するかを求めて保存する
-	int* pCountList = new int[m_sm_cluster[cIndx]->GetNumVertices()];
-	int* pLayerList = new int[m_sm_cluster[cIndx]->GetNumVertices()];			//粒子の所属レイヤー
-	
-	for(int i = 0; i < m_sm_cluster[cIndx]->GetNumVertices(); i++)
-	{
-		int pIndx = m_sm_cluster[cIndx]->GetParticleIndx(i);
-
-		//穴あきを想定していないため，誤って上書きしてしまっている
-		//-1を探索して上書きするのに切り替える．
-		//for(int j = 0; j < m_ice->GetPtoCMax(); j++)
-		for(int j = 0; j < m_iceObj->GetPtoCMax(); j++)
-		{
-			//if(m_ice->GetPtoC(pIndx, j, 0) != -1 || m_ice->GetPtoC(pIndx, j, 1) != -1){	continue;	}
-			if(m_iceObj->GetPtoC(pIndx, j, 0) != -1 || m_iceObj->GetPtoC(pIndx, j, 1) != -1){	continue;	}
-			
-			//if(j >= m_ice->GetPtoCIndx(pIndx))
-			if(j >= m_iceObj->GetPtoCIndx(pIndx))
-			{
-				//m_ice->SetPtoCIndx(pIndx, j+1);								//現在のIndxより大きいなら更新
-				m_iceObj->SetPtoCIndx(pIndx, j+1);
-			}
-
-			pCountList[i] = j;
-			break;
-		}
-
-		pLayerList[i] = m_sm_cluster[cIndx]->GetLayer(i);					//粒子が何層目の近傍なのかを取得
-	}
-
-	//粒子とクラスタの情報登録
-	vector<int> pIndxList;
-
-	//for(int i = 0; i < m_ice->GetCtoPNum(cIndx); i++)
-	for(int i = 0; i < m_iceObj->GetCtoPNum(cIndx); i++)
-	{
-		int pIndx = m_sm_cluster[cIndx]->GetParticleIndx(i);
-		//m_ice->SetPtoC(pIndx, pCountList[i], cIndx, i, pLayerList[i]);			//粒子が所属しているクラスタを登録
-		m_iceObj->SetPtoC(pIndx, pCountList[i], cIndx, i, pLayerList[i]);
-		pIndxList.push_back(pIndx);
-	}
-
-	//m_ice->SetCtoP(cIndx, pIndxList, pLayerList);								//クラスタが含んでいる粒子を登録
-	m_iceObj->SetCtoP(cIndx, pIndxList, pLayerList);
-	
-	delete[] pCountList;
-	delete[] pLayerList;
-}
-
 /*!
  * クラスタに含まれている情報の登録
  * @param[in] tNum クラスタ番号
@@ -4201,7 +3887,7 @@ void rxFlGLWindow::MakeClusterInfo(int cIndx, int* PtoCNum)
 void rxFlGLWindow::MakeClusterInfo(int cIndx)
 {	//cout << __FUNCTION__ << " start cIndx = " << cIndx << endl;
 	//カウント
-	CountSolid(cIndx);
+	//CountSolid(cIndx);
 
 	//粒子とクラスタの情報登録
 	vector<int> pIndxList;

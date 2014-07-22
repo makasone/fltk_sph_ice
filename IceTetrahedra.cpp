@@ -12,7 +12,9 @@ void IceTetrahedra::InitTetra(float* pos, int vertexNum)
 {	cout << __FUNCTION__ << endl;
 
 //	Load_ELE_File(ELE_FILE);									//eleファイルを読み込み，リストを作成
-	MakeTetrahedraFromCube(pos, vertexNum);
+//dazddd
+MakeTetrahedraFromCube(pos, vertexNum);
+	
 }
 
 /*!
@@ -783,35 +785,30 @@ void IceTetrahedra::Save_NODE_File(const string name, float* pos, int vrtxNum)
 }
 
 //objファイルを読み込んで粒子位置を初期化
-//void rxFlGLWindow::InitObjFile()
-//{	cout << __FUNCTION__ << endl;
-//
-//	//OpenFile(MODEL_NAME);						//モデル読み込み　パスはRelease/binのやつ
-//
-//	//3Dモデルから粒子位置を初期化
-//	//for(int i = 0; i < ICENUM; i++)
-//	//{
-//	//	for(int j = 0; j < 3; j++)
-//	//	{
-//	//		p[i*4+j] = m_poly.vertices[i][j] / 10.0;
-//	//	}
-//	//}
-//
-//	//tetgenで頂点追加＋四面体分割
-//	//MakeTetrahedraFromObj();
-//	//MakeTetrahedraFromCube();
-//
-//	RXREAL *p = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
-//
-//	//node,eleファイルを読み込んで頂点情報と四面体情報を取得
-//	Load_ELE_File(ELE_FILE);
-//	Load_NODE_File(NODE_FILE, p);
-//
-//	//CGALを用いて3Dオブジェクト内部に点を追加＋四面体作成
-//	//test.test();
-//
-//	m_pPS->SetArrayVBO(rxParticleSystemBase::RX_POSITION, p, 0, m_pPS->GetNumParticles());
-//	//p = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
-//
-//	redraw();
-//}
+void IceTetrahedra::Load_obj_File(const string objName)
+{	cout << __FUNCTION__ << endl;
+
+	////OpenFile(name);						//モデル読み込み　パスはRelease/binのやつ
+
+	////3Dモデルから粒子位置を初期化
+	////for(int i = 0; i < ICENUM; i++)
+	////{
+	////	for(int j = 0; j < 3; j++)
+	////	{
+	////		p[i*4+j] = m_poly.vertices[i][j] / 10.0;
+	////	}
+	////}
+
+	////tetgenで頂点追加＋四面体分割
+	////MakeTetrahedraFromObj();
+	////MakeTetrahedraFromCube();
+
+	////node,eleファイルを読み込んで頂点情報と四面体情報を取得
+	//Load_ELE_File(ELE_FILE);
+	//Load_NODE_File(NODE_FILE, p);
+
+	////CGALを用いて3Dオブジェクト内部に点を追加＋四面体作成
+	////test.test();
+
+	//m_pPS->SetArrayVBO(rxParticleSystemBase::RX_POSITION, p, 0, m_pPS->GetNumParticles());
+}

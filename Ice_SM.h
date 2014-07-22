@@ -32,6 +32,21 @@ extern void LaunchShapeMatchingGPU
 	float dt
 );
 
+extern void LaunchShapeMatchingIterationGPU
+(
+	int prtNum,
+	float* prtPos, 
+	float* prtVel,
+	float* sldPos,
+	float* sldVel, 
+	float* orgPos,
+	float* curPos,
+	float* vel,
+	int* pIndxes, 
+	int* d_IndxSet,
+	float dt
+);
+
 class Ice_SM : public rxShapeMatching
 {
 protected:
@@ -55,13 +70,15 @@ protected:
 	vector<int> m_iLinearDeformation;			//!< Linear/Quadratic deformation切り替えフラグ　未使用
 	vector<int> m_iVolumeConservation;			//!< 変形時の体積保存性(√det(A)で割るかどうか)　未使用
 
-	static const float* s_pfPrtPos;				//位置のポインタ　読み込み専用
-	static const float* s_pfPrtVel;				//速度のポインタ　読み込み専用
+	static const float* s_pfPrtPos;				//位置のホストポインタ　読み込み専用
+	static const float* s_pfPrtVel;				//速度のホストポインタ　読み込み専用
+
+	static float* s_pfSldPos;					//クラスタの最終的な位置
+	static float* s_pfSldVel;					//クラスタの最終的な速度
 
 //--------------------------------------GPU------------------------------------------------------------
-	static float* sd_PrtPos;					//粒子位置のデバイスポインタ
-	static cudaGraphicsResource* sd_PrtPosVbo;
-	static float* sd_PrtVel;					//粒子速度のデバイスポインタ
+	static float* sd_PrtPos;					//最終粒子位置のデバイスポインタ
+	static float* sd_PrtVel;					//最終粒子速度のデバイスポインタ
 
 	static float* d_OrgPos;
 	static float* d_CurPos;
@@ -85,34 +102,43 @@ public:
 	Ice_SM(int obj);
 	~Ice_SM();
 	
-	static void Ice_SM::InitGPU(const vector<Ice_SM*>& sm, float* d_pos, cudaGraphicsResource* d_pos_vbo, float* d_vel, int prtNum);
+	static void Ice_SM::InitGPU(const vector<Ice_SM*>& sm, float* d_pos, float* d_vel, int prtNum);
 
 	static void SetParticlePosAndVel(const float* pos, const float* vel){	s_pfPrtPos = pos;	s_pfPrtVel = vel;	}
 	static void SetDevicePosPointer(float* d_pos){	sd_PrtPos = d_pos;	}
 	
+	static float* GetSldPosPointer(){	return s_pfSldPos;	}
+	static float* GetSldVelPointer(){	return s_pfSldVel;	}
+
 	static float* GetDeviceSPHPosPointer(){	return sd_PrtPos;	}
 	static float* GetDeviceSPHVelPointer(){	return sd_PrtVel;	}
 
 	static float* GetDevicePosPointer(){	return d_CurPos;	}
 	static float* GetDeviceVelPointer(){	return d_Vel;	}
 	static int* GetDeviceIndexSetPointer(){	return d_IndxSet;	}
-	static int GetVertexNum(){				return s_vertNum;	}
+	static int	GetVertexNum(){				return s_vertNum;	}
 
 	void InitGPU_Instance();
+	static void InitFinalParamPointer(int vrtxNum);
 
 	void AddVertex(const Vec3 &pos, double mass, int pIndx);
 	
 	void UpdateCPU();
 	static void UpdateGPU();
+	static void UpdateIterationGPU(float* sldPos, float* sldVel);
 	
 	static void CalcAverage();
 	void CopyDeviceToInstance(int num);
 
 	void ShapeMatching(double dt);
 	void ShapeMatchingSolid(double dt);
+	void ShapeMatchingIteration(double dt);
 
 	void calExternalForces(double dt);
+	void calExternalForcesIteration(double dt);
+	
 	void integrate(double dt);
+	void integrateIteration(double dt);
 
 	void SetAlphas(int indx, float alpha){	m_fpAlphas[indx] = alpha;	}
 	void SetBetas (int indx, float beta){	m_fpBetas[indx] = beta;		}

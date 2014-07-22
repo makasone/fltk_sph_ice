@@ -1,5 +1,6 @@
 //相変化オブジェクトの四面体に関するクラス
 //Tetgenを用いて初期粒子配置から四面体を作成
+//TODO::CGALの準備
 
 #ifndef _ICE_TETRAHEDRA_
 #define _ICE_TETRAHEDRA_
@@ -29,17 +30,6 @@ public:
 	vector<int>& GetTetraList(int listIndx){	return m_vviTetraList[listIndx];	}
 	unsigned GetTetraListSize(){	return m_vviTetraList.size();	}
 
-	//本当にシングルトンかのテスト
-	void Test1(int num)
-	{
-		m_num = num;
-		cout << __FUNCTION__ << " " << m_num << endl;
-	}
-	
-	void Test2()
-	{
-		cout << __FUNCTION__ << " " << m_num << endl;
-	}
 private:
 	IceTetrahedra(){};
 	IceTetrahedra(const IceTetrahedra &other){};
@@ -50,6 +40,7 @@ private:
 	void MakeTetrahedraOnlySurface(float* pos,int vrtxNum);
 	//void MakeTetrahedraFromObj(rxPolygons poly,int vrtxNum);
 
+	void Load_obj_File(const string name);
 	void Load_ELE_File(const string name);
 	void Load_NODE_File(const string name, float* p);
 
@@ -57,9 +48,8 @@ private:
 	void Save_NODE_File(const string name, float* pos, int vrtxNum);
 
 private:
-	int m_num;
-
 	vector<vector<int>> m_vviTetraList;		//四面体の組み合わせリスト
+
 };
 
 #endif

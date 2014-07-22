@@ -50,8 +50,8 @@
 #include "IceObject.h"
 #include "tetgen.h"
 #include <UtilityScript\mk_Vector2D.h>
-#include <time.h>
 #include "QueryCounter.h"
+#include <time.h>
 
 #include <omp.h>
 #include <fstream>
@@ -98,9 +98,18 @@ class rxSSMeshGPU;
 	#endif
 #endif
 
+
+
+
+
+
+
 //クラスタ作成方法　ポリゴンモデルとソリッドモデル　四面体ベースと粒子ベース
 #define SOLID
 //#define SURF
+
+//#define MK_USE_GPU
+const int g_iteration = 1;
 
 #ifdef SOLID
 //#define ICENUM 27
@@ -108,16 +117,31 @@ class rxSSMeshGPU;
 //#define ICENUM	729
 //#define ICENUM	1331
 //#define ICENUM	2197	//13_13_13
-#define SIDE	13
-//#define ICENUM	3463		//バニーモデル
+//#define SIDE	13
+//#define ICENUM	3463	//バニーモデル
 #define ICENUM		4913	//17_17_17
 #define TETRANUM	26000
 //#define ICENUM	6859	//19_19_19
 //#define ICENUM	9261	//21_21_21
-//#define ICENUM 12167
-//#define ICENUM 15625		//25_25_25
-//#define ICENUM	19683	//27_27_27
-//#define ICENUM	24389		//29_29_29
+//#define ICENUM	12167
+//#define ICENUM	15625	//25_25_25
+//#define ICENUM		19683	//27_27_27
+//#define TETRANUM	110000
+//#define ICENUM	24389	//29_29_29
+
+//(1000, 1000, 1000);
+//(3000, 3000, 12000);
+//(5000, 5000, 26000);			//粒子数4913個の場合のパラメータ
+//(7000, 7000, 37000);
+//(13000, 13000, 50000);
+//(10000, 10000, 1);
+//(16000, 16000, 1);
+
+//(16000, 16000, 90000);
+//(20000, 20000, 110000);
+//(24400, 24400, 137000);									//動かなかった．
+
+
 
 //#define ICENUM 4335	//直方体の実験
 //#define CUBE_X 17
@@ -392,7 +416,7 @@ public:
 	bool m_bFall;
 
 	//テストクラス
-	mk_CGAL test;
+	//mk_CGAL test;
 
 protected:
 	// シーン
@@ -613,22 +637,22 @@ protected:
 	void MakeTetraInfo(int tIndx, vector<int> pList);
 
 	//追加：：粒子ベース：：クラスタ
-	void InitCluster(void);
-
 	void MakeCluster(int pIndx);
 	void MakeClusterFromNeight();
 	void MakeOneCluster();
 	void MakeClusterHigh();
 
-	void StepCluster(double dt);
+	void StepClusterCPU(double dt);
+	void StepClusterIterationCPU(double dt);
+	void StepClusterGPU(double dt);
+	void StepClusterIterationGPU(double dt);
+
 	void StepClusterHigh(double dt);
 	void StepCalcParam(double dt);
+
 	void StepInterpolation(double dt);
 
 	//追加：：粒子ベース：：固体情報（クラスタ情報）
-	void InitICE_Cluster(void);
-	void CountSolid(int cIndx);
-	void MakeClusterInfo(int cIndx, int* PtoCNum);
 	void MakeClusterInfo(int cIndx);
 	void StepSolid_Melt(double dt);
 	void StepSolid_Freeze(double dt);
@@ -704,9 +728,6 @@ protected:
 	void MakeFreezeTetrahedra(vector<int>& pList, vector<int>& tList);
 	void MakeFreezeTetrahedra_OnlyFreezeParticle(const vector<int>& pList, vector<int>& tList);
 	void AddFreezeTetrahedra(const vector<int>& pList, vector<int>& tList);
-
-	void InitObjFile();
-	void SetObjFile();
 
 	void DumpParticleData();
 
