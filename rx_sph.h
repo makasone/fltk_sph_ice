@@ -141,6 +141,7 @@ struct rxSPHEnviroment
 
 	//SM–@
 	float smTimeStep;
+	int	smItr;
 
 	//•X\‘¢
 	int layer;

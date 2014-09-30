@@ -16,10 +16,11 @@
 #include <vector>
 #include <algorithm>
 #include <math.h>
+#include <cuda_runtime.h>
 
 #include <UtilityScript\mk_Vector2D.h>
 #include <UtilityScript\mk_Vector3D.h>
-#include <Surf_SM.h>
+
 #include <IceTetrahedra.h>
 
 using namespace std;
@@ -39,9 +40,6 @@ public:
 	void InitClusterInfo();									//クラスタ情報のメモリ確保
 	
 	void InitGPU();									//GPU処理で用いるデータの初期化
-
-	//TODO::IceObjectに移動
-	void InitPath(const float* pos, const float* vel, const vector<Ice_SM*> iceSM, int size);	//パス作成
 
 	void SetParticleNum(int pNum){	m_iPNum = pNum; }		//現在の粒子数
 	void SetClusterNum(int cNum){	m_iCNum = cNum; }		//現在のクラスタ数
@@ -88,11 +86,6 @@ public:
 	int  GetPtoTFreeIndx(int pIndx);
 	int  GetPtoCFreeIndx(int pIndx);
 
-	//const Vec3		GetCmSum(int cIndx);
-	//const rxMatrix3	GetApqSum(int cIndx);
-	void	GetCmSum(int cIndx, Vec3& vec);
-	void	GetApqSum(int cIndx, rxMatrix3& matrix);
-
 	void SetPtoT(int pIndx, int lIndx, int tIndx, int oIndx);				//粒子が属する四面体の登録　　粒子番号，粒子内順序，四面体番号，四面体内順序
 	void SetPtoC(int pIndx, int lIndx, int cIndx, int oIndx, int layer);	//粒子が属するクラスタの登録　粒子番号，粒子内順序，クラスタ番号，クラスタ内順序
 	
@@ -129,9 +122,6 @@ public:
 
 	//判定
 	int  CheckNeighborTetra(int tIndx, int checkTIndx);
-
-	//更新
-	void UpdatePrefixSum();
 
 	//デバッグ
 	void DebugPtoT(int pIndx);
@@ -242,9 +232,6 @@ protected:
 
 	static int* sd_piNeighborTetraTNum;
 //--------------------------------------__GPU------------------------------------------------------------
-
-	//高速計算用構造
-	Surf_SM m_SurfSm;
 
 	//探索用フラグ　未使用
 	bool* m_pbPFlag;							//粒子

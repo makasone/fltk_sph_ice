@@ -239,6 +239,9 @@
     <ClInclude Include="IceTetrahedra.h">
       <Filter>IceObject\Tetrahedra</Filter>
     </ClInclude>
+    <ClInclude Include="mk_ArrayScript.h">
+      <Filter>UnilityScript</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="bin\sph_scene_1.cfg">
@@ -321,6 +324,9 @@
     </CudaCompile>
     <CudaCompile Include="IceInterPolation.cu">
       <Filter>IceObject</Filter>
+    </CudaCompile>
+    <CudaCompile Include="Path_SM.cu">
+      <Filter>IceObject\SM Files</Filter>
     </CudaCompile>
   </ItemGroup>
 </Project>

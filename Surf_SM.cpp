@@ -1,6 +1,5 @@
 
 #include <Surf_SM.h>
-#include <IceStructure.h>
 
 //------------------------------------------------初期化----------------------------------------------
 /*!
@@ -9,23 +8,21 @@
  * @param[in]
  * @param[in]
  */
-void Surf_SM::InitPath(const float* pos, const float* vel, const vector<Ice_SM*> iceSM, IceStructure* strct, int pthSize)
+void Surf_SM::InitPath(const float* pos, const float* vel, const vector<Ice_SM*> iceSM, IceStructure* strct, int pthSize, int prtNum)
 {	cout << __FUNCTION__ << endl;
 
 	m_iceSM = iceSM;
-	m_strct = strct;	//ここのせいであとの処理がポインタ経由でアクセスするため，遅くなっている
+	m_strct = strct;
 
 	m_fPos = pos;
 	m_fVel = vel;
+	m_iPrtclNum = prtNum;
 
 	//まずは，立方体の表面で試すために適当なパスを作ってみる．
 	//なぜかだめとされている１本のパスでやってみる．
-	//
-
 	//パス→粒子
-	int pthNum = 1;							//とりあえず1本
-	int prtNum = strct->GetParticleNum();
-
+	int pthNum = 1;								//とりあえず1本
+	cout << "check1" << endl;
 	m_mk2DiPTHtoPRT.SetSize(pthNum, pthSize);
 
 	for(int i = 0; i < pthNum; i++)
@@ -35,12 +32,12 @@ void Surf_SM::InitPath(const float* pos, const float* vel, const vector<Ice_SM*>
 			m_mk2DiPTHtoPRT(i, j) = -1;		//-1で初期化
 		}
 	}
-
+	cout << "check2" << endl;
 	for(int i = 0; i < prtNum; i++)
 	{
 		m_mk2DiPTHtoPRT(0, i) = i;			//実際のパスの初期化 1本用
 	}
-
+	cout << "check3" << endl;
 	//粒子→パス
 	m_mk2DiPRTtoPTH.SetSize(prtNum, 2);
 
@@ -51,7 +48,7 @@ void Surf_SM::InitPath(const float* pos, const float* vel, const vector<Ice_SM*>
 		m_mk2DiPRTtoPTH(i, 1) = i;
 	}
 
-	InitOrgPos(prtNum);					//初期位置
+	InitOrgPos(prtNum);							//初期位置
 
 	//prefixSumを初期化
 	m_mk2Dvec3_PrfxPos.SetSize(pthNum, prtNum);	//位置
@@ -59,18 +56,79 @@ void Surf_SM::InitPath(const float* pos, const float* vel, const vector<Ice_SM*>
 
 	m_mk2Dmat3_PrfxApq.SetSize(pthNum, prtNum);	//変形行列
 	UpdatePrefixSumApq();
-	cout << __FUNCTION__ << " check2" << endl;
-	//どのパスのどの部分が必要なのか，をクラスタごとに計算
-	InitPathPrfxIndxSet(iceSM, strct);
-	cout << __FUNCTION__ << " check4" << endl;
-	InitOrgCm();						//初期重心
-	cout << __FUNCTION__ << " check3" << endl;
-	////デバッグ
+
+	InitPathPrfxIndxSet(iceSM, strct);			//どのパスのどの部分が必要なのか，をクラスタごとに計算
+
+	InitOrgCm();								//初期重心
+
+//デバッグ
 	//DebugPathDataPos();
 	//DebugPathDataApq();
 	//DebugPathPrfxIndxSet();
-
 }
+
+//GPU
+void Surf_SM::InitPathGPU()
+{	cout << __FUNCTION__ << endl;
+	
+	//メモリ確保
+	int pthNum = 1;
+	int pthSize = m_iPrtclNum;
+
+	cudaMalloc((void**)&md_2DiPTHtoPRT,	sizeof(int) * pthNum * pthSize);		//パス→粒子
+	cudaMalloc((void**)&md_2DiPRTtoPTH,	sizeof(int) * m_iPrtclNum * 2);			//粒子→パス
+
+	md_f3OrgPos = Ice_SM::GetOrgPosPointer();									//クラスタ内の粒子の初期位置
+	md_f3OrgCm	= Ice_SM::GetOrgCmPointer();									//クラスタの初期重心		
+
+	cudaMalloc((void**)&md_2Df3PrfxPos,	sizeof(float) * pthNum * pthSize * 3);	//位置のprefixSum
+	cudaMalloc((void**)&md_2Df9PrfxApq,	sizeof(float) * pthNum * pthSize * 9);	//変形のprefixSum
+
+	cudaMalloc((void**)&md_3DiPTHandPrfxSet,	sizeof(int) * m_iPrtclNum * m_iPrtclNum * 2);	//変形のprefixSum
+
+
+	//初期化
+	//vectorを使っているので，第二引数がちょっとややこしく見えるがアドレスを渡しているだけ．
+	cudaMemcpy(md_2DiPTHtoPRT, &m_mk2DiPTHtoPRT.Get()[0], sizeof(int) * pthNum * pthSize, cudaMemcpyHostToDevice);
+	cudaMemcpy(md_2DiPRTtoPTH, &m_mk2DiPRTtoPTH.Get()[0], sizeof(int) * m_iPrtclNum * 2 , cudaMemcpyHostToDevice);
+
+	cudaMemcpy(md_2Df3PrfxPos, &m_mk2Dvec3_PrfxPos.Get()[0], sizeof(float) * pthNum * pthSize * 3, cudaMemcpyHostToDevice);
+	cudaMemcpy(md_2Df9PrfxApq, &m_mk2Dmat3_PrfxApq.Get()[0], sizeof(float) * pthNum * pthSize * 9, cudaMemcpyHostToDevice);
+
+	cudaMemcpy(md_3DiPTHandPrfxSet, &m_mk3DiPTHandPrfxSet.Get()[0], sizeof(int) * m_iPrtclNum * m_iPrtclNum * 2, cudaMemcpyHostToDevice);
+
+
+//デバッグ
+	////データを転送
+	//int* PTHtoPRT = new int[pthNum * pthSize];
+	//int* PRTtoPTH = new int[m_iPrtclNum * 2];
+
+	//cudaMemcpy(PTHtoPRT, md_2DiPTHtoPRT, sizeof(int) * pthNum * pthSize, cudaMemcpyDeviceToHost);
+	//cudaMemcpy(PRTtoPTH, md_2DiPRTtoPTH, sizeof(int) * m_iPrtclNum * 2 , cudaMemcpyDeviceToHost);
+
+	////ホスト側のデータを転送した結果をダンプ
+	//ofstream ofs( "Surf_SM.txt" );
+	//ofs << __FUNCTION__ << endl;
+	//
+	////デバイス側のデータを転送
+	//for(int i = 0; i < pthNum * pthSize; i++)
+	//{
+	//	ofs << i << " ";
+	//	ofs << "md_2DiPTHtoPRT  " << PTHtoPRT[i] << "	" << "m_mk2DiPTHtoPRT " << m_mk2DiPTHtoPRT.Get()[i] << endl;
+	//}
+
+	//ofs << endl;
+
+	//for(int i = 0; i < m_iPrtclNum * 2; i++)
+	//{
+	//	ofs << i << " ";
+	//	ofs << "md_2DiPRTtoPTH  " << PRTtoPTH[i] << "	" << "m_mk2DiPRTtoPTH " << m_mk2DiPRTtoPTH.Get()[i] << endl;
+	//}
+
+	//delete[] PTHtoPRT;
+	//delete[] PRTtoPTH;
+}
+
 
 //初期位置の初期化
 void Surf_SM::InitOrgPos(int prtNum)
@@ -86,12 +144,12 @@ void Surf_SM::InitOrgPos(int prtNum)
 //初期重心の初期化
 void Surf_SM::InitOrgCm()
 {
-	m_vvec3OrgCm.resize(m_strct->GetClusterNum());
+	m_vvec3OrgCm.resize(m_iPrtclNum);
 
-	for(int iclstr = 0; iclstr < m_strct->GetClusterNum(); iclstr++)
+	for(int iclstr = 0; iclstr < m_iPrtclNum; iclstr++)
 	{
 		Vec3 vec(0.0);
-		 CalcCmSum(iclstr, vec);
+		vec = CalcCmSum(iclstr);
 		m_vvec3OrgCm[iclstr] = vec;
 	}
 }
@@ -101,9 +159,9 @@ void Surf_SM::InitPathPrfxIndxSet(const vector<Ice_SM*> iceSM, IceStructure* str
 {
 	//サイズは，クラスタ数×近傍粒子数
 	//そんなにたくさんはいらないはずだが，凝固を考慮して倍ぐらいにしておく？
-	//m_mk3DiPTHandPrfxSet.SetSize( strct->GetClusterNum(), strct->GetClusterNum()*2, 2 );
+	//m_mk3DiPTHandPrfxSet.SetSize(m_iPrtclNum, m_iPrtclNum*2, 2);
 	//高速化を試す場合は，最低限に
-	m_mk3DiPTHandPrfxSet.SetSize( strct->GetClusterNum(), strct->GetClusterNum()/20, 2 );
+	m_mk3DiPTHandPrfxSet.SetSize(m_iPrtclNum, m_iPrtclNum, 2);
 
 	for(unsigned i = 0; i < m_mk3DiPTHandPrfxSet.Get().size(); i++)
 	{
@@ -169,7 +227,7 @@ void Surf_SM::InitPathPrfxIndxSet(const vector<Ice_SM*> iceSM, IceStructure* str
 
 				if(ksearchIndx != -1)
 				{
-					m_mk3DiPTHandPrfxSet(iclstr, isetIndx, 1) = kord;		//存在するなら終点を更新
+					m_mk3DiPTHandPrfxSet(iclstr, isetIndx, 1) = kord;	//存在するなら終点を更新
 					searchFlag[ksearchIndx] = true;						//探索済みなのでフラグオン
 				}
 				else
@@ -204,8 +262,54 @@ void Surf_SM::UpdatePrefixSum()
 	}
 }
 
+void Surf_SM::UpdatePrefixSumItr()
+{
+	//UpdatePrefixSumPosItr();
+	//UpdatePrefixSumApqItr();
+
+	//特に効果なし
+	#pragma omp parallel
+	#pragma omp sections
+	{
+	    #pragma omp section
+	    {
+	        UpdatePrefixSumPosItr();
+	    }
+	    #pragma omp section
+	    {
+	        UpdatePrefixSumApqItr();
+	    }
+	}
+}
+
+//GPU
+void Surf_SM::UpdatePrefixSumGPU()
+{
+	int PosSizeX = m_mk2DiPTHtoPRT.GetSizeX();
+	int PosSizeY = m_mk2DiPTHtoPRT.GetSizeY();
+
+	int ApqSizeX = m_mk2DiPTHtoPRT.GetSizeX();
+	int ApqSizeY = m_mk2DiPTHtoPRT.GetSizeY();
+
+	LaunchUpdatePrefixSumGPU(
+		m_iPrtclNum,
+		PosSizeX,
+		PosSizeY,
+		ApqSizeX,
+		ApqSizeY,
+		md_2DiPTHtoPRT,
+		md_2DiPRTtoPTH,
+		md_2Df3PrfxPos,
+		md_2Df9PrfxApq,
+		md_3DiPTHandPrfxSet,
+		md_f3OrgPos,
+		md_f3OrgCm,
+		md_fPos,
+		md_fVel
+		);
+}
+
 //重心のprefix sum
-//簡易化のために質量が一定としている
 void Surf_SM::UpdatePrefixSumPos()
 {//	cout << __FUNCTION__ << endl;
 
@@ -213,26 +317,56 @@ void Surf_SM::UpdatePrefixSumPos()
 	int sizeY = m_mk2DiPTHtoPRT.GetSizeY();
 
 	//パスの数×パスに含まれる最大粒子数　だけ繰り返す
-	for(int indxX = 0; indxX < sizeX; indxX++)
+	for(int indxX = 0; indxX < sizeX; ++indxX)
 	{
 		Vec3 preVec(0.0, 0.0, 0.0);
 		int pIndx = 0;
 
-		for(int indxY = 0; indxY < sizeY; indxY++)
+		for(int indxY = 0; indxY < sizeY; ++indxY)
 		{
 			//TODO:末尾は必ず-1であることを想定している
 			//TODO:穴あきの場合もあるので，パスに所属する粒子数とかも保存したほうがいいかも
 			pIndx = m_mk2DiPTHtoPRT(indxX, indxY)*4;
-			if(pIndx < 0)
-			{
-				break;
-			}
+			if(pIndx < 0){	break;	}
 
 			double mass = 1.0;		//とりあえず1.0で固定
 
 			m_mk2Dvec3_PrfxPos(indxX, indxY) = Vec3(m_fPos[pIndx+0], m_fPos[pIndx+1], m_fPos[pIndx+2]) * mass
-				+ (Vec3(m_fVel[pIndx+0], m_fVel[pIndx+1], m_fVel[pIndx+2])/* + Vec3(0.0, -9.81, 0.0)*0.01*/ ) * 0.02
-				+ preVec;
+											+ Vec3(m_fVel[pIndx+0], m_fVel[pIndx+1], m_fVel[pIndx+2]) * 0.02
+											+ preVec;
+
+			preVec = m_mk2Dvec3_PrfxPos(indxX, indxY);
+		}
+	}
+}
+
+//重心のprefix sum　反復処理
+void Surf_SM::UpdatePrefixSumPosItr()
+{//	cout << __FUNCTION__ << endl;
+
+	int sizeX = m_mk2DiPTHtoPRT.GetSizeX();
+	int sizeY = m_mk2DiPTHtoPRT.GetSizeY();
+
+	float* pos = Ice_SM::GetSldPosPointer();
+	float* vel = Ice_SM::GetSldVelPointer();
+
+	//パスの数×パスに含まれる最大粒子数　だけ繰り返す
+	for(int indxX = 0; indxX < sizeX; ++indxX)
+	{
+		Vec3 preVec(0.0, 0.0, 0.0);
+		int pIndx = 0;
+
+		for(int indxY = 0; indxY < sizeY; ++indxY)
+		{
+			//TODO:末尾は必ず-1であることを想定している
+			//TODO:穴あきの場合もあるので，パスに所属する粒子数とかも保存したほうがいいかも
+			pIndx = m_mk2DiPTHtoPRT(indxX, indxY)*3;
+			if(pIndx < 0){	break;	}
+
+			double mass = 1.0;		//とりあえず1.0で固定
+
+			m_mk2Dvec3_PrfxPos(indxX, indxY) = Vec3(pos[pIndx+0], pos[pIndx+1], pos[pIndx+2]) * mass + preVec;
+
 			preVec = m_mk2Dvec3_PrfxPos(indxX, indxY);
 		}
 	}
@@ -245,7 +379,7 @@ void Surf_SM::UpdatePrefixSumApq()
 	int sizeY = m_mk2DiPTHtoPRT.GetSizeY();
 
 	//パスの数×パスに含まれる最大粒子数　だけ繰り返す
-	for(int indxX = 0; indxX < sizeX; indxX++)
+	for(int indxX = 0; indxX < sizeX; ++indxX)
 	{
 		rxMatrix3 preMat(0.0);
 		int pIndx = 0;
@@ -257,44 +391,79 @@ void Surf_SM::UpdatePrefixSumApq()
 			//TODO:末尾は必ず-1であることを想定している
 			//TODO:穴あきの場合もあるので，パスに所属する粒子数とかも保存したほうがいいかも
 			pIndx = m_mk2DiPTHtoPRT(indxX, indxY)*4;
-			if(pIndx < 0)
-			{
-				break;
-			}
+			if(pIndx < 0){	break;	}
 			double mass = 1.0;		//とりあえず1.0で固定
 
-			/*Vec3 */p = Vec3(m_fPos[pIndx+0], m_fPos[pIndx+1], m_fPos[pIndx+2])
-					+ (Vec3(m_fVel[pIndx+0], m_fVel[pIndx+1], m_fVel[pIndx+2])/* + Vec3(0.0, -9.81, 0.0)*0.01*/ ) * 0.02;
-			/*Vec3 */q = m_vvec3OrgPos[pIndx*1/4];
+			p = Vec3(m_fPos[pIndx+0], m_fPos[pIndx+1], m_fPos[pIndx+2])
+				+ Vec3(m_fVel[pIndx+0], m_fVel[pIndx+1], m_fVel[pIndx+2]) * 0.02;
+
+			q = m_vvec3OrgPos[pIndx/4];
 
 			//現在のAij
-			//m_mk2Dmat3_PrfxApq(indxX, indxY)(0,0) = mass * p[0] * q[0];
-			//m_mk2Dmat3_PrfxApq(indxX, indxY)(0,1) = mass * p[0] * q[1];
-			//m_mk2Dmat3_PrfxApq(indxX, indxY)(0,2) = mass * p[0] * q[2];
-			//m_mk2Dmat3_PrfxApq(indxX, indxY)(1,0) = mass * p[1] * q[0];
-			//m_mk2Dmat3_PrfxApq(indxX, indxY)(1,1) = mass * p[1] * q[1];
-			//m_mk2Dmat3_PrfxApq(indxX, indxY)(1,2) = mass * p[1] * q[2];
-			//m_mk2Dmat3_PrfxApq(indxX, indxY)(2,0) = mass * p[2] * q[0];
-			//m_mk2Dmat3_PrfxApq(indxX, indxY)(2,1) = mass * p[2] * q[1];
-			//m_mk2Dmat3_PrfxApq(indxX, indxY)(2,2) = mass * p[2] * q[2];
-
-			m_mk2Dmat3_PrfxApq(indxX, indxY)(0,0) = p[0] * q[0];
-			m_mk2Dmat3_PrfxApq(indxX, indxY)(0,1) = p[0] * q[1];
-			m_mk2Dmat3_PrfxApq(indxX, indxY)(0,2) = p[0] * q[2];
-			m_mk2Dmat3_PrfxApq(indxX, indxY)(1,0) = p[1] * q[0];
-			m_mk2Dmat3_PrfxApq(indxX, indxY)(1,1) = p[1] * q[1];
-			m_mk2Dmat3_PrfxApq(indxX, indxY)(1,2) = p[1] * q[2];
-			m_mk2Dmat3_PrfxApq(indxX, indxY)(2,0) = p[2] * q[0];
-			m_mk2Dmat3_PrfxApq(indxX, indxY)(2,1) = p[2] * q[1];
-			m_mk2Dmat3_PrfxApq(indxX, indxY)(2,2) = p[2] * q[2];
+			m_mk2Dmat3_PrfxApq(indxX, indxY)(0,0) = mass * p[0] * q[0];
+			m_mk2Dmat3_PrfxApq(indxX, indxY)(0,1) = mass * p[0] * q[1];
+			m_mk2Dmat3_PrfxApq(indxX, indxY)(0,2) = mass * p[0] * q[2];
+			m_mk2Dmat3_PrfxApq(indxX, indxY)(1,0) = mass * p[1] * q[0];
+			m_mk2Dmat3_PrfxApq(indxX, indxY)(1,1) = mass * p[1] * q[1];
+			m_mk2Dmat3_PrfxApq(indxX, indxY)(1,2) = mass * p[1] * q[2];
+			m_mk2Dmat3_PrfxApq(indxX, indxY)(2,0) = mass * p[2] * q[0];
+			m_mk2Dmat3_PrfxApq(indxX, indxY)(2,1) = mass * p[2] * q[1];
+			m_mk2Dmat3_PrfxApq(indxX, indxY)(2,2) = mass * p[2] * q[2];
 
 			m_mk2Dmat3_PrfxApq(indxX, indxY) += preMat;		//これまでのAijを加算
 			preMat = m_mk2Dmat3_PrfxApq(indxX, indxY);
 		}
 	}
 }
+
+//変形行列（moment matrix）Apqのprefix sum 反復処理
+void Surf_SM::UpdatePrefixSumApqItr()
+{//	cout << __FUNCTION__ << endl;
+	int sizeX = m_mk2DiPTHtoPRT.GetSizeX();
+	int sizeY = m_mk2DiPTHtoPRT.GetSizeY();
+
+	float* pos = Ice_SM::GetSldPosPointer();
+	float* vel = Ice_SM::GetSldVelPointer();
+
+	//パスの数×パスに含まれる最大粒子数　だけ繰り返す
+	for(int indxX = 0; indxX < sizeX; ++indxX)
+	{
+		rxMatrix3 preMat(0.0);
+		int pIndx = 0;
+		Vec3 p;
+		Vec3 q;
+
+		for(int indxY = 0; indxY < sizeY; indxY++)
+		{
+			//TODO:末尾は必ず-1であることを想定している
+			//TODO:穴あきの場合もあるので，パスに所属する粒子数とかも保存したほうがいいかも
+			pIndx = m_mk2DiPTHtoPRT(indxX, indxY)*3;
+			if(pIndx < 0){	break;	}
+			double mass = 1.0;		//とりあえず1.0で固定
+
+			p = Vec3(pos[pIndx+0], pos[pIndx+1], pos[pIndx+2]);
+
+			q = m_vvec3OrgPos[pIndx/3];
+
+			//現在のAij
+			m_mk2Dmat3_PrfxApq(indxX, indxY)(0,0) = mass * p[0] * q[0];
+			m_mk2Dmat3_PrfxApq(indxX, indxY)(0,1) = mass * p[0] * q[1];
+			m_mk2Dmat3_PrfxApq(indxX, indxY)(0,2) = mass * p[0] * q[2];
+			m_mk2Dmat3_PrfxApq(indxX, indxY)(1,0) = mass * p[1] * q[0];
+			m_mk2Dmat3_PrfxApq(indxX, indxY)(1,1) = mass * p[1] * q[1];
+			m_mk2Dmat3_PrfxApq(indxX, indxY)(1,2) = mass * p[1] * q[2];
+			m_mk2Dmat3_PrfxApq(indxX, indxY)(2,0) = mass * p[2] * q[0];
+			m_mk2Dmat3_PrfxApq(indxX, indxY)(2,1) = mass * p[2] * q[1];
+			m_mk2Dmat3_PrfxApq(indxX, indxY)(2,2) = mass * p[2] * q[2];
+
+			m_mk2Dmat3_PrfxApq(indxX, indxY) += preMat;		//これまでのAijを加算
+			preMat = m_mk2Dmat3_PrfxApq(indxX, indxY);
+		}
+	}
+}
+
 //重心の総和を返す
-void Surf_SM::CalcCmSum(const int& cIndx, Vec3& vec)
+Vec3 Surf_SM::CalcCmSum(const int& cIndx)
 {	//cout << __FUNCTION__ << " start" << endl;
 	Vec3 cmSum(0.0);
 
@@ -315,6 +484,7 @@ void Surf_SM::CalcCmSum(const int& cIndx, Vec3& vec)
 		prtIndx = m_strct->GetCtoP(cIndx, iprt, 0);
 		pthIndx = m_mk2DiPRTtoPTH(prtIndx, 0);
 
+		//関数を使うバージョン
 		//cmSum += CalcCmFromPrfxSm(pthIndx, start, end);
 
 		//関数を使わないバージョン
@@ -328,7 +498,7 @@ void Surf_SM::CalcCmSum(const int& cIndx, Vec3& vec)
 		}
 	}
 
-	vec = cmSum;
+	return cmSum;
 }
 
 //prfixSumから値を返す
@@ -344,13 +514,13 @@ const Vec3 Surf_SM::CalcCmFromPrfxSm(const int& path, const int& start, const in
 	}
 }
 
-void Surf_SM::CalcApqSum(const int& cIndx, rxMatrix3& matrix)
+rxMatrix3 Surf_SM::CalcApqSum(const int& cIndx)
 {
 	rxMatrix3 ApqSum(0.0);
 	rxMatrix3 mtt0T(0.0);			//M_i t_i (t^0_i)^T
 	double mass = 1.0;
 	Vec3 t(0.0);
-	CalcCmSum(cIndx, t);		//一時オブジェクトが作られないように
+	t = CalcCmSum(cIndx);			//TODO: これを計算せずに読み込めばもっと速くなる
 
 	t *= 1.0 / (m_strct->GetCtoPNum(cIndx));
 
@@ -396,7 +566,7 @@ void Surf_SM::CalcApqSum(const int& cIndx, rxMatrix3& matrix)
 		}
 	}
 
-	matrix = ApqSum;
+	return ApqSum;
 }
 
 const rxMatrix3 Surf_SM::CalcApqFromPrfxSm(const int& path, const int& start, const int& end)

@@ -1,48 +1,51 @@
 //液体と固体の運動計算結果を補間し，最終的な結果を計算
-//今は単純に線形補間
+//HACK::今は単純に線形補間
+//HACK::立方体しかできないのに注意
 
 #ifndef _GPU_ICE_INTERPOLATION_H_
 #define _GPU_ICE_INTERPOLATION_H_
 
 #include <iostream>
+#include <cuda_runtime.h>
+
 
 using namespace std;
 
-#define EDGE 17
-//#define EDGE 27
 
 void LaunchInterPolationGPU(int prtNum, float* sldPrtPos, float* sldPrtVel, float* sphPrtPos, float* sphPrtVel);
+__global__ void LinerInterPolation(float* sldPrtPos, float* sldPrtVel, float* sphPrtPos, float* sphPrtVel, int side);
 
-__global__ void LinerInterPolation(float* sldPrtPos, float* sldPrtVel, float* sphPrtPos, float* sphPrtVel);
 
 void LaunchInterPolationGPU(int prtNum, float* sldPrtPos, float* sldPrtVel, float* sphPrtPos, float* sphPrtVel)
 {	//cout << __FUNCTION__ << endl;
 
-	int n = pow(prtNum, 1.0/3.0) + 0.5;	//立方体の１辺の頂点数
+	int side = pow(prtNum, 1.0/3.0) + 0.5;	//立方体の１辺の頂点数
 
-	dim3 grid(n, n);
-	dim3 block(n, 1, 1);
+	dim3 grid(side, side);
+	dim3 block(side, 1, 1);
 
 	//線形補間
-	LinerInterPolation<<<grid ,block>>>(sldPrtPos, sldPrtVel, sphPrtPos, sphPrtVel);
+	LinerInterPolation<<<grid ,block>>>(sldPrtPos, sldPrtVel, sphPrtPos, sphPrtVel, side);
 
 	cudaThreadSynchronize();
 }
 
 __global__
-	void LinerInterPolation(float* sldPrtPos, float* sldPrtVel, float* sphPrtPos, float* sphPrtVel)
+	void LinerInterPolation(float* sldPrtPos, float* sldPrtVel, float* sphPrtPos, float* sphPrtVel, int side)
 {
 	//計算する粒子の判定
-	int pIndx = blockIdx.x * EDGE * EDGE + blockIdx.y * EDGE + threadIdx.x;
+	int pIndx = blockIdx.x * side * side + blockIdx.y * side + threadIdx.x;
+	int sphIndx = pIndx * 4;
+	int sldIndx = pIndx * 3;
 
 	//線形補間
-	sphPrtPos[pIndx*4+0] = sldPrtPos[pIndx*3+0];
-	sphPrtPos[pIndx*4+1] = sldPrtPos[pIndx*3+1];
-	sphPrtPos[pIndx*4+2] = sldPrtPos[pIndx*3+2];
+	sphPrtPos[sphIndx+0] = sldPrtPos[sldIndx+0];
+	sphPrtPos[sphIndx+1] = sldPrtPos[sldIndx+1];
+	sphPrtPos[sphIndx+2] = sldPrtPos[sldIndx+2];
 
-	sphPrtVel[pIndx*4+0] = sldPrtVel[pIndx*3+0];
-	sphPrtVel[pIndx*4+1] = sldPrtVel[pIndx*3+1];
-	sphPrtVel[pIndx*4+2] = sldPrtVel[pIndx*3+2];
+	sphPrtVel[sphIndx+0] = sldPrtVel[sldIndx+0];
+	sphPrtVel[sphIndx+1] = sldPrtVel[sldIndx+1];
+	sphPrtVel[sphIndx+2] = sldPrtVel[sldIndx+2];
 }
 
 

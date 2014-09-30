@@ -54,6 +54,7 @@ IceStructure::IceStructure(int pNumMax, int cNumMax, int tNumMax)
 	m_iPtoCMax = m_iCNumMax*0.1;	//1331 layer2 0.4 layer3 0.75
 									//2197 layer2 0.4 layer3 0.4 layer4 0.5
 									//4913 layer2 0.3
+									//4913 layer1 0.1
 									//19683 layer1 0.01
 	m_iPtoTMax = m_iTNumMax*0.1;	//1331 layer2 0.3 layer3 0.5
 									//2197 layer2 0.3 layer3 0.3
@@ -82,6 +83,7 @@ IceStructure::IceStructure(int pNumMax, int cNumMax, int tNumMax)
 	m_iCtoPMax = m_iPNumMax*0.1;	//1331 layer2 0.5 layer3 0.75
 									//2197 layer2 0.5 layre3 0.5
 									//4913 layer2
+									//4913 layer1 0.1
 									//19683 layer1 0.01
 	//m_iCtoPMax = m_iPNumMax;		//単一クラスタ
 
@@ -435,25 +437,7 @@ int IceStructure::GetPtoCFreeIndx(int pIndx)
 	return freeIndx;
 }
 
-void IceStructure::GetCmSum(int cIndx, Vec3& vec)
-{
-	m_SurfSm.CalcCmSum(cIndx, vec);
-}
-
-void IceStructure::GetApqSum(int cIndx, rxMatrix3& matrix)
-{
-	m_SurfSm.CalcApqSum(cIndx, matrix);
-}
-
 //-------------------------------------------取得----------------------------------------
-
-//-------------------------------------------作成----------------------------------------
-void IceStructure::InitPath(const float* pos, const float* vel, const vector<Ice_SM*> iceSM, int size)
-{
-	m_SurfSm.InitPath(pos, vel, iceSM, this, size);		//パス作成　まるなげ
-}
-
-//--------------------------------------------作成-------------------------------------------
 
 //-------------------------------------------書き込み----------------------------------------
 /*!
@@ -560,14 +544,14 @@ void IceStructure::SetTetraInfo(int tIndx, int* PtoTNum)
 	//粒子が属している四面体の番号を登録するための準備
 	//pCountListには，tIndx番目の四面体に含まれる各粒子が，それぞれいくつの四面体に属するかを求めて保存する
 	int* pCountList = new int[tetra.GetTetraList(tIndx).size()];
-
+	//cout << __FUNCTION__ << "::check0" << endl;
 	for(int j = 0; j < tetra.GetTetraList(tIndx).size(); j++)
 	{
 		int pIndx = tetra.GetTetraList(tIndx)[j];
 		pCountList[j] = GetPtoTNum(pIndx)-PtoTNum[pIndx];
 		PtoTNum[pIndx]--;
 	}
-
+	//cout << __FUNCTION__ << "::check1" << endl;
 	//粒子と四面体の情報登録
 	vector<int>& pIndxList = tetra.GetTetraList(tIndx);
 
@@ -575,8 +559,10 @@ void IceStructure::SetTetraInfo(int tIndx, int* PtoTNum)
 	{
 		SetPtoT(pIndxList[i], pCountList[i], tIndx, i);
 	}
+	//cout << __FUNCTION__ << "::check2" << endl;
 
 	SetTtoP(tIndx, pIndxList);
+	//cout << __FUNCTION__ << "::check3" << endl;
 
 	delete[] pCountList;
 }
@@ -1138,11 +1124,6 @@ int IceStructure::CheckNeighborTetra(int tIndx, int checkTIndx)
 }
 
 //-------------------------------------更新----------------------------------------
-//高速なSM法のためのPrefixSum更新
-void IceStructure::UpdatePrefixSum()
-{
-	m_SurfSm.UpdatePrefixSum();
-}
 
 //-------------------------------------粒子ベース処理----------------------------------------
 

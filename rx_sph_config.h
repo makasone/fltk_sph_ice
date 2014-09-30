@@ -236,12 +236,13 @@ public:
 			 * 追加：：氷構造に関するパラメータ初期設定をファイルから読み込む
 			 */
 			else if(names[i] == "smTimeStep")				sph_env.smTimeStep = atof(values[i].c_str());
-
+			else if(names[i] == "smItr")					sph_env.smItr = atof(values[i].c_str());
 			
 			/*!
 			 * 追加：：氷構造に関するパラメータ初期設定をファイルから読み込む
 			 */
 			else if(names[i] == "layer")					sph_env.layer = atof(values[i].c_str());
+
 		}
 		if(sph_env.mesh_vertex_store < 1) sph_env.mesh_vertex_store = 1;
 

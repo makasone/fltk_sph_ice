@@ -51,6 +51,7 @@
 #include "tetgen.h"
 #include <UtilityScript\mk_Vector2D.h>
 #include "QueryCounter.h"
+#include "mk_ArrayScript.h"
 #include <time.h>
 
 #include <omp.h>
@@ -76,7 +77,7 @@ class rxMCMeshGPU;
 class rxSSMeshCPU;
 class rxSSMeshGPU;
 
-//　ここの定義でGPU，CPUなどを切り替える
+//　ここの定義でSPH法のGPU，CPUなどを切り替える
 #define RX_USE_GPU
 
 //#define RX_USE_DD
@@ -98,34 +99,23 @@ class rxSSMeshGPU;
 	#endif
 #endif
 
-
-
-
-
-
-
-//クラスタ作成方法　ポリゴンモデルとソリッドモデル　四面体ベースと粒子ベース
-#define SOLID
-//#define SURF
-
-//#define MK_USE_GPU
-const int g_iteration = 1;
-
-#ifdef SOLID
+//クラスタを作成する際の粒子数，四面体数を指定
+//もう使ってない
 //#define ICENUM 27
 //#define ICENUM 125
 //#define ICENUM	729
-//#define ICENUM	1331
-//#define ICENUM	2197	//13_13_13
+//#define ICENUM	1331	//11_11_11 or バニーモデル
+//#define TETRANUM 10900	//バニーモデルの場合の四面体数
+//#define ICENUM	2197	//13_13_13 or バニーモデル
 //#define SIDE	13
 //#define ICENUM	3463	//バニーモデル
-#define ICENUM		4913	//17_17_17
-#define TETRANUM	26000
+//#define ICENUM	4913	//17_17_17
+//#define TETRANUM	26000
 //#define ICENUM	6859	//19_19_19
 //#define ICENUM	9261	//21_21_21
 //#define ICENUM	12167
 //#define ICENUM	15625	//25_25_25
-//#define ICENUM		19683	//27_27_27
+//#define ICENUM	19683	//27_27_27
 //#define TETRANUM	110000
 //#define ICENUM	24389	//29_29_29
 
@@ -139,36 +129,17 @@ const int g_iteration = 1;
 
 //(16000, 16000, 90000);
 //(20000, 20000, 110000);
-//(24400, 24400, 137000);									//動かなかった．
+//(24400, 24400, 137000);		//動かなかった．
 
-
-
-//#define ICENUM 4335	//直方体の実験
-//#define CUBE_X 17
-//#define CUBE_Y 17
-//#define CUBE_Z 15
-
-//#define ICENUM 135	//直方体の実験
-#define CUBE_X 3
-#define CUBE_Y 7
-#define CUBE_Z 5
-
-#endif
-
-#ifdef SURF
-//#define ICENUM	6			//1_1_1 表面のみ
+//表面のみの場合
+//#define ICENUM	6			//1_1_1
 //#define ICENUM	27
-//#define ICENUM	54			//3_3_3 表面のみ
+//#define ICENUM	54			//3_3_3
 //#define ICENUM	1014
-#define ICENUM	2646	//21_21_21 表面のみ
-//#define ICENUM	5046	//29_29_29 表面のみ
-#endif
+//#define ICENUM	2646	//21_21_21
+//#define ICENUM	5046	//29_29_29
 
 #define HIGHNUM 8
-
-#define MODEL_NAME "obj/bunny1331.obj"
-#define ELE_FILE	"obj/bunny1331.ele"
-#define NODE_FILE	"obj/bunny1331.node"
 
 // 描画フラグ
 enum
@@ -362,14 +333,13 @@ public:
 	vector<Ice_SM*> m_sm_connects;	//関係情報クラスタ
 	vector<Ice_SM*> m_sm_calcs;		//計算処理クラスタ
 
+	int m_iIcePrtNum;				//初期の固体粒子数
+	int m_iIceTtrNum;				//初期の固体粒子の四面体数
 	int m_iClusteresNum;			//クラスタの数　使用中のクラスタで最大の値
 	int m_iTetraNum;				//四面体の数
 	int m_iTetraNumNum;				//デバッグ用
-	//
-	// 追加　粒子ベース　クラスタ関連変数
-	//
-	vector<Ice_SM*> m_sm_cluster;
-	vector<Ice_SM*> m_sm_clusterHigh;
+
+	int m_iIceItr;					//固体運動計算の反復回数
 
 	//
 	// 追加　氷構造関連変数

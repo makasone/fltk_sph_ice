@@ -271,6 +271,7 @@
     <ClInclude Include="IceObject.h" />
     <ClInclude Include="IceStructure.h" />
     <ClInclude Include="Ice_SM.h" />
+    <ClInclude Include="mk_ArrayScript.h" />
     <ClInclude Include="QueryCounter.h" />
     <ClInclude Include="rx_cuda_utils.h" />
     <ClInclude Include="rx_fltk_glcanvas.h" />
@@ -306,6 +307,7 @@
   <ItemGroup>
     <CudaCompile Include="IceInterPolation.cu" />
     <CudaCompile Include="IceStructure.cu" />
+    <CudaCompile Include="Path_SM.cu" />
     <CudaCompile Include="rx_aniso_kernel.cu">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release(Boundary Particle)|Win32'">true</ExcludedFromBuild>

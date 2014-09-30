@@ -26,6 +26,8 @@ extern void LaunchShapeMatchingGPU
 	float* prtVel, 
 	float* orgPos,
 	float* curPos,
+	float* orgCm,
+	float* curCm,
 	float* vel,
 	int* pIndxes, 
 	int* d_IndxSet,
@@ -41,6 +43,8 @@ extern void LaunchShapeMatchingIterationGPU
 	float* sldVel, 
 	float* orgPos,
 	float* curPos,
+	float* orgCm,
+	float* curCm,
 	float* vel,
 	int* pIndxes, 
 	int* d_IndxSet,
@@ -57,6 +61,8 @@ protected:
 	float* m_fpBetas;							//!< deformationパラメータ[0,1]	未使用
 	
 	int* m_ipLayeres;
+
+	static int s_iIterationNum;					//反復回数
 
 	Vec3 m_vec3OrgCm;							//初期のクラスタの重心
 	Vec3 m_vec3NowCm;							//現在のクラスタの重心
@@ -82,6 +88,10 @@ protected:
 
 	static float* d_OrgPos;
 	static float* d_CurPos;
+	
+	static float* d_OrgCm;						//初期重心
+	static float* d_CurCm;						//現在の重心　まだ使わない
+
 	static float* d_Mass;
 	static float* d_Vel;
 
@@ -104,7 +114,7 @@ public:
 	
 	static void Ice_SM::InitGPU(const vector<Ice_SM*>& sm, float* d_pos, float* d_vel, int prtNum);
 
-	static void SetParticlePosAndVel(const float* pos, const float* vel){	s_pfPrtPos = pos;	s_pfPrtVel = vel;	}
+	static void SetPrtPointerPosAndVel(const float* pos, const float* vel){	s_pfPrtPos = pos;	s_pfPrtVel = vel;	}
 	static void SetDevicePosPointer(float* d_pos){	sd_PrtPos = d_pos;	}
 	
 	static float* GetSldPosPointer(){	return s_pfSldPos;	}
@@ -114,7 +124,10 @@ public:
 	static float* GetDeviceSPHVelPointer(){	return sd_PrtVel;	}
 
 	static float* GetDevicePosPointer(){	return d_CurPos;	}
-	static float* GetDeviceVelPointer(){	return d_Vel;	}
+	static float* GetDeviceVelPointer(){	return d_Vel;		}
+	static float* GetOrgPosPointer(){		return d_OrgPos;	}
+	static float* GetOrgCmPointer(){		return d_OrgCm;		}
+
 	static int* GetDeviceIndexSetPointer(){	return d_IndxSet;	}
 	static int	GetVertexNum(){				return s_vertNum;	}
 
@@ -124,26 +137,31 @@ public:
 	void AddVertex(const Vec3 &pos, double mass, int pIndx);
 	
 	void UpdateCPU();
+	void UpdateUsePathCPU();
+
 	static void UpdateGPU();
+	static void UpdateUsePathGPU();
 	static void UpdateIterationGPU(float* sldPos, float* sldVel);
-	
+
 	static void CalcAverage();
 	void CopyDeviceToInstance(int num);
 
-	void ShapeMatching(double dt);
-	void ShapeMatchingSolid(double dt);
-	void ShapeMatchingIteration(double dt);
+	void ShapeMatchingUsePath();
+	void ShapeMatchingSolid();
+	void ShapeMatchingIteration();
 
-	void calExternalForces(double dt);
-	void calExternalForcesIteration(double dt);
+	void calExternalForces();
+	void calExternalForcesIteration();
 	
 	void integrate(double dt);
-	void integrateIteration(double dt);
+	void integrateIteration();
 
 	void SetAlphas(int indx, float alpha){	m_fpAlphas[indx] = alpha;	}
 	void SetBetas (int indx, float beta){	m_fpBetas[indx] = beta;		}
 
 	void SetLayer(int indx, int layer){	m_ipLayeres[indx] = layer;	}
+
+	static void SetIterationNum(int itr){	s_iIterationNum = itr;	}
 
 	void SetNowCm(Vec3& nowCm){	m_vec3NowCm = nowCm;	}
 	void SetApq(rxMatrix3& Apq){	m_mtrx3Apq = Apq;	}
@@ -160,6 +178,7 @@ public:
 	rxMatrix3 GetApq(void){	return m_mtrx3Apq;	}
 
 	int GetLayer(int indx){	return m_ipLayeres[indx];	}
+	static int GetIteration(){	return s_iIterationNum;	}
 
 	void Remove(int indx);
 	void Clear();

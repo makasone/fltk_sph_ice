@@ -11,14 +11,15 @@
 
 #include <vector>
 
-// メッシュ化
-//#include "rx_model.h"
-
 #include "tetgen.h"
 
 using namespace std;
 
 #define TETGENCOMMAND "-q10.0a0.5"		//点の追加を許可するコマンド
+//#define OBJ_NAME	"obj/bunny1331.obj"
+#define OBJ_NAME	"obj/slime.obj"
+#define ELE_FILE	"obj/bunny1331.ele"
+#define NODE_FILE	"obj/bunny1331.node"
 
 class IceTetrahedra
 {

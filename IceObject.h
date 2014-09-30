@@ -9,6 +9,7 @@
 #include "Ice_SM.h"
 #include "IceStructure.h"
 #include "IceTetrahedra.h"
+#include "Surf_SM.h"
 #include "QueryCounter.h"
 
 #include <time.h>
@@ -17,7 +18,9 @@
 
 using namespace std;
 
+#define USE_PATH
 //#define MK_USE_GPU
+#define USE_ITR
 
 const int g_iterationNum = 10;
 
@@ -71,23 +74,28 @@ private:
 	static int sm_clusterNum;						//現在のクラスタ数
 	static int sm_layerNum;							//探索レイヤー数
 
+	//構造管理クラス
+	IceStructure* m_iceStrct;
+
 	//固体運動計算クラス
 	vector<Ice_SM*> m_iceMove;
 
-	//構造管理クラス
-	IceStructure* m_iceStrct;
+	//高速計算用クラス
+	//TODO::ポインタにしたら？
+	Surf_SM m_SurfSm;
 
 	static float* m_fInterPolationCoefficience;			//線形補間係数
 
 public:
-	IceObject();
+	IceObject(int pMaxNum, int cMaxNum, int tMaxNum, int prtNum, float* hp, float* hv, float* dp, float* dv, int layer);
 	~IceObject();
 
 	void InitIceObj(int pMaxNum, int cMaxNum, int tMaxNum);
+	void InitIceObjGPU();
 	void InitTetra();
-	void InitCluster(Ice_SM* sm);	//一時的な実装
-	void InitCluster(Vec3 boundarySpaceHigh, Vec3 boundarySpaceLow, float timeStep);
+	void InitCluster(Vec3 boundarySpaceHigh, Vec3 boundarySpaceLow, float timeStep, int itr);
 	void InitStrct();
+	void InitPath();
 
 	static void InitInterPolation();
 	void InitGPU();
@@ -98,10 +106,15 @@ public:
 	void SetClusterMoveInfo(int pIndx);
 	void SetClusterStrctInfo(int cIndx, int *PtoCNum);
 
-	int GetClusterNum(){			return sm_clusterNum;		}
+	static int GetParticleNum(){	return sm_particleNum;		}
+	static int GetClusterNum(){		return sm_clusterNum;		}
 	Ice_SM* GetMoveObj(int cIndx){	return m_iceMove[cIndx];	}
 
 	void StepObjMove();										//運動計算
+	void StepObjMoveUsePath();								//高速化手法を用いた運動計算
+	void StepObjMoveIteration();							//反復処理を用いた運動計算
+	void StepObjMoveIterationUsePath();						//高速化手法を用いた反復運動計算
+
 	void StepObjCalcWidhIteration();						//固体の運動計算，総和計算，補間処理　GPU処理　反復処理あり
 	void StepInterPolation();								//線形補間　いずれは処理が複雑になるのでクラスにしたい．
 	void StepInterPolationForCluster();
@@ -109,9 +122,30 @@ public:
 	void CalcAverageCPU(int pIndx, Vec3& pos, Vec3& vel);
 	void LinerInterPolationCPU(int pIndx, const Vec3& pos, const Vec3& vel);
 	void LinerInterPolationForClusterCPU(const int pIndx, const Vec3& pos, const Vec3& vel);
+	
+
+
+
+
+
+
+
+
+
+
 	//デバッグ
 	void DebugTetraInfo();
 	void DebugClusterInfo();
+
+
+
+
+
+
+
+
+
+
 
 	//--------------IceStructureと同じ動きをするために一時的に作った関数__----------------------------------
 	//ちゃんと実装すれば全部消せる
@@ -136,7 +170,7 @@ public:
 	int GetPtoT(int i, int j, int k){	return m_iceStrct->GetPtoT(i, j, k);	}
 	int GetTtoP(int i, int j){			return m_iceStrct->GetTtoP(i, j);		}
 
-	int GetParticleNum(){	return m_iceStrct->GetParticleNum();	}
+	int GetPrtclNum(){	return m_iceStrct->GetParticleNum();	}
 
 	int GetPtoCMax(){ return m_iceStrct->GetPtoCMax();	}
 

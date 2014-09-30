@@ -1,4 +1,5 @@
 #include "IceTetrahedra.h"
+#include "rx_model.h"
 
 IceTetrahedra &IceTetrahedra::GetInstance() {
     static IceTetrahedra instance;
@@ -11,10 +12,9 @@ IceTetrahedra &IceTetrahedra::GetInstance() {
 void IceTetrahedra::InitTetra(float* pos, int vertexNum)
 {	cout << __FUNCTION__ << endl;
 
-//	Load_ELE_File(ELE_FILE);									//eleファイルを読み込み，リストを作成
-//dazddd
-MakeTetrahedraFromCube(pos, vertexNum);
-	
+	//Load_ELE_File(ELE_FILE);									//eleファイルを読み込み，リストを作成
+	Load_obj_File(OBJ_NAME);
+	MakeTetrahedraFromCube(pos, vertexNum);
 }
 
 /*!
@@ -147,6 +147,7 @@ void IceTetrahedra::MakeTetrahedraFromCube(float* pos, int vrtxNum)
 		m_vviTetraList.push_back( list );
 	}
 
+	cout << "m_vviTetraList.size() = " << m_vviTetraList.size() << endl;
 //	delete[] in.pointlist;	//必要？
 }
 
@@ -788,20 +789,33 @@ void IceTetrahedra::Save_NODE_File(const string name, float* pos, int vrtxNum)
 void IceTetrahedra::Load_obj_File(const string objName)
 {	cout << __FUNCTION__ << endl;
 
-	////OpenFile(name);						//モデル読み込み　パスはRelease/binのやつ
+	//objファイル
+	rxPolygons m_poly;
 
-	////3Dモデルから粒子位置を初期化
-	////for(int i = 0; i < ICENUM; i++)
-	////{
-	////	for(int j = 0; j < 3; j++)
-	////	{
-	////		p[i*4+j] = m_poly.vertices[i][j] / 10.0;
-	////	}
-	////}
+	//OpenFile(name);						//モデル読み込み　パスはRelease/binのやつ
+	RxModel::Read(objName, m_poly);
 
-	////tetgenで頂点追加＋四面体分割
-	////MakeTetrahedraFromObj();
-	////MakeTetrahedraFromCube();
+	int vertex_count = 0;
+	int index_count = 0; 
+
+	vertex_count = (int)m_poly.vertices.size(); // 総頂点数
+	index_count = (int)m_poly.faces.size(); // 総ポリゴン数
+
+	cout << "vertex = " << vertex_count << " index_count = " << index_count << endl;
+
+
+	//3Dモデルから粒子位置を初期化
+	//for(int i = 0; i < ICENUM; i++)
+	//{
+	//	for(int j = 0; j < 3; j++)
+	//	{
+	//		p[i*4+j] = m_poly.vertices[i][j] / 10.0;
+	//	}
+	//}
+
+	//tetgenで頂点追加＋四面体分割
+	//MakeTetrahedraFromObj();
+	//MakeTetrahedraFromCube();
 
 	////node,eleファイルを読み込んで頂点情報と四面体情報を取得
 	//Load_ELE_File(ELE_FILE);

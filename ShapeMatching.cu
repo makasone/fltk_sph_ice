@@ -25,25 +25,21 @@ using namespace std;
 #include <rx_cu_common.cuh>	//先生が定義した便利機能が使える　なぜか、インクルードすると赤くならない
 
 #define SM_DIM 3
-#define EDGE 17
-//#define EDGE 27
 
 //引き渡す変数名が間違っていてもエラーが出ないので注意
-void LaunchShapeMathcingGPU(int prtNum, float* prtPos, float* prtVel, float* orgPos, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt);
-__global__ void Update(float* prtPos, float* prtVel, float* orgPos, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum);
-__device__ void ExternalForce(float* prtPos, float* prtVel, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum);
-__device__ void ProjectPos(float* prtPos, float* prtVel, float* orgPos, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum);
-__device__ void Integrate(float* prtPos, float* prtVel, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum);
+void LaunchShapeMathcingGPU(int prtNum, float* prtPos, float* prtVel, float* orgPos, float* curPos, float* orgCm, float* curCm, float* vel, int* pIndxes, int* indxSet, float dt);
+__global__ void Update(float* prtPos, float* prtVel, float* orgPos, float* curPos, float* orgCm, float* curCm, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum, int side);
+__device__ void ExternalForce(float* prtPos, float* prtVel, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum, int side);
+__device__ void ProjectPos(float* prtPos, float* prtVel, float* orgPos, float* curPos, float* orgCm, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum, int side);
+__device__ void Integrate(float* prtPos, float* prtVel, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum, int side);
 
 
-void LaunchShapeMathcingIterationGPU(int prtNum, float* prtPos, float* prtVel, float* sldPos, float* sldVel, float* orgPos, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt);
-__global__ void UpdateIteration(float* prtPos, float* prtVel, float* sldPos, float* sldVel, float* orgPos, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum);
-__device__ void ExternalForceIteration(float* sldPos, float* sldVel, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum);
-__device__ void ProjectPosIteration(float* prtPos, float* prtVel, float* orgPos, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum);
-
+void LaunchShapeMathcingIterationGPU(int prtNum, float* prtPos, float* prtVel, float* sldPos, float* sldVel, float* orgPos, float* curPos, float* orgCm, float* curCm, float* vel, int* pIndxes, int* indxSet, float dt);
+__global__ void UpdateIteration(float* prtPos, float* prtVel, float* sldPos, float* sldVel, float* orgPos, float* curPos, float* orgCm, float* curCm, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum, int side);
+__device__ void ExternalForceIteration(float* sldPos, float* sldVel, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum, int side);
+__device__ void ProjectPosIteration(float* prtPos, float* prtVel, float* orgPos, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum, int side);
 
 __device__ void PolarDecomposition(matrix3x3 &A, matrix3x3 &R, matrix3x3 &S);
-
 
 //行列演算
 //TODO::てきとうなのでもう少し使いやすく
@@ -52,35 +48,36 @@ __device__ void MakeIdentity(matrix3x3 &M);
 __device__ matrix3x3 Transpose(const matrix3x3 &M);
 __device__ matrix3x3 Inverse(const matrix3x3 &M);
 
-__device__ matrix3x3 Multiple(matrix3x3 &M1, matrix3x3 &M2);
-__device__ float3 Multiple(matrix3x3 &M1, float3& V);
+__device__ matrix3x3 Multiple(const matrix3x3 &M1, const matrix3x3 &M2);
+__device__ float3 Multiple(const matrix3x3 &M1, const float3& V);
 
 //運動計算
-void LaunchShapeMatchingGPU(int prtNum, float* prtPos, float* prtVel, float* orgPos, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt)
+void LaunchShapeMatchingGPU(int prtNum, float* prtPos, float* prtVel, float* orgPos, float* curPos, float* orgCm, float* curCm, float* vel, int* pIndxes, int* indxSet, float dt)
 {
 	//TODO::立方体を前提ににグリッドをきっているので，あらゆる物体に対応できるようにする
-	int n = pow( prtNum, 1.0/3.0 ) + 0.5;	//立方体の１辺の頂点数
+	int side = pow( prtNum, 1.0/3.0 ) + 0.5;	//立方体の１辺の頂点数
 
-	dim3 grid(n, n);
-	dim3 block(n, 1, 1);
+	dim3 grid(side, side);
+	dim3 block(side, 1, 1);
+
 
 	//運動計算
-	Update<<<grid ,block>>>(prtPos, prtVel, orgPos, curPos, vel, pIndxes, indxSet, dt, prtNum);
+	Update<<<grid ,block>>>(prtPos, prtVel, orgPos, curPos, orgCm, curCm, vel, pIndxes, indxSet, dt, prtNum, side);
 	
 	cudaThreadSynchronize();
 }
 
 //運動計算
-void LaunchShapeMatchingIterationGPU(int prtNum, float* prtPos, float* prtVel, float* sldPos, float* sldVel, float* orgPos, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt)
+void LaunchShapeMatchingIterationGPU(int prtNum, float* prtPos, float* prtVel, float* sldPos, float* sldVel, float* orgPos, float* curPos, float* orgCm, float* curCm, float* vel, int* pIndxes, int* indxSet, float dt)
 {
 	//TODO::立方体を前提ににグリッドをきっているので，あらゆる物体に対応できるようにする
-	int n = pow( prtNum, 1.0/3.0 ) + 0.5;	//立方体の１辺の頂点数
+	int side = pow( prtNum, 1.0/3.0 ) + 0.5;	//立方体の１辺の頂点数
 
-	dim3 grid(n, n);
-	dim3 block(n, 1, 1);
+	dim3 grid(side, side);
+	dim3 block(side, 1, 1);
 
 	//運動計算
-	UpdateIteration<<<grid ,block>>>(prtPos, prtVel, sldPos, sldVel, orgPos, curPos, vel, pIndxes, indxSet, dt, prtNum);
+	UpdateIteration<<<grid ,block>>>(prtPos, prtVel, sldPos, sldVel, orgPos, curPos, orgCm, curCm, vel, pIndxes, indxSet, dt, prtNum, side);
 
 	cudaThreadSynchronize();
 }
@@ -91,16 +88,19 @@ void Update(
 	float* prtPos,
 	float* prtVel, 
 	float* orgPos,
-	float* curPos, 
+	float* curPos,
+	float* orgCm,
+	float* curCm,
 	float* vel,
 	int* pIndxes,
 	int* indxSet,
 	float dt,
-	int prtNum)
+	int prtNum,
+	int side)
 {
-	ExternalForce(prtPos, prtVel, curPos, vel, pIndxes, indxSet, dt, prtNum);
-	ProjectPos(prtPos, prtVel, orgPos, curPos, vel, pIndxes, indxSet, dt, prtNum);
-	Integrate(prtPos, prtVel, curPos, vel, pIndxes, indxSet, dt, prtNum);
+	ExternalForce(prtPos, prtVel, curPos, vel, pIndxes, indxSet, dt, prtNum, side);
+	ProjectPos(prtPos, prtVel, orgPos, curPos, orgCm, vel, pIndxes, indxSet, dt, prtNum, side);
+	Integrate(prtPos, prtVel, curPos, vel, pIndxes, indxSet, dt, prtNum, side);
 }
 
 //GPUの位置・速度更新
@@ -111,22 +111,31 @@ void UpdateIteration(
 	float* sldPos,
 	float* sldVel, 
 	float* orgPos,
-	float* curPos, 
+	float* curPos,
+	float* orgCm,
+	float* curCm,
 	float* vel,
 	int* pIndxes,
 	int* indxSet,
 	float dt,
-	int prtNum)
+	int prtNum,
+	int side)
 {
-	ExternalForceIteration(sldPos, sldVel, curPos, vel, pIndxes, indxSet, dt, prtNum);
-	ProjectPos(prtPos, prtVel, orgPos, curPos, vel, pIndxes, indxSet, dt, prtNum);
+	ExternalForceIteration(sldPos, sldVel, curPos, vel, pIndxes, indxSet, dt, prtNum, side);
+	ProjectPos(prtPos, prtVel, orgPos, curPos, orgCm, vel, pIndxes, indxSet, dt, prtNum, side);
 }
 
 __device__
-	void ExternalForceIteration(float* sldPos, float* sldVel, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum)
+	void ExternalForceIteration(float* sldPos, float* sldVel, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum, int side)
 {
+	if(blockIdx.x > side) return;
+	if(blockIdx.y > side) return;
+	if(threadIdx.x > side) return;
+	if(threadIdx.y > side) return;
+
 	//計算するクラスタの判定
-	int clusterIndx = blockIdx.x * EDGE * EDGE + blockIdx.y * EDGE + threadIdx.x;
+	//int clusterIndx = blockIdx.x * side * side + blockIdx.y * side + threadIdx.x;
+	int clusterIndx = threadIdx.x * side * side + threadIdx.y * side + blockIdx.x;
 
 	int startIndx = indxSet[clusterIndx*2+0];
 	int endIndx = indxSet[clusterIndx*2+1];
@@ -145,10 +154,6 @@ __device__
 
 			curPos[jcIndx] = sldPos[jpIndx];
 		}
-		
-		//printf("prtVel(%f, %f, %f)\n", prtVel[pIndx], prtVel[pIndx+1], prtVel[pIndx+2]);
-		//printf("pIndxes[i] = %d, prtPos(%f, %f, %f)\n", pIndxes[i], prtPos[pIndx], prtPos[pIndx+1], prtPos[pIndx+2]);
-		//printf("gpu:: i = %d, cIndx = %d, curPos(%f, %f, %f)\n", i, cIndx, curPos[cIndx], curPos[cIndx+1], curPos[cIndx+2]);
 	}
 
 	// 境界壁の影響
@@ -180,14 +185,19 @@ __device__
 }
 
 __device__
-	void ExternalForce(float* prtPos, float* prtVel, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum)
+	void ExternalForce(float* prtPos, float* prtVel, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum, int side)
 {
-	//計算するクラスタの判定
-	int clusterIndx = blockIdx.x * EDGE * EDGE + blockIdx.y * EDGE + threadIdx.x;
+	if(blockIdx.x > side) return;
+	if(blockIdx.y > side) return;
+	if(threadIdx.x > side) return;
+	if(threadIdx.y > side) return;
 
-	int startIndx = indxSet[clusterIndx*2+0];
-	int endIndx = indxSet[clusterIndx*2+1];
-	//printf("startIndx = %d, endIndx = %d\n", startIndx, endIndx);
+	//計算するクラスタの判定
+	int clusterIndx = blockIdx.x * side * side + blockIdx.y * side + threadIdx.x;
+	//int clusterIndx = threadIdx.x * side * side + threadIdx.y * side + blockIdx.x;
+
+	int startIndx	= indxSet[clusterIndx*2+0];
+	int endIndx		= indxSet[clusterIndx*2+1];
 
 	// 重力の影響を付加，速度を反映
 	for(int i = startIndx; i < endIndx+1; ++i)
@@ -195,13 +205,9 @@ __device__
 		int pIndx = pIndxes[i]*4;
 		int cIndx = i*SM_DIM;
 
-		for(int j = 0; j < SM_DIM; ++j)
-		{
-			int jpIndx = pIndx+j;
-			int jcIndx = cIndx+j;
-
-			curPos[jcIndx] = prtPos[jpIndx]+prtVel[jpIndx]*dt;
-		}
+		curPos[cIndx+0] = prtPos[pIndx+0] + prtVel[pIndx+0]*dt;
+		curPos[cIndx+1] = prtPos[pIndx+1] + prtVel[pIndx+1]*dt;
+		curPos[cIndx+2] = prtPos[pIndx+2] + prtVel[pIndx+2]*dt;
 	}
 
 	// 境界壁の影響
@@ -233,18 +239,25 @@ __device__
 }
 
 __device__
-	void ProjectPos(float* prtPos, float* prtVel, float* orgPos, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum)
+	void ProjectPos(float* prtPos, float* prtVel, float* orgPos, float* curPos, float* orgCm, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum, int side)
 {
-	//計算するクラスタの判定
-	int clusterIndx = blockIdx.x * EDGE * EDGE + blockIdx.y * EDGE + threadIdx.x;
+	if(blockIdx.x > side) return;
+	if(blockIdx.y > side) return;
+	if(threadIdx.x > side) return;
+	if(threadIdx.y > side) return;
 
-	int startIndx = indxSet[clusterIndx*2+0];
-	int endIndx = indxSet[clusterIndx*2+1];
+	//計算するクラスタの判定
+	int clusterIndx = blockIdx.x * side * side + blockIdx.y * side + threadIdx.x;
+	//int clusterIndx = threadIdx.x * side * side + threadIdx.y * side + blockIdx.x;
 
 	if(prtNum <= 1) return;
+	if(clusterIndx > prtNum) return;
 
-	float3 cm = make_float3(0.0, 0.0, 0.0);
-	float3 cm_org = make_float3(0.0, 0.0, 0.0);	// 重心
+	int startIndx	 = indxSet[clusterIndx*2+0];
+	int endIndx		 = indxSet[clusterIndx*2+1];
+	
+	float cm_x, cm_y, cm_z;
+	float cm_org_x, cm_org_y, cm_org_z;
 
 	float mass = 0.0f;	// 総質量
 
@@ -258,25 +271,25 @@ __device__
 		int cIndx = i*SM_DIM;
 		mass += m;
 
-		cm.x += curPos[cIndx+0]*m;
-		cm.y += curPos[cIndx+1]*m;
-		cm.z += curPos[cIndx+2]*m;
-
-		cm_org.x += orgPos[cIndx+0]*m;
-		cm_org.y += orgPos[cIndx+1]*m;
-		cm_org.z += orgPos[cIndx+2]*m;
+		cm_x += curPos[cIndx+0]*m;
+		cm_y += curPos[cIndx+1]*m;
+		cm_z += curPos[cIndx+2]*m;
 	}
 
-	cm.x /= mass;
-	cm.y /= mass;
-	cm.z /= mass;
-	
-	cm_org.x /= mass;
-	cm_org.y /= mass;
-	cm_org.z /= mass;
+	cm_x /= mass;
+	cm_y /= mass;
+	cm_z /= mass;
 
-	matrix3x3 Apq, Aqq;
-	float3 p, q;
+	//前計算した初期データを利用
+	cm_org_x = orgCm[clusterIndx*SM_DIM+0];
+	cm_org_y = orgCm[clusterIndx*SM_DIM+1];
+	cm_org_z = orgCm[clusterIndx*SM_DIM+2];
+
+	matrix3x3 Apq;
+	matrix3x3 Aqq;
+	
+	float p_x, p_y, p_z;
+	float q_x, q_y, q_z;
 
 	// Apq = Σmpq^T
 	// Aqq = Σmqq^T
@@ -284,35 +297,35 @@ __device__
 	{
 		int cIndx = i*SM_DIM;
 
-		p.x = curPos[cIndx+0]-cm.x;
-		p.y = curPos[cIndx+1]-cm.y;
-		p.z = curPos[cIndx+2]-cm.z;
+		p_x = curPos[cIndx+0]-cm_x;
+		p_y = curPos[cIndx+1]-cm_y;
+		p_z = curPos[cIndx+2]-cm_z;
 
-		q.x = orgPos[cIndx+0]-cm_org.x;
-		q.y = orgPos[cIndx+1]-cm_org.y;
-		q.z = orgPos[cIndx+2]-cm_org.z;
+		q_x = orgPos[cIndx+0]-cm_org_x;
+		q_y = orgPos[cIndx+1]-cm_org_y;
+		q_z = orgPos[cIndx+2]-cm_org_z;
 
 		float m = 1.0f;
 
-		Apq.e[0].x += m*p.x*q.x;
-		Apq.e[0].y += m*p.x*q.y;
-		Apq.e[0].z += m*p.x*q.z;
-		Apq.e[1].x += m*p.y*q.x;
-		Apq.e[1].y += m*p.y*q.y;
-		Apq.e[1].z += m*p.y*q.z;
-		Apq.e[2].x += m*p.z*q.x;
-		Apq.e[2].y += m*p.z*q.y;
-		Apq.e[2].z += m*p.z*q.z;
+		Apq.e[0].x += m*p_x*q_x;
+		Apq.e[0].y += m*p_x*q_y;
+		Apq.e[0].z += m*p_x*q_z;
+		Apq.e[1].x += m*p_y*q_x;
+		Apq.e[1].y += m*p_y*q_y;
+		Apq.e[1].z += m*p_y*q_z;
+		Apq.e[2].x += m*p_z*q_x;
+		Apq.e[2].y += m*p_z*q_y;
+		Apq.e[2].z += m*p_z*q_z;
 
-		Aqq.e[0].x += m*q.x*q.x;
-		Aqq.e[0].y += m*q.x*q.y;
-		Aqq.e[0].z += m*q.x*q.z;
-		Aqq.e[1].x += m*q.y*q.x;
-		Aqq.e[1].y += m*q.y*q.y;
-		Aqq.e[1].z += m*q.y*q.z;
-		Aqq.e[2].x += m*q.z*q.x;
-		Aqq.e[2].y += m*q.z*q.y;
-		Aqq.e[2].z += m*q.z*q.z;
+		Aqq.e[0].x += m*q_x*q_x;
+		Aqq.e[0].y += m*q_x*q_y;
+		Aqq.e[0].z += m*q_x*q_z;
+		Aqq.e[1].x += m*q_y*q_x;
+		Aqq.e[1].y += m*q_y*q_y;
+		Aqq.e[1].z += m*q_y*q_z;
+		Aqq.e[2].x += m*q_z*q_x;
+		Aqq.e[2].y += m*q_z*q_y;
+		Aqq.e[2].z += m*q_z*q_z;
 	}
 
 	////Apqの行列式を求め，反転するかを判定
@@ -369,20 +382,18 @@ __device__
 			int cIndx = i*SM_DIM;
 
 			// 回転行列Rの代わりの行列RL=βA+(1-β)Rを計算
-			q.x = orgPos[cIndx+0]-cm_org.x;
-			q.y = orgPos[cIndx+1]-cm_org.y;
-			q.z = orgPos[cIndx+2]-cm_org.z;
+			q_x = orgPos[cIndx+0] - cm_org_x;
+			q_y = orgPos[cIndx+1] - cm_org_y;
+			q_z = orgPos[cIndx+2] - cm_org_z;
 
-			//Vec3 gp(R*q+cm);
-			float3 Rq = Multiple(R, q);
-			float3 gp;
-			gp.x = Rq.x + cm.x;
-			gp.y = Rq.y + cm.y;
-			gp.z = Rq.z + cm.z;
+			float Rq_x, Rq_y, Rq_z;
+			Rq_x = R.e[0].x * q_x + R.e[0].y * q_y + R.e[0].z * q_z;
+			Rq_y = R.e[1].x * q_y + R.e[1].y * q_y + R.e[1].z * q_z;
+			Rq_z = R.e[2].x * q_z + R.e[2].y * q_y + R.e[2].z * q_z;
 			
-			curPos[cIndx+0] += (gp.x-curPos[cIndx+0])*1.0f/*m_dAlphas[i]*/;
-			curPos[cIndx+1] += (gp.y-curPos[cIndx+1])*1.0f/*m_dAlphas[i]*/;
-			curPos[cIndx+2] += (gp.z-curPos[cIndx+2])*1.0f/*m_dAlphas[i]*/;
+			curPos[cIndx+0] += (Rq_x + cm_x - curPos[cIndx+0]) * 1.0f/*m_dAlphas[i]*/;
+			curPos[cIndx+1] += (Rq_y + cm_y - curPos[cIndx+1]) * 1.0f/*m_dAlphas[i]*/;
+			curPos[cIndx+2] += (Rq_z + cm_z - curPos[cIndx+2]) * 1.0f/*m_dAlphas[i]*/;
 		}
 	}
 }
@@ -393,28 +404,35 @@ __device__
  * @param[in] dt タイムステップ幅
  */
 __device__
-	void Integrate(float* prtPos, float* prtVel, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum)
+	void Integrate(float* prtPos, float* prtVel, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum, int side)
 {
+	if(blockIdx.x > side) return;
+	if(blockIdx.y > side) return;
+	if(threadIdx.x > side) return;
+	if(threadIdx.y > side) return;
+
 	//計算するクラスタの判定
-	int clusterIndx = blockIdx.x * EDGE * EDGE + blockIdx.y * EDGE + threadIdx.x;
+	int clusterIndx = blockIdx.x * side * side + blockIdx.y * side + threadIdx.x;
+	//int clusterIndx = threadIdx.x * side * side + threadIdx.y * side + blockIdx.x;
 
 	int startIndx = indxSet[clusterIndx*2+0];
 	int endIndx = indxSet[clusterIndx*2+1];
 
 	float dt1 = 1.0f/dt;
 	float gravity[3] = {0.0f, -9.81f, 0.0f};
+	float param = 1.0f;
+	gravity[0] *= dt * param;
+	gravity[1] *= dt * param;
+	gravity[2] *= dt * param;
 
 	for(int i = startIndx; i < endIndx+1; ++i)
 	{
 		int pIndx = pIndxes[i]*4;
+		int cIndx = i*SM_DIM;
 
-		for(int j = 0; j < SM_DIM; j++)
-		{
-			int cIndx = i*SM_DIM+j;
-
-			//vel[cIndx] = (curPos[cIndx] - prtPos[pIndx+j]) * dt1 + gravity[j] * dt * 0.1f;	//SPHも動かす場合はこっち
-			vel[cIndx] = (curPos[cIndx] - prtPos[pIndx+j]) * dt1 + gravity[j] * dt * 1.0f;
-		}
+		vel[cIndx+0] = (curPos[cIndx+0] - prtPos[pIndx+0]) * dt1 + gravity[0];
+		vel[cIndx+1] = (curPos[cIndx+1] - prtPos[pIndx+1]) * dt1 + gravity[1];
+		vel[cIndx+2] = (curPos[cIndx+2] - prtPos[pIndx+2]) * dt1 + gravity[2];
 	}
 }
 
@@ -441,7 +459,7 @@ __device__
 
 
 /*!
- * Jacobi法による固有値の算出
+ * Jacobi法による固有値の算出+
  * @param[inout] a 実対称行列．計算後，対角要素に固有値が入る
  * @param[out] v 固有ベクトル(aと同じサイズ)
  * @param[in] n 行列のサイズ(n×n)
@@ -450,94 +468,151 @@ __device__
  * @return 反復回数
  */
 __device__ 
- int d_EigenJacobiMethod(double *a, double *v, int n, double eps = 1e-8, int iter_max = 100)
+// int d_EigenJacobiMethod(float *a, float *v, int n, float eps = 1e-8, int iter_max = 100)
+ int d_EigenJacobiMethod(matrix3x3& a, matrix3x3& v, int n, float eps = 1e-8, int iter_max = 100)
 {
-	double *bim, *bjm;
-	double bii, bij, bjj, bji;
- 
-	bim = new double[n];
-	bjm = new double[n];
- 
-	for(int i = 0; i < n; ++i){
-		for(int j = 0; j < n; ++j){
-			v[i*n+j] = (i == j) ? 1.0 : 0.0;
-		}
-	}
- 
+	float bii, bij, bjj, bji;
+
+	float bim[3] = {0.0f, 0.0f, 0.0f};
+	float bjm[3] = {0.0f, 0.0f, 0.0f};
+
+	MakeIdentity(v);
+
 	int cnt = 0;
+
 	for(;;){
 		int i = -1, j = -1;
  
-		double x = 0.0;
+		float x = 0.0f;
 		for(int ia = 0; ia < n; ++ia){
-			for(int ja = 0; ja < n; ++ja){
-				int idx = ia*n+ja;
-				if(ia != ja && fabs(a[idx]) > x){
+				//n=3としているので，無理やり
+				if(ia != 0 && fabs(a.e[ia].x) > x){
 					i = ia;
-					j = ja;
-					x = fabs(a[idx]);
+					j = 0;
+					x = fabs(a.e[ia].x);
 				}
-			}
+
+				if(ia != 1 && fabs(a.e[ia].y) > x){
+					i = ia;
+					j = 1;
+					x = fabs(a.e[ia].y);
+				}
+
+				if(ia != 2 && fabs(a.e[ia].z) > x){
+					i = ia;
+					j = 2;
+					x = fabs(a.e[ia].z);
+				}
 		}
 
 		if(i == -1 || j == -1) return 0;
  
-		double aii = a[i*n+i];
-		double ajj = a[j*n+j];
-		double aij = a[i*n+j];
- 
+		float aii = 0.0f;
+		float ajj = 0.0f;
+		float aij = 0.0f;
+
+		//(i,i)
+		if(i == 0){	aii = a.e[0].x;	}
+		if(i == 1){	aii = a.e[1].y;	}
+		if(i == 2){	aii = a.e[2].z;	}
+
+		//(j,j), (i,j)
+		if(j == 0){	ajj = a.e[0].x;		aij = a.e[i].x;	}
+		if(j == 1){	ajj = a.e[1].y;		aij = a.e[i].y;	}
+		if(j == 2){	ajj = a.e[2].z;		aij = a.e[i].z;	}
+
 		float m_dAlpha, m_dBeta;
-		m_dAlpha = (aii-ajj)/2.0;
+		m_dAlpha = (aii-ajj)/2.0f;
 		m_dBeta  = sqrt(m_dAlpha*m_dAlpha+aij*aij);
  
-		double st, ct;
-		ct = sqrt((1.0+fabs(m_dAlpha)/m_dBeta)/2.0);    // sinθ
-		st = (((aii-ajj) >= 0.0) ? 1.0 : -1.0)*aij/(2.0*m_dBeta*ct);    // cosθ
+		float st, ct;
+		ct = sqrt((1.0+fabs(m_dAlpha)/m_dBeta)/2.0f);    // sinθ
+		st = (((aii-ajj) >= 0.0f) ? 1.0f : -1.0f)*aij/(2.0f*m_dBeta*ct);    // cosθ
  
 		// A = PAPの計算
 		for(int m = 0; m < n; ++m){
 			if(m == i || m == j) continue;
- 
-			double aim = a[i*n+m];
-			double ajm = a[j*n+m];
+			
+			float aim = 0.0f;
+			float ajm = 0.0f;
+
+			if(m == 0){	aim = a.e[i].x; ajm = a.e[j].x;	}
+			if(m == 1){	aim = a.e[i].y; ajm = a.e[j].y;	}
+			if(m == 2){	aim = a.e[i].z; ajm = a.e[j].z;	}
  
 			bim[m] =  aim*ct+ajm*st;
 			bjm[m] = -aim*st+ajm*ct;
 		}
  
 		bii = aii*ct*ct+2.0*aij*ct*st+ajj*st*st;
-		bij = 0.0;
+		bij = 0.0f;
  
 		bjj = aii*st*st-2.0*aij*ct*st+ajj*ct*ct;
-		bji = 0.0;
+		bji = 0.0f;
  
 		for(int m = 0; m < n; ++m){
-			a[i*n+m] = a[m*n+i] = bim[m];
-			a[j*n+m] = a[m*n+j] = bjm[m];
+
+			if(m == 0){	a.e[i].x = bim[m];	}
+			if(m == 1){	a.e[i].y = bim[m];	}
+			if(m == 2){	a.e[i].z = bim[m];	}
+
+			if(i == 0){	a.e[m].x = bim[m];	}
+			if(i == 1){	a.e[m].y = bim[m];	}
+			if(i == 2){	a.e[m].z = bim[m];	}
+
+			if(m == 0){	a.e[j].x = bjm[m];	}
+			if(m == 1){	a.e[j].y = bjm[m];	}
+			if(m == 2){	a.e[j].z = bjm[m];	}
+
+			if(j == 0){	a.e[m].x = bjm[m];	}
+			if(j == 1){	a.e[m].y = bjm[m];	}
+			if(j == 2){	a.e[m].z = bjm[m];	}
 		}
-		a[i*n+i] = bii;
-		a[i*n+j] = bij;
-		a[j*n+j] = bjj;
-		a[j*n+i] = bji;
+
+		//(i,i), (j, i)
+		if(i == 0){	a.e[0].x = bii;		a.e[j].x = bji;	}
+		if(i == 1){	a.e[1].y = bii;		a.e[j].y = bji;	}
+		if(i == 2){	a.e[2].z = bii;		a.e[j].z = bji;	}
+
+		//(j,j), (i,j)
+		if(j == 0){	a.e[0].x = bjj;		a.e[i].x = bij;	}
+		if(j == 1){	a.e[1].y = bjj;		a.e[i].y = bij;	}
+		if(j == 2){	a.e[2].z = bjj;		a.e[i].z = bij;	}
  
 		// V = PVの計算
 		for(int m = 0; m < n; ++m){
-			double vmi = v[m*n+i];
-			double vmj = v[m*n+j];
- 
+			float vmi = 0.0f;
+			float vmj = 0.0f;
+
+			if(i == 0){	vmi = v.e[m].x; }
+			if(i == 1){	vmi = v.e[m].y; }
+			if(i == 2){	vmi = v.e[m].z; }
+
+			if(j == 0){	vmj = v.e[m].x; }
+			if(j == 1){	vmj = v.e[m].y; }
+			if(j == 2){	vmj = v.e[m].z; }
+
 			bim[m] =  vmi*ct+vmj*st;
 			bjm[m] = -vmi*st+vmj*ct;
 		}
 		for(int m = 0; m < n; ++m){
-			v[m*n+i] = bim[m];
-			v[m*n+j] = bjm[m];
+
+			if(i == 0){	v.e[m].x = bim[m]; }
+			if(i == 1){	v.e[m].y = bim[m]; }
+			if(i == 2){	v.e[m].z = bim[m]; }
+
+			if(j == 0){	v.e[m].x = bjm[m]; }
+			if(j == 1){	v.e[m].y = bjm[m]; }
+			if(j == 2){	v.e[m].z = bjm[m]; }
 		}
  
-		double e = 0.0;
+		float e = 0.0f;
 		for(int ja = 0; ja < n; ++ja){
 			for(int ia = 0; ia < n; ++ia){
 				if(ia != ja){
-					e += fabs(a[ja*n+ia]);
+					if(ia == 0){	e += fabs(a.e[ja].x); }
+					if(ia == 1){	e += fabs(a.e[ja].y); }
+					if(ia == 2){	e += fabs(a.e[ja].z); }
 				}
 			}
 		}
@@ -547,10 +622,104 @@ __device__
 		if(cnt > iter_max) break;
 	}
  
-	delete [] bim;
-	delete [] bjm;
- 
 	return cnt;
+
+
+	//float bii, bij, bjj, bji;
+
+	//for(int i = 0; i < n; ++i){
+	//	for(int j = 0; j < n; ++j){
+	//		v[i*n+j] = (i == j) ? 1.0f : 0.0f;
+	//	}
+	//}
+ //
+	//int cnt = 0;
+	//for(;;){
+	//	int i = -1, j = -1;
+ //
+	//	float x = 0.0;
+	//	for(int ia = 0; ia < n; ++ia){
+	//		for(int ja = 0; ja < n; ++ja){
+	//			int idx = ia*n+ja;
+	//			if(ia != ja && fabs(a[idx]) > x){
+	//				i = ia;
+	//				j = ja;
+	//				x = fabs(a[idx]);
+	//			}
+	//		}
+	//	}
+
+	//	if(i == -1 || j == -1) return 0;
+ //
+	//	float aii = a[i*n+i];
+	//	float ajj = a[j*n+j];
+	//	float aij = a[i*n+j];
+ //
+	//	float m_dAlpha, m_dBeta;
+	//	m_dAlpha = (aii-ajj)/2.0f;
+	//	m_dBeta  = sqrt(m_dAlpha*m_dAlpha+aij*aij);
+ //
+	//	float st, ct;
+	//	ct = sqrt((1.0+fabs(m_dAlpha)/m_dBeta)/2.0f);    // sinθ
+	//	st = (((aii-ajj) >= 0.0f) ? 1.0f : -1.0f)*aij/(2.0*m_dBeta*ct);    // cosθ
+ //
+	//	// A = PAPの計算
+	//	for(int m = 0; m < n; ++m){
+	//		if(m == i || m == j) continue;
+ //
+	//		float aim = a[i*n+m];
+	//		float ajm = a[j*n+m];
+ //
+	//		bim[m] =  aim*ct+ajm*st;
+	//		bjm[m] = -aim*st+ajm*ct;
+	//	}
+ //
+	//	bii = aii*ct*ct+2.0f*aij*ct*st+ajj*st*st;
+	//	bij = 0.0f;
+ //
+	//	bjj = aii*st*st-2.0f*aij*ct*st+ajj*ct*ct;
+	//	bji = 0.0f;
+ //
+	//	for(int m = 0; m < n; ++m){
+	//		a[i*n+m] = a[m*n+i] = bim[m];
+	//		a[j*n+m] = a[m*n+j] = bjm[m];
+	//	}
+	//	a[i*n+i] = bii;
+	//	a[i*n+j] = bij;
+	//	a[j*n+j] = bjj;
+	//	a[j*n+i] = bji;
+ //
+	//	// V = PVの計算
+	//	for(int m = 0; m < n; ++m){
+	//		float vmi = v[m*n+i];
+	//		float vmj = v[m*n+j];
+ //
+	//		bim[m] =  vmi*ct+vmj*st;
+	//		bjm[m] = -vmi*st+vmj*ct;
+	//	}
+	//	for(int m = 0; m < n; ++m){
+	//		v[m*n+i] = bim[m];
+	//		v[m*n+j] = bjm[m];
+	//	}
+ //
+	//	float e = 0.0f;
+	//	for(int ja = 0; ja < n; ++ja){
+	//		for(int ia = 0; ia < n; ++ia){
+	//			if(ia != ja){
+	//				e += fabs(a[ja*n+ia]);
+	//			}
+	//		}
+	//	}
+	//	if(e < eps) break;
+ //
+	//	cnt++;
+	//	if(cnt > iter_max) break;
+	//}
+ //
+	//delete [] bim;
+	//delete [] bjm;
+ //
+	//return cnt;
 }
 
 
@@ -564,48 +733,38 @@ __device__
 	void PolarDecomposition(matrix3x3 &A, matrix3x3 &R, matrix3x3 &S)
 {
 	// S = (A^T A)^(1/2)を求める
-	matrix3x3 ATA;
-	ATA = Multiple(Transpose(A), A);	// (A^T A)の計算
+	matrix3x3 ATA = Multiple(Transpose(A), A);	// (A^T A)の計算
+
+	//Multipleを使わないバージョン
+	//matrix3x3 TrA = Transpose(A);
+	//matrix3x3 ATA;
+
+	//ATA.e[0].x = TrA.e[0].x * A.e[0].x + TrA.e[0].y * A.e[1].x + TrA.e[0].z * A.e[2].x;
+	//ATA.e[0].y = TrA.e[0].x * A.e[0].y + TrA.e[0].y * A.e[1].y + TrA.e[0].z * A.e[2].y;
+	//ATA.e[0].z = TrA.e[0].x * A.e[0].z + TrA.e[0].y * A.e[1].z + TrA.e[0].z * A.e[2].z;
+	// 			 			  			 			  			 		 
+	//ATA.e[1].x = TrA.e[1].x * A.e[0].x + TrA.e[1].y * A.e[1].x + TrA.e[1].z * A.e[2].x;
+	//ATA.e[1].y = TrA.e[1].x * A.e[0].y + TrA.e[1].y * A.e[1].y + TrA.e[1].z * A.e[2].y;
+	//ATA.e[1].z = TrA.e[1].x * A.e[0].z + TrA.e[1].y * A.e[1].z + TrA.e[1].z * A.e[2].z;
+	// 			 			  			 			  			 		  
+	//ATA.e[2].x = TrA.e[2].x * A.e[0].x + TrA.e[2].y * A.e[1].x + TrA.e[2].z * A.e[2].x;
+	//ATA.e[2].y = TrA.e[2].x * A.e[0].y + TrA.e[2].y * A.e[1].y + TrA.e[2].z * A.e[2].y;
+	//ATA.e[2].z = TrA.e[2].x * A.e[0].z + TrA.e[2].y * A.e[1].z + TrA.e[2].z * A.e[2].z;
 
 	MakeIdentity(R);
 
-	// (A^T A)を固有値分解して対角行列と直交行列を求める
-	// M^(1/2) = U^T M' U 
-	//  M = (A^T A), M':対角行列の平方根を取ったもの, U:直交行列
-
-	//行列をfloatに変換
-	double* pATA = new double[9];
-	double* pU = new double[9];
-
-	for(int i = 0; i < 3; i++)
-	{
-		int indx = i*3;
-		pATA[indx+0] = ATA.e[i].x;
-		pATA[indx+1] = ATA.e[i].y;
-		pATA[indx+2] = ATA.e[i].z;
-	}
-
-	d_EigenJacobiMethod(pATA, pU, 3);
-
-	//float*を行列に変換	
 	matrix3x3 U;
 
-	for(int i = 0; i < 3; i++)
-	{
-		int indx = i*3;
-		ATA.e[i].x = pATA[indx+0];
-		ATA.e[i].y = pATA[indx+1];
-		ATA.e[i].z = pATA[indx+2];
+	// (A^T A)を固有値分解して対角行列と直交行列を求める
+	//  M^(1/2) = U^T M' U 
+	//  M = (A^T A), M':対角行列の平方根を取ったもの, U:直交行列
 
-		U.e[i].x = pU[indx+0];
-		U.e[i].y = pU[indx+1];
-		U.e[i].z = pU[indx+2];
-	}
+	d_EigenJacobiMethod(ATA, U, 3);
 
 	// 対角行列の平方根をとって，逆行列計算のために逆数にしておく
-	double l0 = (ATA.e[0].x <= 0.0) ? 0.0 : 1.0/sqrt(ATA.e[0].x);
-	double l1 = (ATA.e[1].y <= 0.0) ? 0.0 : 1.0/sqrt(ATA.e[1].y);
-	double l2 = (ATA.e[2].z <= 0.0) ? 0.0 : 1.0/sqrt(ATA.e[2].z);
+	float l0 = (ATA.e[0].x <= 0.0) ? 0.0f : 1.0f/sqrt(ATA.e[0].x);
+	float l1 = (ATA.e[1].y <= 0.0) ? 0.0f : 1.0f/sqrt(ATA.e[1].y);
+	float l2 = (ATA.e[2].z <= 0.0) ? 0.0f : 1.0f/sqrt(ATA.e[2].z);
 
 	//// U^T M' U の逆行列計算
 	matrix3x3 S1;
@@ -619,28 +778,25 @@ __device__
 	S1.e[2].y = S1.e[1].z;
 	S1.e[2].z = l0*U.e[2].x*U.e[2].x + l1*U.e[2].y*U.e[2].y + l2*U.e[2].z*U.e[2].z;
 
-	R = Multiple(A, S1);	// R = A S^-1
-	S = Multiple(Transpose(R), A); // S = R^-1 A = R^T A
-
-	delete[] pATA;
-	delete[] pU;
+	R = Multiple(A, S1);			// R = A S^-1
+	S = Multiple(Transpose(R), A);	// S = R^-1 A = R^T A
 }
 
 //配列初期化
 __device__
 	void MakeIdentity(matrix3x3 &M)
 {
-	M.e[0].x = 1.0;
-	M.e[0].y = 0.0;
-	M.e[0].z = 0.0;
+	M.e[0].x = 1.0f;
+	M.e[0].y = 0.0f;
+	M.e[0].z = 0.0f;
 
-	M.e[1].x = 0.0;
-	M.e[1].y = 1.0;
-	M.e[1].z = 0.0;
+	M.e[1].x = 0.0f;
+	M.e[1].y = 1.0f;
+	M.e[1].z = 0.0f;
 
-	M.e[2].x = 0.0;
-	M.e[2].y = 0.0;
-	M.e[2].z = 1.0;
+	M.e[2].x = 0.0f;
+	M.e[2].y = 0.0f;
+	M.e[2].z = 1.0f;
 }
 
 //転置行列
@@ -705,7 +861,7 @@ __device__
 }
 
 __device__ 
-	matrix3x3 Multiple(matrix3x3 &M1, matrix3x3 &M2)
+	matrix3x3 Multiple(const matrix3x3 &M1, const matrix3x3 &M2)
 {
 	matrix3x3 M;
 
@@ -725,7 +881,7 @@ __device__
 }
 
 __device__ 
-	float3 Multiple(matrix3x3 &M1, float3 &V)
+	float3 Multiple(const matrix3x3 &M1, const float3 &V)
 {
 	float3 M;
 

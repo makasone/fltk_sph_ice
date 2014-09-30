@@ -10,9 +10,6 @@
 
 using namespace std;
 
-#define EDGE 17
-//#define EDGE 27
-
 void LaunchCalcAverageGPU
 	(
 	int prtNum,
@@ -30,36 +27,51 @@ void LaunchCalcAverageGPU
 	int PtoCParamSize
 	);
 
-__global__ void CalcAverage(float* sldPrtPos, float* sldPrtVel, float* sphPrtPos, float* sphPrtVel, float* smPrtPos, float* smPrtVel, int* indxSet, int* PtoCIndx, int* PtoC, int PNumMax, int PtoCMax, int PtoCParamSize);
+__global__ void CalcAverage
+	(
+	float* sldPrtPos, 
+	float* sldPrtVel, 
+	float* sphPrtPos,
+	float* sphPrtVel, 
+	float* smPrtPos, 
+	float* smPrtVel, 
+	int* indxSet, 
+	int* PtoCIndx, 
+	int* PtoC, 
+	int PNumMax, 
+	int PtoCMax, 
+	int PtoCParamSize,
+	int side
+	);
 
 //__device__ int GetPtoCIndx(int pIndx);
 //__device__ int GetPtoC(int pIndx, int lIndx, int oIndx);
 
 void LaunchCalcAverageGPU(int prtNum, float* sldPrtPos, float* sldPrtVel, float* sphPrtPos, float* sphPrtVel, float* smPrtPos, float* smPrtVel, int* smIndxSet, int* PtoCIndx, int* PtoC, int PNumMax, int PtoCMax, int PtoCParamSize)
 {
-	int n = pow( prtNum, 1.0/3.0 ) + 0.5;	//立方体の１辺の頂点数
+	int side = pow( prtNum, 1.0/3.0 ) + 0.5;	//立方体の１辺の頂点数
 
-	dim3 grid(n, n);
-	dim3 block(n, 1, 1);
+	dim3 grid(side, side);
+	dim3 block(side, 1, 1);
 
 	//運動計算
-	CalcAverage<<<grid ,block>>>(sldPrtPos, sldPrtVel, sphPrtPos, sphPrtVel, smPrtPos, smPrtVel, smIndxSet, PtoCIndx, PtoC, PNumMax, PtoCMax, PtoCParamSize);
+	CalcAverage<<<grid ,block>>>(sldPrtPos, sldPrtVel, sphPrtPos, sphPrtVel, smPrtPos, smPrtVel, smIndxSet, PtoCIndx, PtoC, PNumMax, PtoCMax, PtoCParamSize, side);
 	
 	cudaThreadSynchronize();
 }
 
 __global__
-	void CalcAverage(float* sldPrtPos, float* sldPrtVel, float* sphPrtPos, float* sphPrtVel, float* smPrtPos, float* smPrtVel, int* indxSet, int* PtoCIndx, int* PtoC, int PNumMax, int PtoCMax, int PtoCParamSize)
+	void CalcAverage(float* sldPrtPos, float* sldPrtVel, float* sphPrtPos, float* sphPrtVel, float* smPrtPos, float* smPrtVel, int* indxSet, int* PtoCIndx, int* PtoC, int PNumMax, int PtoCMax, int PtoCParamSize, int side)
 {
 	//計算する粒子の判定
-	int pIndx = blockIdx.x * EDGE * EDGE + blockIdx.y * EDGE + threadIdx.x;
+	int pIndx = blockIdx.x * side * side + blockIdx.y * side + threadIdx.x;
 
 	//それぞれのベクトルを合成し平均をとる
-	float3 pos = make_float3(0.0f, 0.0f, 0.0f);
-	float3 vel = make_float3(0.0f, 0.0f, 0.0f);
+	float pos_x, pos_y, pos_z;
+	float vel_x, vel_y, vel_z;
+
 	float clusterNum = 0.0f;					//クラスタの数
 
-	//TODO::開始添字，終了添字
 	int pTocIndx = PtoCIndx[pIndx];
 
 	for(int j = 0; j < pTocIndx; ++j)
@@ -75,13 +87,13 @@ __global__
 
 		int smIndx = startIndx*3 + joIndx*3;
 
-		pos.x += smPrtPos[smIndx+0];
-		pos.y += smPrtPos[smIndx+1];
-		pos.z += smPrtPos[smIndx+2];
+		pos_x += smPrtPos[smIndx+0];
+		pos_y += smPrtPos[smIndx+1];
+		pos_z += smPrtPos[smIndx+2];
 
-		vel.x += smPrtVel[smIndx+0];
-		vel.y += smPrtVel[smIndx+1];
-		vel.z += smPrtVel[smIndx+2];
+		vel_x += smPrtVel[smIndx+0];
+		vel_y += smPrtVel[smIndx+1];
+		vel_z += smPrtVel[smIndx+2];
 
 		clusterNum += 1.0f;
 	}
@@ -89,53 +101,25 @@ __global__
 	//クラスタの数で割る
 	if(clusterNum != 0.0f)
 	{
-		pos.x *= 1/clusterNum;
-		pos.y *= 1/clusterNum;
-		pos.z *= 1/clusterNum;
+		pos_x *= 1/clusterNum;
+		pos_y *= 1/clusterNum;
+		pos_z *= 1/clusterNum;
 
-		vel.x *= 1/clusterNum;
-		vel.y *= 1/clusterNum;
-		vel.z *= 1/clusterNum;
-
-		//pos.x /= clusterNum;
-		//pos.y /= clusterNum;
-		//pos.z /= clusterNum;
-
-		//vel.x /= clusterNum;
-		//vel.y /= clusterNum;
-		//vel.z /= clusterNum;
+		vel_x *= 1/clusterNum;
+		vel_y *= 1/clusterNum;
+		vel_z *= 1/clusterNum;
 	}		
-	//どのクラスタにも含まれていない場合，運動はSPH法に従う
-	else
-	{
-		pos.x = sphPrtPos[pIndx*4+0];
-		pos.y = sphPrtPos[pIndx*4+1];
-		pos.z = sphPrtPos[pIndx*4+2];
-
-		vel.x = sphPrtVel[pIndx*4+0];
-		vel.y = sphPrtVel[pIndx*4+1];
-		vel.z = sphPrtVel[pIndx*4+2];
-	}
 
 	//固体の最終的な運動計算結果
 	int sldIndx = pIndx*3;
 
-	sldPrtPos[sldIndx+0] = pos.x;
-	sldPrtPos[sldIndx+1] = pos.y;
-	sldPrtPos[sldIndx+2] = pos.z;
+	sldPrtPos[sldIndx+0] = pos_x;
+	sldPrtPos[sldIndx+1] = pos_y;
+	sldPrtPos[sldIndx+2] = pos_z;
 
-	sldPrtVel[sldIndx+0] = vel.x;
-	sldPrtVel[sldIndx+1] = vel.y;
-	sldPrtVel[sldIndx+2] = vel.z;
-
-	////適当に線形補間もどき
-	//sphPrtPos[pIndx*4+0] = pos.x;
-	//sphPrtPos[pIndx*4+1] = pos.y;
-	//sphPrtPos[pIndx*4+2] = pos.z;
-
-	//sphPrtVel[pIndx*4+0] = vel.x;
-	//sphPrtVel[pIndx*4+1] = vel.y;
-	//sphPrtVel[pIndx*4+2] = vel.z;
+	sldPrtVel[sldIndx+0] = vel_x;
+	sldPrtVel[sldIndx+1] = vel_y;
+	sldPrtVel[sldIndx+2] = vel_z;
 }
 
 //__device__ int GetPtoCIndx(int pIndx)

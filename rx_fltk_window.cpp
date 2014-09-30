@@ -702,7 +702,7 @@ void rxFlWindow::OnSliderParam(Fl_Widget *widget)
 	//}
 	else if(label.find("InterPlation") != string::npos)
 	{
-		for(int i = 0; i < ICENUM; i++)
+		for(int i = 0; i < m_pGLCanvas->m_iIcePrtNum; i++)
 		{
 			m_pGLCanvas->m_fIntrps[i]=val;
 		}
