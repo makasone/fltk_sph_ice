@@ -354,9 +354,11 @@ void IceObject::InitGPU()
 	Ice_SM::InitGPU(m_iceMove, sd_sphPrtPos, sd_sphPrtVel, sm_particleNum);
 	Ice_SM::InitFinalParamPointer(sm_clusterNum);
 
-	//高速化に用いるパスの初期化
-	m_SurfSm.InitPathGPU();
-
+#if defined(USE_PATH)
+{
+	m_SurfSm.InitPathGPU();		//高速化に用いるパスの初期化
+}
+#endif
 	InitIceObjGPU();
 }
 
@@ -418,7 +420,7 @@ void IceObject::InitIceObjGPU()
 }
 
 //固体の運動計算
-void IceObject::StepObjMove()
+void IceObject::StepObjMoveCPU()
 {
 	#pragma omp parallel
 	{
@@ -431,10 +433,18 @@ void IceObject::StepObjMove()
 	}//#pragma omp parallel
 }
 
+//GPU
+void IceObject::StepObjMoveGPU()
+{
+	Ice_SM::SetDevicePosPointer(sd_sphPrtPos);	//VBOを使っているので，これがないとエラーが出るのに注意
+	Ice_SM::UpdateGPU();
+}
+
 //パスを用いた高速化　固体の運動計算
 void IceObject::StepObjMoveUsePath()
 {
-	m_SurfSm.UpdatePrefixSum();						//prefixSumの更新
+	//prefixSumの更新
+	m_SurfSm.UpdatePrefixSum();
 
 	//クラスタのパラメータ更新
 	#pragma omp parallel for
@@ -449,9 +459,123 @@ void IceObject::StepObjMoveUsePath()
 	#pragma omp parallel for
 	for(int i = 0; i < sm_clusterNum; ++i)
 	{	
-		if(GetPtoCNum(i) == 0){	continue;	}
+		if(GetPtoCNum(i) == 0){	continue; }
 		m_iceMove[i]->UpdateUsePathCPU();
 	}
+}
+
+void IceObject::StepObjMoveGPUUsePath()
+{
+	//prefixSumの更新
+	m_SurfSm.SetDevicePointer(sd_sphPrtPos, sd_sphPrtVel);	//VBOを使っているので，これがないとエラーが出るのに注意
+	m_SurfSm.UpdatePrefixSumGPU();
+
+	//クラスタのパラメータ更新
+	LauchUpdateSMFromPath
+	(
+		sm_clusterNum,
+		sd_sphPrtPos,
+		sd_sphPrtVel,
+		//SM-------------------------------------------------
+		Ice_SM::GetOrgPosPointer(),
+		Ice_SM::GetDevicePosPointer(),
+		Ice_SM::GetOrgCmPointer(),
+		Ice_SM::GetCurCmPointer(),
+		Ice_SM::GetDeviceApqPointer(),
+		Ice_SM::GetDeviceVelPointer(),
+		Ice_SM::GetDeviceIndexesPointer(),
+		Ice_SM::GetDeviceIndexSetPointer(),
+		//Path-----------------------------------------------
+		m_SurfSm.GetDevicePRTtoPTHPointer(),
+		m_SurfSm.GetDevicePTHandPrfxSetPointer(),
+		m_SurfSm.GetDecvicePrfxPos(),
+		m_SurfSm.GetDecvicePrfxApq(),
+		//IceStruct------------------------------------------
+		m_iceStrct->GetDeviceCtoPointer(),
+		m_iceStrct->GetDeviceCtoPNumPointer(),
+		m_iceStrct->GetCtoPMax(),
+		2,
+		0.01		//TODO: 0.02では？いろいろばらばらっぽい
+	);
+
+	//運動計算
+	Ice_SM::SetDevicePosPointer(sd_sphPrtPos);				//VBOを使っているので，これがないとエラーが出るのに注意
+	Ice_SM::UpdateUsePathGPU();
+
+//	QueryCounter counter;
+//	QueryCounter counter2;	
+//	QueryCounter counter3;
+//
+//counter.Start();
+//
+//	//prefixSumの更新
+//	m_SurfSm.SetDevicePointer(sd_sphPrtPos, sd_sphPrtVel);	//VBOを使っているので，これがないとエラーが出るのに注意
+//	m_SurfSm.UpdatePrefixSumGPU();
+//
+//	double prefixSumTime = counter.End()/1000.0;
+////cout << "UpdatePrefixSumGPU：	" << prefixSumTime << endl;
+//
+//counter2.Start();
+//
+//	//クラスタのパラメータ更新
+//	//TestUpdateSMFromPath();
+//	LauchUpdateSMFromPath
+//	(
+//		sm_clusterNum,
+//		sd_sphPrtPos,
+//		sd_sphPrtVel,
+//		//SM-------------------------------------------------
+//		Ice_SM::GetOrgPosPointer(),
+//		Ice_SM::GetDevicePosPointer(),
+//		Ice_SM::GetOrgCmPointer(),
+//		Ice_SM::GetCurCmPointer(),
+//		Ice_SM::GetDeviceApqPointer(),
+//		Ice_SM::GetDeviceVelPointer(),
+//		Ice_SM::GetDeviceIndexesPointer(),
+//		Ice_SM::GetDeviceIndexSetPointer(),
+//		//Path-----------------------------------------------
+//		m_SurfSm.GetDevicePRTtoPTHPointer(),
+//		m_SurfSm.GetDevicePTHandPrfxSetPointer(),
+//		m_SurfSm.GetDecvicePrfxPos(),
+//		m_SurfSm.GetDecvicePrfxApq(),
+//		//IceStruct------------------------------------------
+//		m_iceStrct->GetDeviceCtoPointer(),
+//		m_iceStrct->GetDeviceCtoPNumPointer(),
+//		m_iceStrct->GetCtoPMax(),
+//		2,
+//		0.01		//TODO: 0.02では？いろいろばらばらっぽい
+//	);
+//
+//	double updatePosApqTime = counter2.End()/1000.0;
+////cout << "LauchUpdateSMFromPath：	" << updatePosApqTime << endl;
+//
+//counter3.Start();
+//
+//	//運動計算
+//	Ice_SM::SetDevicePosPointer(sd_sphPrtPos);				//VBOを使っているので，これがないとエラーが出るのに注意
+//	Ice_SM::UpdateUsePathGPU();
+//
+//	double updateSMTime = counter3.End()/1000.0;
+////cout << "UpdateUsePathGPU：	" << updateSMTime << endl;
+//
+////cout << "合計：		" << prefixSumTime+updatePosApqTime+updateSMTime << endl;
+//
+//
+////ホスト側のデータを転送した結果をダンプ
+//	//古いファイルを削除
+//	
+//
+//	//prefixSum
+//	ofstream ofs( "LOG_prefixSumTime.txt", ios::app);
+//	ofs << prefixSumTime << endl;
+//
+//	//updatePosApq
+//	ofstream ofs1( "LOG_updateTime.txt", ios::app);
+//	ofs1 << updatePosApqTime << endl;
+//
+//	//ShapeMatching
+//	ofstream ofs2( "LOG_SMTime.txt", ios::app);
+//	ofs2 << updateSMTime << endl;
 }
 
 //反復を用いた固体の運動計算
@@ -564,6 +688,7 @@ void IceObject::StepObjCalcWidhIteration()
 void IceObject::StepInterPolation()
 {
 #if defined(MK_USE_GPU)
+
 	//固体運動の最終位置計算
 	float* smPrtPos = Ice_SM::GetDevicePosPointer();
 	float* smPrtVel = Ice_SM::GetDeviceVelPointer();
@@ -583,7 +708,9 @@ void IceObject::StepInterPolation()
 
 	//液体と固体の補間
 	LaunchInterPolationGPU(sm_particleNum, sd_sldPrtPos, sd_sldPrtVel, sd_sphPrtPos, sd_sphPrtVel);
+
 #else
+
 	Vec3 pos,vel;
 
 	#pragma omp parallel for private(pos, vel)
@@ -600,6 +727,24 @@ void IceObject::StepInterPolation()
 	}
 
 #endif
+}
+
+void IceObject::TestStepInterPolation()
+{
+	Vec3 pos,vel;
+
+	#pragma omp parallel for private(pos, vel)
+	for(int i = 0; i < sm_particleNum; ++i)
+	{
+		if(GetParticleNum() <= i){	continue;	}	//融解のみの実験のときに必要になる．
+		if(GetPtoCNum(i) <= 0){		continue;	}
+	
+		//固体運動の最終位置計算
+		CalcAverageCPU(i, pos, vel);
+
+		//液体と固体の補間
+		LinerInterPolationCPU(i, pos, vel);			//線形補間
+	}
 }
 
 //反復処理を用いた流体と固体の最終的な運動計算
@@ -656,6 +801,7 @@ void IceObject::CalcAverageCPU(int pIndx, Vec3& pos, Vec3& vel)
 		cIndx = GetPtoC(pIndx, i, 0);
 		oIndx = GetPtoC(pIndx, i, 1);
 
+		//if(i % 2 == 0){	continue;	}
 		if(cIndx == -1 || oIndx == -1){	continue;	}
 
 		pos += m_iceMove[cIndx]->GetVertexPos(oIndx);
@@ -715,7 +861,8 @@ void IceObject::LinerInterPolationForClusterCPU(int pIndx, const Vec3& pos, cons
 
 //四面体
 void IceObject::DebugTetraInfo()
-{
+{	cout << __FUNCTION__ << endl;
+
 	unsigned tetraSize = IceTetrahedra::GetInstance().GetTetraListSize();
 
 	//四面体→粒子
@@ -739,7 +886,8 @@ void IceObject::DebugTetraInfo()
 
 //クラスタ
 void IceObject::DebugClusterInfo()
-{
+{	cout << __FUNCTION__ << endl;
+
 	//含有粒子数の総数，平均，最小値，最大値
 	int sum = 0;
 	int max = m_iceMove[0]->GetNumVertices();
@@ -758,4 +906,93 @@ void IceObject::DebugClusterInfo()
 
 	cout << "sum = " << sum << " ave = " << (float)(sum/sm_clusterNum) << endl;
 	cout << "max = " << max << " min = " << min << endl;
+}
+
+//---------------------------------------------------テスト---------------------------------------------
+void IceObject::TestUpdateSMFromPath()
+{	cout << __FUNCTION__ << endl;
+
+//GPU側
+	LauchUpdateSMFromPath
+	(
+		sm_clusterNum,
+		sd_sphPrtPos,
+		sd_sphPrtVel,
+		//SM-------------------------------------------------
+		Ice_SM::GetOrgPosPointer(),
+		Ice_SM::GetDevicePosPointer(),
+		Ice_SM::GetOrgCmPointer(),
+		Ice_SM::GetCurCmPointer(),
+		Ice_SM::GetDeviceApqPointer(),
+		Ice_SM::GetDeviceVelPointer(),
+		Ice_SM::GetDeviceIndexesPointer(),
+		Ice_SM::GetDeviceIndexSetPointer(),
+		//Path-----------------------------------------------
+		m_SurfSm.GetDevicePRTtoPTHPointer(),
+		m_SurfSm.GetDevicePTHandPrfxSetPointer(),
+		m_SurfSm.GetDecvicePrfxPos(),
+		m_SurfSm.GetDecvicePrfxApq(),
+		//IceStruct------------------------------------------
+		m_iceStrct->GetDeviceCtoPointer(),
+		m_iceStrct->GetDeviceCtoPNumPointer(),
+		m_iceStrct->GetCtoPMax(),
+		2,
+		0.01		//TODO: 0.02では？いろいろばらばらっぽい
+	);
+
+//CPU側
+	//prefixSumの更新
+	m_SurfSm.UpdatePrefixSum();
+
+	//クラスタのパラメータ更新
+	#pragma omp parallel for
+	for(int i = 0; i < sm_clusterNum; ++i)
+	{	
+		if(GetPtoCNum(i) == 0){	continue;	}
+		m_iceMove[i]->SetNowCm(m_SurfSm.CalcCmSum(i));		//重心の更新
+		m_iceMove[i]->SetApq(m_SurfSm.CalcApqSum(i));		//変形行列の更新
+	}
+
+	////CurCmの比較
+	//float* dCurCm = new float[MAXCLUSTER * SM_DIM];
+	//cudaMemcpy(dCurCm, Ice_SM::GetCurCmPointer(), sizeof(float) * MAXCLUSTER * SM_DIM, cudaMemcpyDeviceToHost);
+
+	//for(int iCrstr = 0; iCrstr < MAXCLUSTER; iCrstr++)
+	//{
+	//	int cIndx = iCrstr * 3;
+	//	cout << "GPU:[" << iCrstr << "] = " << endl;
+	//	cout <<	"(" << dCurCm[cIndx+0] << ", " << dCurCm[cIndx+1] << ", " << dCurCm[cIndx+2] << ")" << endl;
+	//	cout << endl;
+
+	//	Vec3 cm = m_iceMove[iCrstr]->GetCm();
+	//	cout << "CPU:[" << iCrstr << "] = " << endl;
+	//	cout <<	"(" << cm[0] << ", " << cm[1] << ", " << cm[2] << ")" << endl;
+	//	cout << endl;
+	//}
+
+	//delete[] dCurCm;
+
+	////CurApqの比較
+	//float* dCurApq = new float[MAXCLUSTER * 9];
+	//cudaMemcpy(dCurApq, Ice_SM::GetDeviceApqPointer(), sizeof(float) * MAXCLUSTER * 9, cudaMemcpyDeviceToHost);
+
+	//for(int iCrstr = 0; iCrstr < MAXCLUSTER; iCrstr++)
+	//{
+	//	int cIndx = iCrstr * 9;
+	//	cout << "GPU:[" << iCrstr << "] = " << endl;
+	//	cout <<	"(" << dCurApq[cIndx+0] << ", " << dCurApq[cIndx+1] << ", " << dCurApq[cIndx+2] << ")" << endl;
+	//	cout <<	"(" << dCurApq[cIndx+3] << ", " << dCurApq[cIndx+4] << ", " << dCurApq[cIndx+5] << ")" << endl;
+	//	cout <<	"(" << dCurApq[cIndx+6] << ", " << dCurApq[cIndx+7] << ", " << dCurApq[cIndx+8] << ")" << endl;
+	//	cout << endl;
+
+	//	rxMatrix3 apq = m_iceMove[iCrstr]->GetApq();
+	//	cout << "CPU:[" << iCrstr << "] = " << endl;
+	//	cout <<	"(" << apq(0, 0) << ", " << apq(0, 1) << ", " << apq(0, 2) << ")" << endl;
+	//	cout <<	"(" << apq(1, 0) << ", " << apq(1, 1) << ", " << apq(1, 2) << ")" << endl;
+	//	cout <<	"(" << apq(2, 0) << ", " << apq(2, 1) << ", " << apq(2, 2) << ")" << endl;
+	//	cout << endl;
+	//}
+
+	//delete[] dCurApq;
+
 }

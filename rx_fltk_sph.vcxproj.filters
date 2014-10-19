@@ -290,6 +290,9 @@
       <Filter>CUDA %28Surface%29</Filter>
     </None>
     <None Include="ClassDiagram1.cd" />
+    <None Include="Path_SM.cuh">
+      <Filter>IceObject\SM Files</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="rx_sph.cu">
@@ -327,6 +330,9 @@
     </CudaCompile>
     <CudaCompile Include="Path_SM.cu">
       <Filter>IceObject\SM Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="IceObject.cu">
+      <Filter>IceObject</Filter>
     </CudaCompile>
   </ItemGroup>
 </Project>

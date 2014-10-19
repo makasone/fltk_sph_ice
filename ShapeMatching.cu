@@ -26,15 +26,17 @@ using namespace std;
 
 #define SM_DIM 3
 
-//引き渡す変数名が間違っていてもエラーが出ないので注意
-void LaunchShapeMathcingGPU(int prtNum, float* prtPos, float* prtVel, float* orgPos, float* curPos, float* orgCm, float* curCm, float* vel, int* pIndxes, int* indxSet, float dt);
+void LaunchShapeMatchingGPU(int prtNum, float* prtPos, float* prtVel, float* orgPos, float* curPos, float* orgCm, float* curCm, float* vel, int* pIndxes, int* indxSet, float dt);
 __global__ void Update(float* prtPos, float* prtVel, float* orgPos, float* curPos, float* orgCm, float* curCm, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum, int side);
 __device__ void ExternalForce(float* prtPos, float* prtVel, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum, int side);
 __device__ void ProjectPos(float* prtPos, float* prtVel, float* orgPos, float* curPos, float* orgCm, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum, int side);
 __device__ void Integrate(float* prtPos, float* prtVel, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum, int side);
 
+void LaunchShapeMatchingUsePathGPU(int prtNum, float* prtPos, float* prtVel, float* orgPos, float* curPos, float* orgCm, float* curCm, float* curApq, float* vel, int* pIndxes, int* indxSet, float dt);
+__global__ void UpdateUsePath(float* prtPos, float* prtVel, float* orgPos, float* curPos, float* orgCm, float* curCm, float* curApq, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum, int side);
+__device__ void ProjectPosUsePath(float* prtPos, float* prtVel, float* orgPos, float* curPos, float* orgCm, float* curCm, float* curApq, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum, int side);
 
-void LaunchShapeMathcingIterationGPU(int prtNum, float* prtPos, float* prtVel, float* sldPos, float* sldVel, float* orgPos, float* curPos, float* orgCm, float* curCm, float* vel, int* pIndxes, int* indxSet, float dt);
+void LaunchShapeMatchingIterationGPU(int prtNum, float* prtPos, float* prtVel, float* sldPos, float* sldVel, float* orgPos, float* curPos, float* orgCm, float* curCm, float* vel, int* pIndxes, int* indxSet, float dt);
 __global__ void UpdateIteration(float* prtPos, float* prtVel, float* sldPos, float* sldVel, float* orgPos, float* curPos, float* orgCm, float* curCm, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum, int side);
 __device__ void ExternalForceIteration(float* sldPos, float* sldVel, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum, int side);
 __device__ void ProjectPosIteration(float* prtPos, float* prtVel, float* orgPos, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum, int side);
@@ -64,6 +66,20 @@ void LaunchShapeMatchingGPU(int prtNum, float* prtPos, float* prtVel, float* org
 	//運動計算
 	Update<<<grid ,block>>>(prtPos, prtVel, orgPos, curPos, orgCm, curCm, vel, pIndxes, indxSet, dt, prtNum, side);
 	
+	cudaThreadSynchronize();
+}
+
+void LaunchShapeMatchingUsePathGPU(int prtNum, float* prtPos, float* prtVel, float* orgPos, float* curPos, float* orgCm, float* curCm, float* curApq, float* vel, int* pIndxes, int* indxSet, float dt)
+{
+	//TODO::立方体を前提ににグリッドをきっているので，あらゆる物体に対応できるようにする
+	int side = pow( prtNum, 1.0/3.0 ) + 0.5;	//立方体の１辺の頂点数
+
+	dim3 grid(side, side);
+	dim3 block(side, 1, 1);
+
+	//運動計算
+	UpdateUsePath<<<grid ,block>>>(prtPos, prtVel, orgPos, curPos, orgCm, curCm, curApq, vel, pIndxes, indxSet, dt, prtNum, side);
+
 	cudaThreadSynchronize();
 }
 
@@ -105,6 +121,26 @@ void Update(
 
 //GPUの位置・速度更新
 __global__
+void UpdateUsePath(
+	float* prtPos,
+	float* prtVel, 
+	float* orgPos,
+	float* curPos,
+	float* orgCm,
+	float* curCm,
+	float* curApq,
+	float* vel,
+	int* pIndxes,
+	int* indxSet,
+	float dt,
+	int prtNum,
+	int side)
+{
+	ProjectPosUsePath(prtPos, prtVel, orgPos, curPos, orgCm, curCm, curApq, vel, pIndxes, indxSet, dt, prtNum, side);
+}
+
+//GPUの位置・速度更新
+__global__
 void UpdateIteration(
 	float* prtPos,
 	float* prtVel,
@@ -123,65 +159,6 @@ void UpdateIteration(
 {
 	ExternalForceIteration(sldPos, sldVel, curPos, vel, pIndxes, indxSet, dt, prtNum, side);
 	ProjectPos(prtPos, prtVel, orgPos, curPos, orgCm, vel, pIndxes, indxSet, dt, prtNum, side);
-}
-
-__device__
-	void ExternalForceIteration(float* sldPos, float* sldVel, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum, int side)
-{
-	if(blockIdx.x > side) return;
-	if(blockIdx.y > side) return;
-	if(threadIdx.x > side) return;
-	if(threadIdx.y > side) return;
-
-	//計算するクラスタの判定
-	//int clusterIndx = blockIdx.x * side * side + blockIdx.y * side + threadIdx.x;
-	int clusterIndx = threadIdx.x * side * side + threadIdx.y * side + blockIdx.x;
-
-	int startIndx = indxSet[clusterIndx*2+0];
-	int endIndx = indxSet[clusterIndx*2+1];
-	//printf("startIndx = %d, endIndx = %d\n", startIndx, endIndx);
-
-	// 重力の影響を付加，速度を反映
-	for(int i = startIndx; i < endIndx+1; ++i)
-	{
-		int pIndx = pIndxes[i]*3;
-		int cIndx = i*SM_DIM;
-
-		for(int j = 0; j < SM_DIM; ++j)
-		{
-			int jpIndx = pIndx+j;
-			int jcIndx = cIndx+j;
-
-			curPos[jcIndx] = sldPos[jpIndx];
-		}
-	}
-
-	// 境界壁の影響
-	//処理がかなり重くなるが，安定はするみたい
-	float res = 0.9;	// 反発係数
-	for(int i = startIndx; i < endIndx; ++i){
-	//	//if(m_pFix[i]) continue;
-	//	//Vec3 &p = m_vCurPos[i];
-	//	//Vec3 &np = m_vNewPos[i];
-	//	//Vec3 &v = m_vVel[i];
-	//	//if(np[0] < m_v3Min[0] || np[0] > m_v3Max[0]){
-	//	//	np[0] = p[0]-v[0]*dt*res;
-	//	//	np[1] = p[1];
-	//	//	np[2] = p[2];
-	//	//}
-	//	//if(np[1] < m_v3Min[1] || np[1] > m_v3Max[1]){
-	//	//	np[1] = p[1]-v[1]*dt*res;
-	//	//	np[0] = p[0] ;
-	//	//	np[2] = p[2];
-	//	//}
-	//	//if(np[2] < m_v3Min[2] || np[2] > m_v3Max[2]){
-	//	//	np[2] = p[2]-v[2]*dt*res;
-	//	//	np[0] = p[0];
-	//	//	np[1] = p[1];
-	//	//}
-
-		Clamp(curPos, i*SM_DIM);
-	}
 }
 
 __device__
@@ -239,6 +216,64 @@ __device__
 }
 
 __device__
+	void ExternalForceIteration(float* sldPos, float* sldVel, float* curPos, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum, int side)
+{
+	if(blockIdx.x > side) return;
+	if(blockIdx.y > side) return;
+	if(threadIdx.x > side) return;
+	if(threadIdx.y > side) return;
+
+	//計算するクラスタの判定
+	//int clusterIndx = blockIdx.x * side * side + blockIdx.y * side + threadIdx.x;
+	//TODO: なぜこんな式に？
+	int clusterIndx = threadIdx.x * side * side + threadIdx.y * side + blockIdx.x;
+
+	int startIndx = indxSet[clusterIndx*2+0];
+	int endIndx = indxSet[clusterIndx*2+1];
+
+	// 重力の影響を付加，速度を反映
+	for(int i = startIndx; i < endIndx+1; ++i)
+	{
+		int pIndx = pIndxes[i]*3;
+		int cIndx = i*SM_DIM;
+
+		for(int j = 0; j < SM_DIM; ++j)
+		{
+			int jpIndx = pIndx+j;
+			int jcIndx = cIndx+j;
+
+			curPos[jcIndx] = sldPos[jpIndx];
+		}
+	}
+
+	// 境界壁の影響　処理がかなり重くなるが，安定はするみたい
+	float res = 0.9;	// 反発係数
+	for(int i = startIndx; i < endIndx; ++i){
+	//	//if(m_pFix[i]) continue;
+	//	//Vec3 &p = m_vCurPos[i];
+	//	//Vec3 &np = m_vNewPos[i];
+	//	//Vec3 &v = m_vVel[i];
+	//	//if(np[0] < m_v3Min[0] || np[0] > m_v3Max[0]){
+	//	//	np[0] = p[0]-v[0]*dt*res;
+	//	//	np[1] = p[1];
+	//	//	np[2] = p[2];
+	//	//}
+	//	//if(np[1] < m_v3Min[1] || np[1] > m_v3Max[1]){
+	//	//	np[1] = p[1]-v[1]*dt*res;
+	//	//	np[0] = p[0] ;
+	//	//	np[2] = p[2];
+	//	//}
+	//	//if(np[2] < m_v3Min[2] || np[2] > m_v3Max[2]){
+	//	//	np[2] = p[2]-v[2]*dt*res;
+	//	//	np[0] = p[0];
+	//	//	np[1] = p[1];
+	//	//}
+
+		Clamp(curPos, i*SM_DIM);
+	}
+}
+
+__device__
 	void ProjectPos(float* prtPos, float* prtVel, float* orgPos, float* curPos, float* orgCm, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum, int side)
 {
 	if(blockIdx.x > side) return;
@@ -286,7 +321,7 @@ __device__
 	cm_org_z = orgCm[clusterIndx*SM_DIM+2];
 
 	matrix3x3 Apq;
-	matrix3x3 Aqq;
+	//matrix3x3 Aqq;
 	
 	float p_x, p_y, p_z;
 	float q_x, q_y, q_z;
@@ -317,15 +352,15 @@ __device__
 		Apq.e[2].y += m*p_z*q_y;
 		Apq.e[2].z += m*p_z*q_z;
 
-		Aqq.e[0].x += m*q_x*q_x;
-		Aqq.e[0].y += m*q_x*q_y;
-		Aqq.e[0].z += m*q_x*q_z;
-		Aqq.e[1].x += m*q_y*q_x;
-		Aqq.e[1].y += m*q_y*q_y;
-		Aqq.e[1].z += m*q_y*q_z;
-		Aqq.e[2].x += m*q_z*q_x;
-		Aqq.e[2].y += m*q_z*q_y;
-		Aqq.e[2].z += m*q_z*q_z;
+		//Aqq.e[0].x += m*q_x*q_x;
+		//Aqq.e[0].y += m*q_x*q_y;
+		//Aqq.e[0].z += m*q_x*q_z;
+		//Aqq.e[1].x += m*q_y*q_x;
+		//Aqq.e[1].y += m*q_y*q_y;
+		//Aqq.e[1].z += m*q_y*q_z;
+		//Aqq.e[2].x += m*q_z*q_x;
+		//Aqq.e[2].y += m*q_z*q_y;
+		//Aqq.e[2].z += m*q_z*q_z;
 	}
 
 	////Apqの行列式を求め，反転するかを判定
@@ -395,6 +430,231 @@ __device__
 			curPos[cIndx+1] += (Rq_y + cm_y - curPos[cIndx+1]) * 1.0f/*m_dAlphas[i]*/;
 			curPos[cIndx+2] += (Rq_z + cm_z - curPos[cIndx+2]) * 1.0f/*m_dAlphas[i]*/;
 		}
+
+		//float dt1 = 1.0f/dt;
+		//float gravity[3] = {0.0f, -9.81f, 0.0f};
+		//float param = 1.0f;
+	
+		//gravity[0] *= dt * param;
+		//gravity[1] *= dt * param;
+		//gravity[2] *= dt * param;
+
+		//// 目標座標を計算し，現在の頂点座標を移動
+		//for(int i = startIndx; i < endIndx+1; ++i)
+		//{
+		//	//if(m_pFix[i]) continue;
+
+		//	int ipIndx = pIndxes[i]*4;
+		//	int icIndx = i*SM_DIM;
+
+		//	// 回転行列Rの代わりの行列RL=βA+(1-β)Rを計算
+		//	q_x = orgPos[icIndx+0] - cm_org_x;
+		//	q_y = orgPos[icIndx+1] - cm_org_y;
+		//	q_z = orgPos[icIndx+2] - cm_org_z;
+
+		//	float Rq_x, Rq_y, Rq_z;
+		//	Rq_x = R.e[0].x * q_x + R.e[0].y * q_y + R.e[0].z * q_z;
+		//	Rq_y = R.e[1].x * q_y + R.e[1].y * q_y + R.e[1].z * q_z;
+		//	Rq_z = R.e[2].x * q_z + R.e[2].y * q_y + R.e[2].z * q_z;
+		//	
+		//	float3 gCurPos;
+		//	float3 gNowPos;
+
+		//	gCurPos.x = curPos[icIndx+0];
+		//	gCurPos.y = curPos[icIndx+1];
+		//	gCurPos.z = curPos[icIndx+2];
+
+		//	gNowPos.x = gCurPos.x;
+		//	gNowPos.y = gCurPos.y;
+		//	gNowPos.z = gCurPos.z;
+
+		//	gNowPos.x += (Rq_x + cm_x - gCurPos.x) * 1.0f/*m_dAlphas[i]*/;
+		//	gNowPos.y += (Rq_y + cm_y - gCurPos.y) * 1.0f/*m_dAlphas[i]*/;
+		//	gNowPos.z += (Rq_z + cm_z - gCurPos.z) * 1.0f/*m_dAlphas[i]*/;
+
+		//	// 境界壁
+		//	if(gNowPos.x > 0.75f) gNowPos.x = 0.75f;
+		//	if(gNowPos.x < -0.75f)gNowPos.x = -0.75f;
+		//	if(gNowPos.y > 1.5f)  gNowPos.y = 1.5f;
+		//	if(gNowPos.y < -1.5f) gNowPos.y = -1.5f;
+		//	if(gNowPos.z > 2.0f)  gNowPos.z = 2.0f;
+		//	if(gNowPos.z < -2.0f) gNowPos.z = -2.0f;
+
+		//	//位置
+		//	curPos[icIndx+0] = gNowPos.x;
+		//	curPos[icIndx+1] = gNowPos.y;
+		//	curPos[icIndx+2] = gNowPos.z;
+
+		//	//速度
+		//	vel[icIndx+0] = (gNowPos.x - gCurPos.x) * dt1 + gravity[0];
+		//	vel[icIndx+1] = (gNowPos.y - gCurPos.y) * dt1 + gravity[1];
+		//	vel[icIndx+2] = (gNowPos.z - gCurPos.z) * dt1 + gravity[2];		
+		//}
+	}
+}
+
+__device__
+	void ProjectPosUsePath(float* prtPos, float* prtVel, float* orgPos, float* curPos, float* orgCm, float* curCm, float* curApq, float* vel, int* pIndxes, int* indxSet, float dt, int prtNum, int side)
+{
+	if(blockIdx.x > side) return;
+	if(blockIdx.y > side) return;
+	if(threadIdx.x > side) return;
+	if(threadIdx.y > side) return;
+
+	//計算するクラスタの判定
+	int clusterIndx = blockIdx.x * side * side + blockIdx.y * side + threadIdx.x;
+	//int clusterIndx = threadIdx.x * side * side + threadIdx.y * side + blockIdx.x;
+
+	if(prtNum <= 1)				return;
+	if(clusterIndx > prtNum)	return;
+
+	int startIndx	 = indxSet[clusterIndx*2+0];
+	int endIndx		 = indxSet[clusterIndx*2+1];
+	
+	float cm_x, cm_y, cm_z;
+	float cm_org_x, cm_org_y, cm_org_z;
+
+	float mass = 0.0f;	// 総質量
+
+	// 重心座標の計算
+	for(int i = startIndx; i < endIndx+1; ++i)
+	{
+		//float m = m_pMass[i];
+		float m = 1.0f;
+		//if(m_pFix[i]) m *= 300.0;	// 固定点の質量を大きくする
+		
+		mass += m;
+	}
+
+	int vecIndx = clusterIndx * SM_DIM;
+	cm_x = curCm[vecIndx+0] / mass;
+	cm_y = curCm[vecIndx+1] / mass;
+	cm_z = curCm[vecIndx+2] / mass;
+
+	//前計算した初期データを利用
+	cm_org_x = orgCm[vecIndx+0];
+	cm_org_y = orgCm[vecIndx+1];
+	cm_org_z = orgCm[vecIndx+2];
+
+	matrix3x3 Apq;
+	float q_x, q_y, q_z;
+
+	int apqIndx = clusterIndx*9;
+	Apq.e[0].x = curApq[apqIndx+0];
+	Apq.e[0].y = curApq[apqIndx+1];
+	Apq.e[0].z = curApq[apqIndx+2];
+	Apq.e[1].x = curApq[apqIndx+3];
+	Apq.e[1].y = curApq[apqIndx+4];
+	Apq.e[1].z = curApq[apqIndx+5];
+	Apq.e[2].x = curApq[apqIndx+6];
+	Apq.e[2].y = curApq[apqIndx+7];
+	Apq.e[2].z = curApq[apqIndx+8];
+
+	////Apqの行列式を求め，反転するかを判定
+	////不安定な場合が多いので×
+	////if( Apq.Determinant() < 0.0 && m_iNumVertices >= 4)
+	////{
+	//	//cout << "before det < 0" << endl;
+	//	//１　符号を反転
+	//	//Apq(0,2) = -Apq(0,2);
+	//	//Apq(1,2) = -Apq(1,2);
+	//	//Apq(2,2) = -Apq(2,2);
+
+	//	//２　a2とa3を交換
+	//	//float tmp;
+	//	//tmp = Apq(0,2);
+	//	//Apq(0,2) = Apq(0,1);
+	//	//Apq(0,1) = tmp;
+
+	//	//tmp = Apq(1,2);
+	//	//Apq(1,2) = Apq(1,1);
+	//	//Apq(1,1) = tmp;
+
+	//	//tmp = Apq(2,2);
+	//	//Apq(2,2) = Apq(2,1);
+	//	//Apq(2,1) = tmp;
+	////}
+	//
+
+	matrix3x3 R, S;
+	//PolarDecomposition(Apq, R, S, m_mtrxBeforeU);
+	//PolarDecomposition(Apq, R, S);
+
+	float dt1 = 1.0f/dt;
+	float gravity[3] = {0.0f, -9.81f, 0.0f};
+	float param = 1.0f;
+	
+	gravity[0] *= dt * param;
+	gravity[1] *= dt * param;
+	gravity[2] *= dt * param;
+
+	//if(m_bLinearDeformation)
+	{
+		// Linear Deformations
+		//matrix3x3 A;
+		//A = Multiple(Apq, Inverse(Aqq));	// A = Apq*Aqq^-1
+
+		//// 体積保存のために√(det(A))で割る
+		//if(m_bVolumeConservation){
+		//	float det = fabs(A.Determinant());
+		//	if(det > RX_FEQ_EPS){
+		//		det = 1.0/sqrt(det);
+		//		if(det > 2.0) det = 2.0;
+		//		A *= det;
+		//	}
+		//}
+
+		// 目標座標を計算し，現在の頂点座標を移動
+		for(int i = startIndx; i < endIndx+1; ++i)
+		{
+			//if(m_pFix[i]) continue;
+
+			int ipIndx = pIndxes[i]*4;
+			int icIndx = i*SM_DIM;
+
+			// 回転行列Rの代わりの行列RL=βA+(1-β)Rを計算
+			q_x = orgPos[icIndx+0] - cm_org_x;
+			q_y = orgPos[icIndx+1] - cm_org_y;
+			q_z = orgPos[icIndx+2] - cm_org_z;
+
+			float Rq_x, Rq_y, Rq_z;
+			Rq_x = R.e[0].x * q_x + R.e[0].y * q_y + R.e[0].z * q_z;
+			Rq_y = R.e[1].x * q_y + R.e[1].y * q_y + R.e[1].z * q_z;
+			Rq_z = R.e[2].x * q_z + R.e[2].y * q_y + R.e[2].z * q_z;
+			
+			float3 gCurPos;
+			float3 gNowPos;
+
+			gCurPos.x = curPos[icIndx+0];
+			gCurPos.y = curPos[icIndx+1];
+			gCurPos.z = curPos[icIndx+2];
+
+			gNowPos.x = gCurPos.x;
+			gNowPos.y = gCurPos.y;
+			gNowPos.z = gCurPos.z;
+
+			gNowPos.x += (Rq_x + cm_x - gCurPos.x) * 1.0f/*m_dAlphas[i]*/;
+			gNowPos.y += (Rq_y + cm_y - gCurPos.y) * 1.0f/*m_dAlphas[i]*/;
+			gNowPos.z += (Rq_z + cm_z - gCurPos.z) * 1.0f/*m_dAlphas[i]*/;
+
+			// 境界壁
+			if(gNowPos.x > 0.75f) gNowPos.x = 0.75f;
+			if(gNowPos.x < -0.75f)gNowPos.x = -0.75f;
+			if(gNowPos.y > 1.5f)  gNowPos.y = 1.5f;
+			if(gNowPos.y < -1.5f) gNowPos.y = -1.5f;
+			if(gNowPos.z > 2.0f)  gNowPos.z = 2.0f;
+			if(gNowPos.z < -2.0f) gNowPos.z = -2.0f;
+
+			//位置
+			curPos[icIndx+0] = gNowPos.x;
+			curPos[icIndx+1] = gNowPos.y;
+			curPos[icIndx+2] = gNowPos.z;
+
+			//速度
+			vel[icIndx+0] = (gNowPos.x - gCurPos.x) * dt1 + gravity[0];
+			vel[icIndx+1] = (gNowPos.y - gCurPos.y) * dt1 + gravity[1];
+			vel[icIndx+2] = (gNowPos.z - gCurPos.z) * dt1 + gravity[2];		
+		}
 	}
 }
 
@@ -421,6 +681,7 @@ __device__
 	float dt1 = 1.0f/dt;
 	float gravity[3] = {0.0f, -9.81f, 0.0f};
 	float param = 1.0f;
+
 	gravity[0] *= dt * param;
 	gravity[1] *= dt * param;
 	gravity[2] *= dt * param;
@@ -734,22 +995,6 @@ __device__
 {
 	// S = (A^T A)^(1/2)を求める
 	matrix3x3 ATA = Multiple(Transpose(A), A);	// (A^T A)の計算
-
-	//Multipleを使わないバージョン
-	//matrix3x3 TrA = Transpose(A);
-	//matrix3x3 ATA;
-
-	//ATA.e[0].x = TrA.e[0].x * A.e[0].x + TrA.e[0].y * A.e[1].x + TrA.e[0].z * A.e[2].x;
-	//ATA.e[0].y = TrA.e[0].x * A.e[0].y + TrA.e[0].y * A.e[1].y + TrA.e[0].z * A.e[2].y;
-	//ATA.e[0].z = TrA.e[0].x * A.e[0].z + TrA.e[0].y * A.e[1].z + TrA.e[0].z * A.e[2].z;
-	// 			 			  			 			  			 		 
-	//ATA.e[1].x = TrA.e[1].x * A.e[0].x + TrA.e[1].y * A.e[1].x + TrA.e[1].z * A.e[2].x;
-	//ATA.e[1].y = TrA.e[1].x * A.e[0].y + TrA.e[1].y * A.e[1].y + TrA.e[1].z * A.e[2].y;
-	//ATA.e[1].z = TrA.e[1].x * A.e[0].z + TrA.e[1].y * A.e[1].z + TrA.e[1].z * A.e[2].z;
-	// 			 			  			 			  			 		  
-	//ATA.e[2].x = TrA.e[2].x * A.e[0].x + TrA.e[2].y * A.e[1].x + TrA.e[2].z * A.e[2].x;
-	//ATA.e[2].y = TrA.e[2].x * A.e[0].y + TrA.e[2].y * A.e[1].y + TrA.e[2].z * A.e[2].y;
-	//ATA.e[2].z = TrA.e[2].x * A.e[0].z + TrA.e[2].y * A.e[1].z + TrA.e[2].z * A.e[2].z;
 
 	MakeIdentity(R);
 

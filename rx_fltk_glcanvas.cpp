@@ -1296,22 +1296,31 @@ void rxFlGLWindow::Idle(void)
 		//StepCalcParam(m_fDt);					//温度による線形補間係数決定　中間状態あり
 		//StepClusterHigh(m_fDt);
 
+	//TODO::ここも関数にしてしまう
 #if defined(MK_USE_GPU)
 //GPU使用
-/*反復有　未完成*/ #if defined(USE_ITR)
+	#if defined(USE_ITR)	
+		/*反復有　未完成*/
 		//StepClusterIterationGPU(m_fDt);	RXTIMER("StepClusterIterationGPU");	//反復処理を用いたクラスタの運動計算
-/*反復無*/ #else					//反復無
+	
+	#else	
+		/*反復無*/
 		StepClusterGPU(m_fDt);				RXTIMER("StepClusterGPU");			//クラスタの計算
+	
 	#endif
 #else
 //CPUのみ
-/*反復有*/ #if defined(USE_ITR)
+	#if defined(USE_ITR)
+		/*反復有*/
 		StepClusterIterationCPU(m_fDt);		RXTIMER("StepClusterCPUIteration");	//反復処理を用いたクラスタの運動計算
-/*反復無*/ #else
+	
+	#else
+		/*反復無*/
 		StepClusterCPU(m_fDt);				RXTIMER("StepClusterCPU");			//クラスタの運動計算
+	
 	#endif
 
-	//共通
+		//共通
 		StepInterpolation(m_fDt);			RXTIMER("StepInterpolation");		//液体と固体の運動を線形補間
 #endif
 	}
@@ -3346,7 +3355,7 @@ void rxFlGLWindow::StepClusterCPU(double dt)
 #ifdef USE_PATH
 	m_iceObj->StepObjMoveUsePath();		//高速化手法を用いた場合
 #else
-	m_iceObj->StepObjMove();			//高速化手法を用いない場合
+	m_iceObj->StepObjMoveCPU();			//高速化手法を用いない場合
 #endif
 }
 
@@ -3368,14 +3377,11 @@ void rxFlGLWindow::StepClusterIterationCPU(double dt)
 }
 
 /*!
- * ShapeMatching法のタイムステップを進める　GPU
+ * ShapeMatching法のタイムステップを進める　GPUで並列処理
  * @param[in] dt タイムステップ幅
  */
 void rxFlGLWindow::StepClusterGPU(double dt)
 {
-	if(m_bPause){	return;}
-
-//GPUで並列処理
 	//位置情報はVBOを使っているので，マップしないといけない
 	//頂点バッファオブジェクトをマップ
 	float* dvbo_pos = ((RXSPH*)m_pPS)->GetDevicePointer_Pos();
@@ -3383,13 +3389,21 @@ void rxFlGLWindow::StepClusterGPU(double dt)
 
 	cudaGraphicsMapResources(1, &d_resource_pos, 0);
 	cudaGraphicsResourceGetMappedPointer((void**)&dvbo_pos, NULL, d_resource_pos);
-	
-	Ice_SM::SetDevicePosPointer(dvbo_pos);	//マップしたポインタを渡す
-	Ice_SM::UpdateGPU();					//クラスタの運動計算
-	RXTIMER("StepCluster");
 
-	m_iceObj->StepInterPolation();			//総和計算，線形補間
-	RXTIMER("StepInterpolation");
+	//マップしたポインタを渡す
+	m_iceObj->SetSPHDevicePointer(dvbo_pos, ((RXSPH*)m_pPS)->GetDevicePointer_Vel());
+
+#ifdef USE_PATH
+
+	m_iceObj->StepObjMoveGPUUsePath();	RXTIMER("StepObjMoveGPUUsePath");	//
+
+#else
+
+	m_iceObj->StepObjMoveGPU();			RXTIMER("StepObjMoveGPU");			//クラスタの運動計算
+
+#endif
+
+	m_iceObj->StepInterPolation();		RXTIMER("StepInterpolation");		//総和計算，線形補間
 
 	//位置情報をアンマップ
 	cudaGraphicsUnmapResources(1, &d_resource_pos, 0);
@@ -3401,8 +3415,6 @@ void rxFlGLWindow::StepClusterGPU(double dt)
  */
 void rxFlGLWindow::StepClusterIterationGPU(double dt)
 {
-	if(m_bPause){	return;}
-
 //GPUで並列処理
 	//位置情報はVBOを使っているので，マップしないといけない
 	//頂点バッファオブジェクトをマップ

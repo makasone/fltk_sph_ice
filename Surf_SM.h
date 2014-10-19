@@ -24,6 +24,7 @@
 
 #include <UtilityScript\mk_Vector2D.h>
 #include <UtilityScript\mk_Vector3D.h>
+#include "QueryCounter.h"
 
 using namespace std;
 
@@ -44,6 +45,8 @@ extern void LaunchUpdatePrefixSumGPU
 	int* md_3DiPTHandPrfxSet,
 	float* md_f3OrgPos,
 	float* md_f3OrgCm,
+	unsigned* dgroupPos,
+	unsigned* dgroupApq,
 	const float* md_fPos,
 	const float* md_fVel
 );
@@ -57,7 +60,7 @@ private:
 	mk_Vector2D<int>		m_mk2DiPTHtoPRT;		//パス→粒子　不規則配列になる
 	mk_Vector2D<int>		m_mk2DiPRTtoPTH;		//粒子→パス　0:パス番号，1:パス内番号　粒子は１つのパスにしか属さない
 
-	mk_Vector3D<int>		m_mk3DiPTHandPrfxSet;	//各クラス多における，パスとprefixSumの番地セット[0]：始点　[1]：終点　prefixSum番地のみでいい　path番号は粒子から経由して取得できる
+	mk_Vector3D<int>		m_mk3DiPTHandPrfxSet;	//各クラスタにおける，パスとprefixSumの番地セット[0]：始点　[1]：終点　prefixSum番地のみでいい　path番号は粒子から経由して取得できる
 
 	vector<Vec3> m_vvec3OrgPos;						//粒子の初期位置
 	vector<Vec3> m_vvec3OrgCm;						//クラスタの初期重心
@@ -79,8 +82,13 @@ private:
 
 	int* md_3DiPTHandPrfxSet;						//各クラス多における，パスとprefixSumの番地セット[0]：始点　[1]：終点　prefixSum番地のみでいい　path番号は粒子から経由して取得できる
 
-	float* md_f3OrgPos;								//クラスタ内の粒子の初期位置		Ice_SMのデバイスポインタをコピーして使う
-	float* md_f3OrgCm;								//クラスタの初期重心				Ice_SMのデバイスポインタをコピーして使う
+	float* md_f3OrgPos;								//粒子の初期位置
+
+	float* md_f3ClusterOrgPos;						//クラスタ内の粒子の初期位置		Ice_SMのデバイスポインタをコピーして使う
+	float* md_f3ClusterOrgCm;						//クラスタの初期重心				Ice_SMのデバイスポインタをコピーして使う
+
+	unsigned* md_uPosGroup;							//prefixSumのグループ化に使うためのフラグ
+	unsigned* md_uApqGroup;							//prefixSumのグループ化に使うためのフラグ
 
 	const float* md_fPos;							//粒子の位置へのポインタ
 	const float* md_fVel;							//粒子の速度へのポインタ
@@ -110,11 +118,24 @@ public:
 	rxMatrix3 CalcApqSum(const int& cIndx);
 	const rxMatrix3 CalcApqFromPrfxSm(const int& path, const int& start, const int& end);
 
+//アクセッサ
+	int* GetDevicePRTtoPTHPointer(){		return md_2DiPRTtoPTH;		}
+	int* GetDevicePTHandPrfxSetPointer(){	return md_3DiPTHandPrfxSet;	}
+	float* GetDecvicePrfxPos(){	return md_2Df3PrfxPos;	}
+	float* GetDecvicePrfxApq(){	return md_2Df9PrfxApq;	}
+
+	void SetDevicePointer(const float* dPos, const float* dVel){	md_fPos = dPos; md_fVel = dVel;	}
+
 
 //デバッグ
+	void DebugInit();
 	void DebugPathDataPos();
 	void DebugPathDataApq();
 	void DebugPathPrfxIndxSet();
+
+//テスト
+	void TestUpdatePrefixSum();
+
 };
 
 #endif

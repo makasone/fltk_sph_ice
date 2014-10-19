@@ -306,6 +306,7 @@
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="IceInterPolation.cu" />
+    <CudaCompile Include="IceObject.cu" />
     <CudaCompile Include="IceStructure.cu" />
     <CudaCompile Include="Path_SM.cu" />
     <CudaCompile Include="rx_aniso_kernel.cu">
@@ -348,6 +349,7 @@
     <None Include="bin\sph_scene_8.cfg" />
     <None Include="bin\sph_scene_9.cfg" />
     <None Include="ClassDiagram1.cd" />
+    <None Include="Path_SM.cuh" />
     <None Include="rx_mc_kernel.cu">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release(Boundary Particle)|Win32'">true</ExcludedFromBuild>

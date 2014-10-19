@@ -27,7 +27,7 @@ using namespace std;
 
 class IceStructure
 {
-public:
+public:	//TODO: 全てpublicにしない
 	IceStructure();
 	IceStructure(int pNum, int cNum, int tNum);
 	~IceStructure(void);
@@ -41,6 +41,7 @@ public:
 	
 	void InitGPU();									//GPU処理で用いるデータの初期化
 
+	//アクセッサ
 	void SetParticleNum(int pNum){	m_iPNum = pNum; }		//現在の粒子数
 	void SetClusterNum(int cNum){	m_iCNum = cNum; }		//現在のクラスタ数
 	void SetTetraNum(int tNum){		m_iTNum = tNum;	}		//現在の四面体数
@@ -50,6 +51,7 @@ public:
 	int GetTetraNum(void){		return m_iTNum;	}
 
 	int GetPNumMax(void){	return m_iPNumMax;	}
+	int GetCNumMax(void){	return m_iCNumMax;	}
 
 	int GetCtoPMax(void){	return m_iCtoPMax;	}
 	int GetPtoCMax(void){	return m_iPtoCMax;	}
@@ -142,6 +144,12 @@ public:
 	void ResetPFlag(int endNum);
 	void ResetCFlag(int endNum);
 	void ResetTFlag(int endNum);
+
+	//---------------------------------------_GPU------------------------------------------
+	int* GetDeviceCtoPNumPointer(){	return sd_piCtoPNum;	}
+	int* GetDeviceCtoPointer(){		return sd_piCtoP;		}
+
+	//---------------------------------------GPU_------------------------------------------
 
 protected:
 

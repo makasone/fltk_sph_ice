@@ -26,6 +26,8 @@ float* Ice_SM::d_CurPos;
 float* Ice_SM::d_OrgCm;
 float* Ice_SM::d_CurCm;
 
+float* Ice_SM::d_Apq;
+
 float* Ice_SM::d_Mass;
 float* Ice_SM::d_Vel;
 
@@ -95,6 +97,8 @@ void Ice_SM::InitGPU(const vector<Ice_SM*>& ice_sm, float* d_pos, float* d_vel, 
 
 	cudaMalloc((void**)&d_OrgCm,	sizeof(float) * MAXCLUSTER * SM_DIM);
 	cudaMalloc((void**)&d_CurCm,	sizeof(float) * MAXCLUSTER * SM_DIM);
+
+	cudaMalloc((void**)&d_Apq,		sizeof(float) * MAXCLUSTER * 9);	//TODO: èâä˙âªÇµÇƒÇ¢Ç»Ç¢ÇÃÇ…íçà”
 
 	cudaMalloc((void**)&d_Mass,		sizeof(float) * MAXCLUSTER * MAXPARTICLE);
 	cudaMalloc((void**)&d_Fix,		sizeof(bool)  * MAXCLUSTER * MAXPARTICLE);
@@ -638,15 +642,15 @@ void Ice_SM::ShapeMatchingSolid()
 		Apq(2,1) += m*p[2]*q[1];
 		Apq(2,2) += m*p[2]*q[2];
 
-		Aqq(0,0) += m*q[0]*q[0];
-		Aqq(0,1) += m*q[0]*q[1];
-		Aqq(0,2) += m*q[0]*q[2];
-		Aqq(1,0) += m*q[1]*q[0];
-		Aqq(1,1) += m*q[1]*q[1];
-		Aqq(1,2) += m*q[1]*q[2];
-		Aqq(2,0) += m*q[2]*q[0];
-		Aqq(2,1) += m*q[2]*q[1];
-		Aqq(2,2) += m*q[2]*q[2];
+		//Aqq(0,0) += m*q[0]*q[0];
+		//Aqq(0,1) += m*q[0]*q[1];
+		//Aqq(0,2) += m*q[0]*q[2];
+		//Aqq(1,0) += m*q[1]*q[0];
+		//Aqq(1,1) += m*q[1]*q[1];
+		//Aqq(1,2) += m*q[1]*q[2];
+		//Aqq(2,0) += m*q[2]*q[0];
+		//Aqq(2,1) += m*q[2]*q[1];
+		//Aqq(2,2) += m*q[2]*q[2];
 	}
 
 	////ApqÇÃçsóÒéÆÇãÅÇﬂÅCîΩì]Ç∑ÇÈÇ©ÇîªíË
@@ -1026,6 +1030,11 @@ void Ice_SM::UpdateUsePathCPU()
 void Ice_SM::UpdateGPU()
 {
 	LaunchShapeMatchingGPU(s_vertNum, sd_PrtPos, sd_PrtVel, d_OrgPos, d_CurPos, d_OrgCm, d_CurCm, d_Vel, d_PIndxes, d_IndxSet, 0.01);
+}
+
+void Ice_SM::UpdateUsePathGPU()
+{
+	LaunchShapeMatchingUsePathGPU(s_vertNum, sd_PrtPos, sd_PrtVel, d_OrgPos, d_CurPos, d_OrgCm, d_CurCm, d_Apq, d_Vel, d_PIndxes, d_IndxSet, 0.01);
 }
 
 /*

@@ -19,13 +19,13 @@
 using namespace std;
 
 #define USE_PATH
-//#define MK_USE_GPU
-#define USE_ITR
+#define MK_USE_GPU
+//#define USE_ITR
 
-const int g_iterationNum = 10;
+const int g_iterationNum = 3;
 
 //GPU処理
-//各クラスタの運動計算結果と固体構造のデータが必要なので，ここにおいている
+//TODO: 各クラスタの運動計算結果と固体構造のデータが必要なので，ここにおいている
 extern void LaunchCalcAverageGPU
 (
 	int prtNum,
@@ -43,7 +43,7 @@ extern void LaunchCalcAverageGPU
 	int PtoCParamSize
 );
 
-//いずれはクラスにしたいが，とりあえずここにおいている
+//TODO: いずれはクラスにしたいが，とりあえずここにおいている
 extern void LaunchInterPolationGPU
 (
 	int prtNum,
@@ -51,6 +51,36 @@ extern void LaunchInterPolationGPU
 	float* sldPrtVel,
 	float* sphPrtPos,
 	float* sphPrtVel
+);
+
+//PrefixSumのデータを用いてSM法で使うデータを更新
+//この処理は，Ice_SMとSurf_SMのデータを用いるので，ここに置く必要がある
+extern void LauchUpdateSMFromPath
+(
+	int prtNum,
+	float* prtPos,
+	float* prtVel, 
+	//------------------SM----------------------
+	float* orgPos,
+	float* curPos,
+	float* orgCm,
+	float* curCm,
+	float* clstrApq,
+	float* vel,
+	int* pIndxes, 
+	int* startEndSet,
+	//-----------------Path---------------------
+	int* PRTtoPTH,
+	int* PTHandPrfxSet,
+	float* prfxPos,
+	float* prfxApq,
+	//-----------------Struct-------------------
+	int* CtoP,
+	int* CtoPNum,
+	int CtoPSizeY,
+	int CtoPSizeZ,
+
+	float dt
 );
 
 class IceObject
@@ -110,14 +140,20 @@ public:
 	static int GetClusterNum(){		return sm_clusterNum;		}
 	Ice_SM* GetMoveObj(int cIndx){	return m_iceMove[cIndx];	}
 
-	void StepObjMove();										//運動計算
+	void StepObjMoveCPU();									//運動計算
+	void StepObjMoveGPU();									//GPUによる運動計算
+
 	void StepObjMoveUsePath();								//高速化手法を用いた運動計算
+	void StepObjMoveGPUUsePath();
+
 	void StepObjMoveIteration();							//反復処理を用いた運動計算
 	void StepObjMoveIterationUsePath();						//高速化手法を用いた反復運動計算
 
 	void StepObjCalcWidhIteration();						//固体の運動計算，総和計算，補間処理　GPU処理　反復処理あり
 	void StepInterPolation();								//線形補間　いずれは処理が複雑になるのでクラスにしたい．
 	void StepInterPolationForCluster();
+
+	void TestStepInterPolation();
 
 	void CalcAverageCPU(int pIndx, Vec3& pos, Vec3& vel);
 	void LinerInterPolationCPU(int pIndx, const Vec3& pos, const Vec3& vel);
@@ -139,7 +175,8 @@ public:
 
 
 
-
+	//テスト
+	void TestUpdateSMFromPath();
 
 
 

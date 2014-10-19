@@ -51,6 +51,22 @@ extern void LaunchShapeMatchingIterationGPU
 	float dt
 );
 
+extern void LaunchShapeMatchingUsePathGPU
+(
+	int prtNum,
+	float* prtPos,
+	float* prtVel, 
+	float* orgPos,
+	float* curPos,
+	float* orgCm,
+	float* curCm,
+	float* curApq,
+	float* vel,
+	int* pIndxes, 
+	int* d_IndxSet,
+	float dt
+);
+
 class Ice_SM : public rxShapeMatching
 {
 protected:
@@ -92,6 +108,8 @@ protected:
 	static float* d_OrgCm;						//初期重心
 	static float* d_CurCm;						//現在の重心　まだ使わない
 
+	static float* d_Apq;
+
 	static float* d_Mass;
 	static float* d_Vel;
 
@@ -127,7 +145,10 @@ public:
 	static float* GetDeviceVelPointer(){	return d_Vel;		}
 	static float* GetOrgPosPointer(){		return d_OrgPos;	}
 	static float* GetOrgCmPointer(){		return d_OrgCm;		}
+	static float* GetCurCmPointer(){		return d_CurCm;		}
+	static float* GetDeviceApqPointer(){	return d_Apq;		}
 
+	static int* GetDeviceIndexesPointer(){	return d_PIndxes;	}
 	static int* GetDeviceIndexSetPointer(){	return d_IndxSet;	}
 	static int	GetVertexNum(){				return s_vertNum;	}
 
@@ -197,7 +218,6 @@ public:
 	//デバッグ
 	void DebugIndx(void);
 	void DebugLayer(void);
-
 };
 
 #endif

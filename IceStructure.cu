@@ -74,11 +74,14 @@ __global__
 
 	int pTocIndx = PtoCIndx[pIndx];
 
+	int PtoC_0 = (PtoCMax*PtoCParamSize) * pIndx + PtoCMax * 0;
+	int PtoC_1 = (PtoCMax*PtoCParamSize) * pIndx + PtoCMax * 1;
+
 	for(int j = 0; j < pTocIndx; ++j)
 	{
 		//pIndx番目の粒子が属するj個目のクラスタ
-		int jcIndx = PtoC[(PtoCMax*PtoCParamSize) * pIndx + PtoCMax * 0 + j];
-		int joIndx = PtoC[(PtoCMax*PtoCParamSize) * pIndx + PtoCMax * 1 + j];
+		int jcIndx = PtoC[PtoC_0 + j];
+		int joIndx = PtoC[PtoC_1 + j];
 
 		if(jcIndx == -1 || joIndx == -1){	continue;	}
 
