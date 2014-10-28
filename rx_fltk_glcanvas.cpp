@@ -749,164 +749,10 @@ void rxFlGLWindow::Mouse(int button, int state, int x, int y)
 		}
 	}
 	else if(button == FL_MIDDLE_MOUSE){
-		if(state)
-		{
-
-		}
-		else
-		{
-			//デバッグ
-			if(debugIndx == 0)
-			{
-				for(int i = 0; i < m_pPS->GetNumParticles(); i++)
-				{
-					//if(m_ice->GetPtoCNum_Connect(i)==0){ continue;}
-					//m_ice->DebugPtoC_Connect(i);				//粒子→接続クラスタ
-				}
-				debugIndx++;
-			}
-			else if(debugIndx == 1)
-			{
-				for(int i = 0; i < m_iClusteresNum; i++)
-				{
-					//m_ice->DebugCtoP_Connect(i);				//接続クラスタ→粒子
-				}
-				debugIndx++;
-			}
-			else if(debugIndx == 2)
-			{
-				for(int i = 0; i < m_iClusteresNum; i++)
-				{
-					//m_ice->DebugNeighborCluster(i);				//各クラスタの近傍クラスタ
-				}
-				debugIndx++;
-			}
-			else if(debugIndx == 3)
-			{
-				for(int i = 0; i < m_pPS->GetNumParticles(); i++)
-				{
-					//if(m_ice->GetPtoCNum_Calc(i)==0){ continue;}
-					//m_ice->DebugPtoC_Calc(i);							//粒子→計算クラスタ
-					if(m_ice->GetParticleNum() <= i){	continue;	}	//融解のみの実験のときに必要になる．
-					if(m_ice->GetPtoCNum(i) == 0)	{	continue;	}
-					m_ice->DebugPtoC(i);
-				}
-				//debugIndx++;
-				debugIndx = 4;
-			}
-			else if(debugIndx == 4)
-			{
-				for(int i = 0; i < m_iClusteresNum; i++)
-				{
-					//m_ice->DebugCtoP_Calc(i);					//計算クラスタ→粒子
-					if(m_ice->GetParticleNum() <= i){	continue;	}	//融解のみの実験のときに必要になる．
-					if(m_ice->GetCtoPNum(i) == 0){	continue;	}
-					m_ice->DebugCtoP(i);
-				}
-				//debugIndx++;
-				debugIndx = 3;
-			}
-			else if(debugIndx == 5)
-			{
-				//for(int i = 0; i < m_iClusteresNum; i++)
-				//{
-				//	m_ice->DebugCalcToConnect(i);				//接続クラスタの粒子→計算クラスタの粒子
-				//}
-				debugIndx++;
-			}
-			else if(debugIndx == 6)
-			{
-				//for(int i = 0; i < m_iClusteresNum; i++)
-				//{
-				//	m_sm_connects[i]->DebugLayer();				//接続クラスタの粒子のレイヤー
-				//}
-				debugIndx++;
-			}
-			else if(debugIndx == 7)
-			{
-				for(int i = 0; i < m_iClusteresNum; i++)
-				//{
-				//	m_sm_calcs[i]->DebugLayer();				//計算クラスタの粒子のレイヤー
-				//}
-				debugIndx = 0;
-			}
-		}
 
 	}
 	else if(button == FL_RIGHT_MOUSE){
-		//矩形範囲を作成し，範囲内の粒子を選択，温度・熱量を上昇させる
-		//if(state)
-		//{
-		//	m_ht_vStartPoint = Vec2(x, y);
-		//	m_ht_bRectFlag = true;
-		//}
-		//else
-		//{
-		//	m_ht_vEndPoint = Vec2(x, y);
 
-		//	vector<int> vrts;
-		//	vector<rxPickInfo> hits;
-		//	rxGLPick pick;
-		//	pick.Set(rxFlGLWindow::DisplayForPick_s, this, rxFlGLWindow::Projection_s, this);
-		//	hits = pick.Pick(
-		//						(int)m_ht_vStartPoint[0],
-		//						(int)m_ht_vStartPoint[1],
-		//						(int)m_ht_vEndPoint[0],
-		//						(int)m_ht_vEndPoint[1]
-		//	);
-		//	for(vector<rxPickInfo>::iterator i = hits.begin(); i != hits.end(); ++i){
-		//		vrts.push_back(i->name-1);
-		//		cout << "pIndx = " << vrts[vrts.size()-1] << endl;
-		//	}
-
-		//	cout << vrts.size() << " vertices are selected." << endl;
-		//	m_ht_vSelectedVertices = vrts;
-
-		//	//温度・熱量上昇
-		//	for( unsigned i = 0; i < vrts.size(); i++ )
-		//	{
-		//		m_ht->setTemps(vrts[i], 1000);
-		//		m_ht->setHeats(vrts[i], 1000);
-		//	}
-		//	ClearRect();
-		//}
-
-		//ClearPick();
-
-		//デバッグ　指定した粒子を融解
-		//if(state)
-		//{
-		//	m_ht->setTemps(meltPIndx, 1000);
-		//	m_ht->setHeats(meltPIndx, 1000);
-		//	m_ht->calcTempAndHeat();								//熱量の温度変換，温度の熱量変換
-		//}
-		//else
-		//{
-		//	m_ht->setTemps(meltPIndx, 1000);
-		//	m_ht->setHeats(meltPIndx, 1000);
-		//	m_ht->calcTempAndHeat();								//熱量の温度変換，温度の熱量変換
-
-		//	StepSolid_Melt(m_fDt);
-
-		//	if(meltPIndx == 0)
-		//	{
-		//		meltPIndx = 3;
-		//	}
-		//	else if(meltPIndx == 1)
-		//	{
-		//		meltPIndx = 0;
-		//	}
-		//	else if(meltPIndx == 3)
-		//	{
-		//		meltPIndx = 9;
-		//	}
-		//	else if(meltPIndx == 9)
-		//	{
-		//		meltPIndx = 1;
-		//	}
-		//}
-
-	redraw();
 	}
 }
 
@@ -1279,65 +1125,32 @@ void rxFlGLWindow::Idle(void)
 	//
 	else if(m_bMode == MODE_ICE)
 	{
-		TimeStepEvent();
+		//StepTimeEvent();											//タイムイベント
 
-		//StepPS(m_fDt);						//粒子法の運動
-	RXTIMER("StepPS");
+		//StepHT(m_fDt);			RXTIMER("StepHt");				//熱処理
+		//StepPS(m_fDt);			RXTIMER("StepPS");				//液体運動
+		StepIceObj();												//固体運動
+		StepIceStructure();											//相変化
 
-		//StepHT(m_fDt);						//熱処理
-	RXTIMER("StepHt");
-	
-		//StepSolid_Melt(m_fDt);				//融解処理
-	RXTIMER("StepMelt");
-	
-		//StepSolid_Freeze(m_fDt);				//凝固処理
-	RXTIMER("StepFreeze");
-
-		//StepCalcParam(m_fDt);					//温度による線形補間係数決定　中間状態あり
+		//StepSolid_Melt(m_fDt);	RXTIMER("StepMelt");			//融解処理
+		//StepSolid_Freeze(m_fDt);	RXTIMER("StepFreeze");			//凝固処理
+		//StepCalcParam(m_fDt);										//温度による線形補間係数決定　中間状態あり
 		//StepClusterHigh(m_fDt);
-
-	//TODO::ここも関数にしてしまう
-#if defined(MK_USE_GPU)
-//GPU使用
-	#if defined(USE_ITR)	
-		/*反復有　未完成*/
-		//StepClusterIterationGPU(m_fDt);	RXTIMER("StepClusterIterationGPU");	//反復処理を用いたクラスタの運動計算
-	
-	#else	
-		/*反復無*/
-		StepClusterGPU(m_fDt);				RXTIMER("StepClusterGPU");			//クラスタの計算
-	
-	#endif
-#else
-//CPUのみ
-	#if defined(USE_ITR)
-		/*反復有*/
-		StepClusterIterationCPU(m_fDt);		RXTIMER("StepClusterCPUIteration");	//反復処理を用いたクラスタの運動計算
-	
-	#else
-		/*反復無*/
-		StepClusterCPU(m_fDt);				RXTIMER("StepClusterCPU");			//クラスタの運動計算
-	
-	#endif
-
-		//共通
-		StepInterpolation(m_fDt);			RXTIMER("StepInterpolation");		//液体と固体の運動を線形補間
-#endif
 	}
 
 	//
 	//追加：：粒子の色設定
 	//
-	//StepParticleColor();
+	StepParticleColor();
 	RXTIMER("StepParticleColor");
 
 	if(m_bsSimuSetting.at(ID_SPH_ANISOTROPIC)){
 		// 異方性カーネル
 		RXTIMER_RESET;
 		m_pPS->CalAnisotropicKernel();
+		RXTIMER("anisotropic");
 	}
 
-//	RXTIMER("anisotropic");
 	//
 	// 流体表面メッシュ生成
 	//
@@ -1861,7 +1674,8 @@ void rxFlGLWindow::OnMenuParticle(double val, string label)
  * 粒子の色を切り替え
  */
 void rxFlGLWindow::OnMenuParticleColor(double val, string label)
-{
+{	cout << __FUNCTION__ << endl;
+
 	if(label.find("Ramp") != string::npos){
 		SetParticleColorType(rxParticleSystemBase::RX_RAMP);
 	}
@@ -1892,31 +1706,26 @@ void rxFlGLWindow::OnMenuParticleColor(double val, string label)
 		SetParticleColorType(rxParticleSystemBase::RX_ICE_CONNECT);
 		m_iColorType = rxParticleSystemBase::RX_ICE_CONNECT;
 
-		//粒子ベース版
 		m_iShowTetraIndx++;
 		
-		if( m_iShowTetraIndx > m_iTetraNum )
-		{
-			m_iShowTetraIndx = 0;
-		}
-		else if( m_iShowTetraIndx < 0 )
+		int tetraNum = m_iceObj->GetTetraNum();
+
+		//情報を表示する四面体番号の範囲
+		if( m_iShowTetraIndx > tetraNum || m_iShowTetraIndx < 0 )
 		{
 			m_iShowTetraIndx = 0;
 		}
 
-		cout << "Tetrahedra :: m_iShowTetraIndx = " << m_iShowTetraIndx << endl;
-
-		if( m_iShowTetraIndx != m_iTetraNum && m_iShowTetraIndx >= 0)
+		cout << "Tetrahedra :: m_iShowTetraIndx = " << m_iShowTetraIndx << "/" << tetraNum << endl;
+		cout << "	Indxes :: " << endl;
+		for( int i = 0; i < m_iceObj->GetTtoPIndx(m_iShowTetraIndx); i++ )
 		{
-			cout << "Tetrahedra :: Indxes :: " << endl;
-			for( int i = 0; i < m_ice->GetTtoPIndx(m_iShowTetraIndx); i++ )
-			{
-				cout << "                  i = " << i << " pIndx = " << m_ice->GetTtoP(m_iShowTetraIndx, i) << endl;
-			}
+			cout << "                  i = " << i << " pIndx = " << m_iceObj->GetTtoP(m_iShowTetraIndx, i) << endl;
 		}
 
 		StepParticleColor();
 	}
+	//追加
 	else if(label.find("Ice_Calc") != string::npos)
 	{
 		((RXSPH*)m_pPS)->DetectSurfaceParticles();
@@ -1936,7 +1745,7 @@ void rxFlGLWindow::OnMenuParticleColor(double val, string label)
 			m_iShowClusterIndx = 0;
 		}
 
-		cout << "ClusterCountUp :: m_iShowClusterIndx = " << m_iShowClusterIndx << endl;
+		cout << "ClusterCountUp :: m_iShowClusterIndx = " << m_iShowClusterIndx << "/" << m_iClusteresNum << endl;
 
 		if(m_iShowClusterIndx != m_iClusteresNum && m_iShowClusterIndx >= 0)
 		{
@@ -1973,9 +1782,19 @@ void rxFlGLWindow::OnMenuParticleColor(double val, string label)
 		SetParticleColorType(rxParticleSystemBase::RX_SURFACE);
 	}
 	//追加　高階層クラスタ
-	else if(label.find("HighClstr") != string::npos)
+	else if(label.find("SELECTED") != string::npos)
 	{
-
+		((RXSPH*)m_pPS)->DetectSurfaceParticles();
+		SetParticleColorType(rxParticleSystemBase::RX_ICE_SELECTED);
+		m_iColorType = rxParticleSystemBase::RX_ICE_SELECTED;
+		StepParticleColor();
+	}
+	else if(label.find("DEFORMATION") != string::npos)
+	{
+		((RXSPH*)m_pPS)->DetectSurfaceParticles();
+		SetParticleColorType(rxParticleSystemBase::RX_ICE_DEFORMATION);
+		m_iColorType = rxParticleSystemBase::RX_ICE_DEFORMATION;
+		StepParticleColor();
 	}
 	else if(label.find("None") != string::npos){
 		SetParticleColorType(rxParticleSystemBase::RX_NONE);
@@ -2948,6 +2767,8 @@ void rxFlGLWindow::InitIceObj(void)
 	m_iLayer = m_Scene.GetSphEnv().layer;
 	m_iIceItr = m_Scene.GetSphEnv().smItr;
 
+	m_iMaxClusterNum = m_pPS->GetNumParticles();
+
 	//ファイルから読み込んだパラメータ
 	rxSPHEnviroment sph_env = m_Scene.GetSphEnv();
 
@@ -2971,7 +2792,8 @@ void rxFlGLWindow::InitIceObj(void)
 		m_iIceTtrNum,
 		m_iIcePrtNum,
 		hp, hv, dp, dv,
-		m_iLayer
+		m_iLayer,
+		m_iMaxClusterNum
 	);					
 
 	m_iceObj->InitTetra();										//四面体の初期化
@@ -2981,6 +2803,7 @@ void rxFlGLWindow::InitIceObj(void)
 		sph_env.smTimeStep,
 		m_iIceItr
 	);															//sm法の初期化
+
 	m_iceObj->InitStrct();										//粒子とクラスタの関係情報を初期化
 
 #ifdef USE_PATH
@@ -2989,7 +2812,9 @@ void rxFlGLWindow::InitIceObj(void)
 
 	IceObject::InitInterPolation();								//線形補間の初期化
 
+#ifdef MK_USE_GPU
 	m_iceObj->InitGPU();										//構造の情報が完成したらGPUを初期化
+#endif
 
 	m_iClusteresNum = m_iceObj->GetClusterNum();
 	m_iShowClusterIndx = m_iClusteresNum;
@@ -3000,8 +2825,9 @@ void rxFlGLWindow::InitIceObj(void)
 
 /*
  *	あるタイムステップを迎えると行われるイベント
+ *  データ取得や動画作成に使う
  */
-void rxFlGLWindow::TimeStepEvent(void)
+void rxFlGLWindow::StepTimeEvent(void)
 {
 	////粒子が中心の列から融解
 	//if(200 <= g_iTimeCount && g_iTimeCount <= 300)
@@ -3027,16 +2853,11 @@ void rxFlGLWindow::CountTetraHedra(int tIndx, vector<int>& pList)
 	for(unsigned i = 0; i < pList.size(); i++)
 	{
 		int pIndx = pList[i];		
-		//m_ice->CountPtoT(pIndx);
-		//m_ice->CountTtoP(tIndx);
+
 		m_iceObj->CountPtoT(pIndx);
 		m_iceObj->CountTtoP(tIndx);
 
 		//Indxの更新
-		//if(m_ice->GetPtoTNum(pIndx) >= m_ice->GetPtoTIndx(pIndx))
-		//{
-		//	m_ice->SetPtoTIndx(pIndx, m_ice->GetPtoTNum(pIndx));
-		//}
 		if(m_iceObj->GetPtoTNum(pIndx) >= m_iceObj->GetPtoTIndx(pIndx))
 		{
 			m_iceObj->SetPtoTIndx(pIndx);
@@ -3044,10 +2865,6 @@ void rxFlGLWindow::CountTetraHedra(int tIndx, vector<int>& pList)
 	}
 	
 	//Indxの更新
-	//if(m_ice->GetTtoPNum(tIndx) >= m_ice->GetTtoPIndx(tIndx))
-	//{
-	//	m_ice->SetTtoPIndx(tIndx, m_ice->GetTtoPNum(tIndx));
-	//}
 	if(m_iceObj->GetTtoPNum(tIndx) >= m_iceObj->GetTtoPIndx(tIndx))
 	{
 		m_iceObj->SetTtoPIndx(tIndx);
@@ -3065,37 +2882,23 @@ void rxFlGLWindow::MakeTetraInfo(int tIndx, int* PtoTNum)
 
 	//粒子が属している四面体の番号を登録するための準備
 	//pCountListには，tIndx番目の四面体に含まれる各粒子が，それぞれいくつの四面体に属するかを求めて保存する
-	//int* pCountList = new int[m_vviTetraList[tIndx].size()];
 	int* pCountList = new int[tetra.GetTetraList(tIndx).size()];
-
-	//for(int j = 0; j < m_vviTetraList[tIndx].size(); j++)
-	//{
-	//	int pIndx = m_vviTetraList[tIndx][j];
-	//	//pCountList[j] = m_ice->GetPtoTNum(pIndx)-PtoTNum[pIndx];	//粒子が所属する何番目のクラスタなのかを求める
-	//	pCountList[j] = m_iceObj->GetPtoTNum(pIndx)-PtoTNum[pIndx];
-	//	PtoTNum[pIndx]--;
-	//}
 
 	for(unsigned j = 0; j < tetra.GetTetraList(tIndx).size(); j++)
 	{
 		int pIndx = tetra.GetTetraList(tIndx)[j];
-		//pCountList[j] = m_ice->GetPtoTNum(pIndx)-PtoTNum[pIndx];	//粒子が所属する何番目のクラスタなのかを求める
 		pCountList[j] = m_iceObj->GetPtoTNum(pIndx)-PtoTNum[pIndx];
 		PtoTNum[pIndx]--;
 	}
 
 	//粒子と四面体の情報登録
-	//vector<int>& pIndxList = m_vviTetraList[tIndx];
 	vector<int>& pIndxList = tetra.GetTetraList(tIndx);
 
-	//for(int i = 0; i < m_ice->GetTtoPNum(tIndx); i++)
 	for(int i = 0; i < m_iceObj->GetTtoPNum(tIndx); i++)
 	{
-		//m_ice->SetPtoT(pIndxList[i], pCountList[i], tIndx, i);	//粒子が所属している四面体を登録
 		m_iceObj->SetPtoT(pIndxList[i], pCountList[i], tIndx, i);
 	}
 
-	//m_ice->SetTtoP(tIndx, pIndxList);							//四面体が含んでいる粒子を登録
 	m_iceObj->SetTtoP(tIndx, pIndxList);
 
 	delete[] pCountList;
@@ -3122,7 +2925,7 @@ void rxFlGLWindow::MakeTetraInfo(int tIndx, vector<int> pList)
 	m_iTetraNum++;
 	m_ice->SetTetraNum(m_iTetraNum);
 
-	//デバッグ
+//デバッグ
 	//cout << "Debug After" << endl;
 	//for(unsigned j = 0; j < pList.size(); j++)
 	//{
@@ -3290,6 +3093,39 @@ void rxFlGLWindow::MakeOneCluster()
 	//m_iClusteresNum++;
 }
 
+//相変化オブジェクトの運動計算
+void rxFlGLWindow::StepIceObj()
+{
+#if defined(MK_USE_GPU)		//GPU使用
+	#if defined(USE_ITR)	/*反復有　未完成*/
+		//StepClusterIterationGPU(m_fDt);	RXTIMER("StepClusterIterationGPU");	//反復処理を用いたクラスタの運動計算
+	
+	#else					/*反復無*/
+		StepClusterGPU(m_fDt);				RXTIMER("StepClusterGPU");			//クラスタの計算
+	
+	#endif
+
+#else						//CPUのみ
+	#if defined(USE_ITR)	/*反復有*/
+		StepClusterIterationCPU(m_fDt);		RXTIMER("StepClusterCPUIteration");	//反復処理を用いたクラスタの運動計算
+	
+	#else					/*反復無*/
+		StepClusterCPU(m_fDt);				RXTIMER("StepClusterCPU");			//クラスタの運動計算
+	
+	#endif
+
+		//CPU版で共通の処理
+		StepInterpolation(m_fDt);			RXTIMER("StepInterpolation");		//液体と固体の運動を線形補間
+#endif
+}
+
+//相変化処理
+void rxFlGLWindow::StepIceStructure()
+{
+	m_iceObj->StepIceStructure();
+}
+
+
 /*!
  * ShapeMatching法のタイムステップを進める
  * @param[in] dt タイムステップ幅
@@ -3356,6 +3192,7 @@ void rxFlGLWindow::StepClusterCPU(double dt)
 	m_iceObj->StepObjMoveUsePath();		//高速化手法を用いた場合
 #else
 	m_iceObj->StepObjMoveCPU();			//高速化手法を用いない場合
+	//m_iceObj->StepObjMoveSelected();		//選択的な場合
 #endif
 }
 
@@ -3541,6 +3378,9 @@ void rxFlGLWindow::StepInterpolation(double dt)
 	
 	m_iceObj->SetSPHHostPointer(p, v);
 	m_iceObj->StepInterPolation();		//総和計算，線形補間
+	//m_iceObj->StepInterPolationSelected();
+	//m_iceObj->StepWeightedInterPolation();
+
 
 	//SPHのデータの更新　位置・速度
 	m_pPS->SetArrayVBO(rxParticleSystemBase::RX_POSITION, p, 0, m_pPS->GetNumParticles());
@@ -4690,7 +4530,7 @@ vector<int> rxFlGLWindow::GetNeighborDistanceIceParticles(int pIndx, int layer, 
 }
 
 /*
- * 粒子の色設定　温度，熱量，接続クラスタ，計算クラスタを切り替える．
+ * 粒子の色設定　温度，熱量，四面体，クラスタを切り替える．
  * 
  */
 void rxFlGLWindow::StepParticleColor()
@@ -4721,56 +4561,23 @@ void rxFlGLWindow::StepParticleColor()
 	{
 
 	}
-	//接続クラスタ
+	//四面体情報
+	//TODO::いずれGUIから入力して操作できるようにする
 	else if( m_iColorType == rxParticleSystemBase::RX_ICE_CONNECT )
 	{
 		//クラスタにより接続関係にある粒子に色をつける
-		//配列の全要素を初期化しないと，描画がおかしくなるのに注意．
 		float* tempColor = new float[m_pPS->GetNumParticles()];
-		for( int i = 0; i < m_pPS->GetNumParticles(); i++ )
-		{
-//			if( m_fIntrps.size() <= (unsigned)i )
-			//if(m_ice->GetPtoCNum(i) == 0 || m_ice->GetPtoTNum(i) == 0)
-			if(false)
-			{
-				tempColor[i] = 0.0f;
-			}
-			else
-			{
-				tempColor[i] = 100.0f;
-			}
-		}
+		for( int i = 0; i < m_pPS->GetNumParticles(); i++ ){	tempColor[i] = 100.0f;		}
 
-		//四面体ベース版
-/*		if( m_iShowClusterIndx == m_sm_connects.size() )
-		{	//クラスタ全体を表示
-			for( unsigned i = 0; i < m_sm_connects.size(); i++ )
+		//描画モードで分岐
+		if(m_iShowTetraIndx == m_iceObj->GetTetraNum())
+		{	
+			//四面体全体を表示
+			for(int i = 0; i < m_iceObj->GetTetraNum(); i++)
 			{	
-				for( int j = 0; j < m_sm_connects[i]->GetNumVertices(); j++ )
+				for(int j = 0; j < m_iceObj->GetTtoPIndx(i); j++)
 				{
-					int jpIndx = m_sm_connects[i]->GetParticleIndx(j);
-					tempColor[jpIndx] = 600.0f;
-				}
-			}
-		}
-		else
-		{	//１つのクラスタのみを表示
-			for( int j = 0; j < m_sm_connects[m_iShowClusterIndx]->GetNumVertices(); j++ )
-			{	
-				int jpIndx = m_sm_connects[m_iShowClusterIndx]->GetParticleIndx(j);
-				tempColor[jpIndx] = 600.0f;
-			}
-		}
-*/
-
-		//粒子ベース版
-		if(m_iShowTetraIndx == m_iTetraNum)
-		{	//四面体全体を表示
-			for(int i = 0; i < m_iTetraNum; i++)
-			{	
-				for(int j = 0; j < m_ice->GetTtoPIndx(i); j++)
-				{
-					int jpIndx = m_ice->GetTtoP(i, j);
+					int jpIndx = m_iceObj->GetTtoP(i, j);
 
 					if(jpIndx == -1){	continue;	}
 					tempColor[jpIndx] = 600.0f;
@@ -4778,10 +4585,12 @@ void rxFlGLWindow::StepParticleColor()
 			}
 		}
 		else
-		{	//１つの四面体のみを表示
-			for( int j = 0; j < m_ice->GetTtoPIndx(m_iShowTetraIndx); j++ )
+		{	
+			//１つの四面体のみを表示
+			for( int j = 0; j < m_iceObj->GetTtoPIndx(m_iShowTetraIndx); j++ )
 			{	
-				int jpIndx = m_ice->GetTtoP(m_iShowTetraIndx, j);
+				int jpIndx = m_iceObj->GetTtoP(m_iShowTetraIndx, j);
+
 				if(jpIndx == -1){	continue;	}
 				tempColor[jpIndx] = 600.0f;
 			}
@@ -4790,16 +4599,14 @@ void rxFlGLWindow::StepParticleColor()
 		m_pPS->SetColorVBOFromArray( tempColor, 1, false, 1.5f * m_ht->getTempMax() );
 		delete[] tempColor;
 	}
-	//計算クラスタ
+	//クラスタ
 	else if( m_iColorType == rxParticleSystemBase::RX_ICE_CALC )
 	{
 		//クラスタにより接続関係にある粒子に色をつける
-		//配列の全要素を初期化しないと，描画がおかしくなるのに注意．
 		float* tempColor = new float[m_pPS->GetNumParticles()];
 		for( int i = 0; i < m_pPS->GetNumParticles(); i++ )
 		{
-			//if( m_fIntrps.size() <= (unsigned)i )
-			if(m_ice->GetPtoCNum(i) == 0)
+			if(m_iceObj->GetPtoCNum(i) == 0)
 			{
 				tempColor[i] = 0.0f;
 			}
@@ -4811,7 +4618,8 @@ void rxFlGLWindow::StepParticleColor()
 
 		//粒子ベース版
 		if( m_iShowClusterIndx == m_iClusteresNum )
-		{	//クラスタ全体を表示
+		{	
+			//クラスタ全体を表示
 			for(int i = 0; i < m_iClusteresNum; i++)
 			{
 				for( int j = 0; j < m_iceObj->GetMoveObj(i)->GetNumVertices(); j++ )
@@ -4822,7 +4630,8 @@ void rxFlGLWindow::StepParticleColor()
 			}
 		}
 		else
-		{	//１つのクラスタのみを表示
+		{	
+			//１つのクラスタのみを表示
 			for( int j = 0; j < m_iceObj->GetMoveObj(m_iShowClusterIndx)->GetNumVertices(); j++ )
 			{
 				int jpIndx = m_iceObj->GetMoveObj(m_iShowClusterIndx)->GetParticleIndx(j);
@@ -4846,10 +4655,43 @@ void rxFlGLWindow::StepParticleColor()
 	else if( m_iColorType == rxParticleSystemBase::RX_ICE_FAST_PATH )
 	{
 	}
-	//階層クラスタ
-	else if( m_iColorType == rxParticleSystemBase::RX_ICE_HIGH_CLUSTER )
+	//選択的運動計算
+	else if( m_iColorType == rxParticleSystemBase::RX_ICE_SELECTED )
 	{
+		//運動計算する粒子を赤，それ以外を黒に
+		float* tempColor = new float[m_pPS->GetNumParticles()];
 
+		for( int i = 0; i < m_pPS->GetNumParticles(); i++ )
+		{
+			//適当に，奇数番だけを運動計算してみる
+			if(i%SELECTED == 1)
+			{
+				tempColor[i] = 1000.0f;
+			}
+			else
+			{
+				tempColor[i] = 0.0f;
+			}
+		}
+
+		m_pPS->SetColorVBOFromArray( tempColor, 1, false, 1.5f * m_ht->getTempMax() );
+
+		delete[] tempColor;
+	}
+	//変形クラスタの検出
+	else if( m_iColorType == rxParticleSystemBase::RX_ICE_DEFORMATION )
+	{
+		float* tempColor = new float[m_pPS->GetNumParticles()];
+
+		for( int i = 0; i < m_pPS->GetNumParticles(); i++ )
+		{
+			tempColor[i] = m_iceObj->GetMoveObj(i)->GetDefAmount();
+			//tempColor[i] = m_iceObj->GetMoveObj(i)->GetDefPriority();
+		}
+
+		m_pPS->SetColorVBOFromArray( tempColor, 1, false, 1.5f );
+
+		delete[] tempColor;
 	}
 }
 

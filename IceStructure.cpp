@@ -121,10 +121,10 @@ IceStructure::IceStructure(int pNumMax, int cNumMax, int tNumMax)
 	//高速化のための実験ではコメントにしておく
 	m_piNTNum = new int[m_iTNumMax];
 
-	//m_iNeighborMax = m_iTNumMax*0.1;		//1331 layer2 0.3 layer3 0.75
+	m_iNeighborMax = m_iTNumMax*0.1;		//1331 layer2 0.3 layer3 0.75
 											//2197 layer2 0.3 layre3 0.3 layer4 0.4
 											//4913 layer2 0.1
-	m_iNeighborMax = 300;					//layer1なら大丈夫
+	//m_iNeighborMax = 300;					//layer1なら大丈夫
 
 	m_mk3DiNeighborTetra.SetSize(m_iTNumMax, m_iNeighborMax, 2);
 

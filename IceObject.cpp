@@ -16,8 +16,9 @@ int IceObject::sm_particleNum;
 int IceObject::sm_tetraNum;
 int IceObject::sm_clusterNum;
 int IceObject::sm_layerNum;
+int IceObject::sm_maxParticleNum;
 
-IceObject::IceObject(int pMaxNum, int cMaxNum, int tMaxNum, int prtNum, float* hp, float* hv, float* dp, float* dv, int layer)
+IceObject::IceObject(int pMaxNum, int cMaxNum, int tMaxNum, int prtNum, float* hp, float* hv, float* dp, float* dv, int layer, int maxParticleNum)
 {
 	InitIceObj(pMaxNum, cMaxNum, tMaxNum);
 	SetParticleNum(prtNum);
@@ -26,6 +27,7 @@ IceObject::IceObject(int pMaxNum, int cMaxNum, int tMaxNum, int prtNum, float* h
 	SetSPHDevicePointer(dp, dv);					//GPU処理で用いるポインタの登録
 
 	SetSearchLayerNum(layer);						//探索レイヤー数
+	SetMaxParticleNum(maxParticleNum);				//最大粒子数
 }
 
 IceObject::~IceObject()
@@ -162,39 +164,37 @@ void IceObject::InitStrct()
 	{
 		int pNum = m_iceMove[i]->GetNumVertices();
 		vector<int> pList;
+
 		for(int j = 0; j < pNum; j++)
 		{
 			pList.push_back(m_iceMove[i]->GetParticleIndx(j));
 		}
 		m_iceStrct->CountClusterParticle(i, pList, pNum);
 	}
-	cout << __FUNCTION__ << " check0" << endl;
+	cout << __FUNCTION__ << " カウント" << endl;
 
 	//メモリ確保
 	InitClusterInfo();
-	cout << __FUNCTION__ << " check1" << endl;
+	cout << __FUNCTION__ << " メモリ確保" << endl;
 
 	//粒子が所属しているクラスタ数の配列をコピー
 	int *PtoCNum = new int[sm_particleNum];
-	cout << __FUNCTION__ << " check2" << endl;
+	cout << __FUNCTION__ << " 配列をコピー　メモリ確保" << endl;
+
 	for(int i = 0; i < sm_particleNum; i++)
 	{
 		PtoCNum[i] = GetPtoCNum(i);
 	}
-	cout << __FUNCTION__ << " check3" << endl;
+	cout << __FUNCTION__ << " 配列をコピー" << endl;
 
 	//クラスタと粒子の関連情報の登録
 	for(int i = 0; i < sm_particleNum; i++)
 	{
 		SetClusterStrctInfo(i, PtoCNum);	//カウントを前で行っているため，こちらを使う
 	}
-	cout << __FUNCTION__ << " check4" << endl;
+	cout << __FUNCTION__ << " クラスタと粒子の関連情報の登録登録" << endl;
 
 	delete[] PtoCNum;
-
-	//TODO::クラスタと四面体の関連情報の登録
-	cout << __FUNCTION__ << " check5" << endl;
-
 
 //デバッグ
 	//for(int i = 0; i < m_iClusteresNum; i++)
@@ -217,11 +217,6 @@ void IceObject::InitPath()
 //クラスタの運動計算情報の登録
 void IceObject::SetClusterMoveInfo(int pIndx)
 {
-	//((RXSPH*)m_pPS)->DetectSurfaceParticles();								//表面粒子検出
-	//int *surfaceParticles = (int *)( ((RXSPH*)m_pPS)->GetArraySurf() );		//表面粒子
-	//float weightedMass = 300.0f;
-	//int layer = 1;
-
 	//ある粒子が含まれる四面体を近傍四面体とし，各近傍四面体に含まれる粒子でクラスタを作成
 	for(int i = 0; i < GetPtoTIndx(pIndx); i++)
 	{
@@ -279,13 +274,13 @@ void IceObject::SetClusterMoveInfo(int pIndx)
 				m_iceMove[pIndx]->SetAlphas(pNum, 1.0);
 				m_iceMove[pIndx]->SetBetas (pNum, 0.0);
 				m_iceMove[pIndx]->SetLayer (pNum, jlIndx);
-				//cout << "pIndx = " << pIndx << " vNum = " << m_sm_cluster[pIndx]->GetNumVertices() << endl;
+				//cout << "pIndx = " << pIndx << " GetNumVertices = " << m_iceMove[pIndx]->GetNumVertices() << endl;
 			}
 		}
 	}
 }
 
-//
+//粒子→クラスタやクラスタ→粒子を登録
 void IceObject::SetClusterStrctInfo(int cIndx, int* PtoCNum)
 {
 	//粒子が属している四面体の番号を登録するための準備
@@ -297,18 +292,19 @@ void IceObject::SetClusterStrctInfo(int cIndx, int* PtoCNum)
 	{
 		int pIndx = m_iceMove[cIndx]->GetParticleIndx(i);
 
-		//穴あきを想定していないため，誤って上書きしてしまっている
-		//-1を探索して上書きするのに切り替える．
+		//TODO::穴あきを想定していないため，誤って上書きしてしまっている
+		//TODO::-1を探索して上書きするのに切り替える．
 		for(int j = 0; j < GetPtoCMax(); j++)
 		{
+			//配列上で空いているスペースを探索（-1でない場所を探す）
 			if(GetPtoC(pIndx, j, 0) != -1 || GetPtoC(pIndx, j, 1) != -1){	continue;	}
 			
 			if(j >= GetPtoCIndx(pIndx))
 			{
-				SetPtoCIndx(pIndx, j+1);		//現在のIndxより大きいなら更新
+				SetPtoCIndx(pIndx, j+1);		//現在の末尾Indxより大きいなら更新
 			}
 
-			pCountList[i] = j;
+			pCountList[i] = j;					//配列上での場所を保存
 			break;
 		}
 
@@ -323,7 +319,8 @@ void IceObject::SetClusterStrctInfo(int cIndx, int* PtoCNum)
 		int pIndx = m_iceMove[cIndx]->GetParticleIndx(i);
 			
 		SetPtoC(pIndx, pCountList[i], cIndx, i, pLayerList[i]);		//粒子が所属しているクラスタを登録
-		pIndxList.push_back(pIndx);
+
+		pIndxList.push_back(pIndx);									//クラスタに含まれる粒子集合
 	}
 
 	SetCtoP(cIndx, pIndxList, pLayerList);
@@ -351,7 +348,7 @@ void IceObject::InitGPU()
 
 	//クラスタに関するGPUの初期化
 	//すべてのクラスタにアクセスできるようにポインタを渡している
-	Ice_SM::InitGPU(m_iceMove, sd_sphPrtPos, sd_sphPrtVel, sm_particleNum);
+	Ice_SM::InitGPU(m_iceMove, sd_sphPrtPos, sd_sphPrtVel, sm_particleNum, sm_maxParticleNum);
 	Ice_SM::InitFinalParamPointer(sm_clusterNum);
 
 #if defined(USE_PATH)
@@ -364,6 +361,8 @@ void IceObject::InitGPU()
 
 void IceObject::InitIceObjGPU()
 {
+	int MAXCLUSTER = GetMaxClusterNum();
+
 	//各粒子の最終的な位置・速度データ
 	cudaMalloc((void**)&sd_sldPrtPos,	sizeof(float) * MAXCLUSTER * SM_DIM);
 	cudaMalloc((void**)&sd_sldPrtVel,	sizeof(float) * MAXCLUSTER * SM_DIM);
@@ -429,6 +428,23 @@ void IceObject::StepObjMoveCPU()
 		{	
 			if(GetPtoCNum(i) == 0){	continue;	}
 			m_iceMove[i]->UpdateCPU();				//運動計算
+		}
+	}//#pragma omp parallel
+}
+
+void IceObject::StepObjMoveSelected()
+{
+	#pragma omp parallel
+	{
+	#pragma omp for
+		for(int i = 0; i < sm_clusterNum; ++i)
+		{	
+			if(GetPtoCNum(i) == 0){	continue;	}
+
+			if(i%SELECTED != 1){			continue;	}	//テスト
+			m_iceMove[i]->calExternalForces();		//現在位置の計算
+			m_iceMove[i]->ShapeMatchingSelected(SELECTED);		//現在位置の更新 普通の計算
+			m_iceMove[i]->integrate(0.02f);			//速度の計算
 		}
 	}//#pragma omp parallel
 }
@@ -502,80 +518,8 @@ void IceObject::StepObjMoveGPUUsePath()
 	Ice_SM::SetDevicePosPointer(sd_sphPrtPos);				//VBOを使っているので，これがないとエラーが出るのに注意
 	Ice_SM::UpdateUsePathGPU();
 
-//	QueryCounter counter;
-//	QueryCounter counter2;	
-//	QueryCounter counter3;
-//
-//counter.Start();
-//
-//	//prefixSumの更新
-//	m_SurfSm.SetDevicePointer(sd_sphPrtPos, sd_sphPrtVel);	//VBOを使っているので，これがないとエラーが出るのに注意
-//	m_SurfSm.UpdatePrefixSumGPU();
-//
-//	double prefixSumTime = counter.End()/1000.0;
-////cout << "UpdatePrefixSumGPU：	" << prefixSumTime << endl;
-//
-//counter2.Start();
-//
-//	//クラスタのパラメータ更新
-//	//TestUpdateSMFromPath();
-//	LauchUpdateSMFromPath
-//	(
-//		sm_clusterNum,
-//		sd_sphPrtPos,
-//		sd_sphPrtVel,
-//		//SM-------------------------------------------------
-//		Ice_SM::GetOrgPosPointer(),
-//		Ice_SM::GetDevicePosPointer(),
-//		Ice_SM::GetOrgCmPointer(),
-//		Ice_SM::GetCurCmPointer(),
-//		Ice_SM::GetDeviceApqPointer(),
-//		Ice_SM::GetDeviceVelPointer(),
-//		Ice_SM::GetDeviceIndexesPointer(),
-//		Ice_SM::GetDeviceIndexSetPointer(),
-//		//Path-----------------------------------------------
-//		m_SurfSm.GetDevicePRTtoPTHPointer(),
-//		m_SurfSm.GetDevicePTHandPrfxSetPointer(),
-//		m_SurfSm.GetDecvicePrfxPos(),
-//		m_SurfSm.GetDecvicePrfxApq(),
-//		//IceStruct------------------------------------------
-//		m_iceStrct->GetDeviceCtoPointer(),
-//		m_iceStrct->GetDeviceCtoPNumPointer(),
-//		m_iceStrct->GetCtoPMax(),
-//		2,
-//		0.01		//TODO: 0.02では？いろいろばらばらっぽい
-//	);
-//
-//	double updatePosApqTime = counter2.End()/1000.0;
-////cout << "LauchUpdateSMFromPath：	" << updatePosApqTime << endl;
-//
-//counter3.Start();
-//
-//	//運動計算
-//	Ice_SM::SetDevicePosPointer(sd_sphPrtPos);				//VBOを使っているので，これがないとエラーが出るのに注意
-//	Ice_SM::UpdateUsePathGPU();
-//
-//	double updateSMTime = counter3.End()/1000.0;
-////cout << "UpdateUsePathGPU：	" << updateSMTime << endl;
-//
-////cout << "合計：		" << prefixSumTime+updatePosApqTime+updateSMTime << endl;
-//
-//
-////ホスト側のデータを転送した結果をダンプ
-//	//古いファイルを削除
-//	
-//
-//	//prefixSum
-//	ofstream ofs( "LOG_prefixSumTime.txt", ios::app);
-//	ofs << prefixSumTime << endl;
-//
-//	//updatePosApq
-//	ofstream ofs1( "LOG_updateTime.txt", ios::app);
-//	ofs1 << updatePosApqTime << endl;
-//
-//	//ShapeMatching
-//	ofstream ofs2( "LOG_SMTime.txt", ios::app);
-//	ofs2 << updateSMTime << endl;
+//デバッグ
+	//DebugObjMoveUsePathWithGPU();
 }
 
 //反復を用いた固体の運動計算
@@ -725,8 +669,47 @@ void IceObject::StepInterPolation()
 		//液体と固体の補間
 		LinerInterPolationCPU(i, pos, vel);			//線形補間
 	}
-
 #endif
+}
+
+//粒子を選択的に運動計算させるパターンのテスト
+void IceObject::StepInterPolationSelected()
+{
+	Vec3 pos,vel;
+
+	#pragma omp parallel for private(pos, vel)
+	for(int i = 0; i < sm_particleNum; ++i)
+	{
+		if(GetParticleNum() <= i){	continue;	}	//融解のみの実験のときに必要になる．
+		if(GetPtoCNum(i) <= 0){		continue;	}
+	
+		//固体運動の最終位置計算
+		CalcAverageSelected(i, pos, vel);
+
+		//液体と固体の補間
+		LinerInterPolationCPU(i, pos, vel);			//線形補間
+	}
+}
+
+void IceObject::StepWeightedInterPolation()
+{
+	Vec3 pos,vel;
+
+	#pragma omp parallel for private(pos, vel)
+	for(int i = 0; i < sm_particleNum; ++i)
+	{
+		if(GetParticleNum() <= i){	continue;	}	//融解のみの実験のときに必要になる．
+		if(GetPtoCNum(i) <= 0){		continue;	}
+	
+		//固体運動の最終位置計算
+		CalcWeightedVector(i, pos, vel);
+
+		//液体と固体の補間
+		LinerInterPolationCPU(i, pos, vel);			//線形補間
+	}
+
+//デバッグ
+	DebugDeformationAmount();
 }
 
 void IceObject::TestStepInterPolation()
@@ -801,7 +784,6 @@ void IceObject::CalcAverageCPU(int pIndx, Vec3& pos, Vec3& vel)
 		cIndx = GetPtoC(pIndx, i, 0);
 		oIndx = GetPtoC(pIndx, i, 1);
 
-		//if(i % 2 == 0){	continue;	}
 		if(cIndx == -1 || oIndx == -1){	continue;	}
 
 		pos += m_iceMove[cIndx]->GetVertexPos(oIndx);
@@ -823,6 +805,117 @@ void IceObject::CalcAverageCPU(int pIndx, Vec3& pos, Vec3& vel)
 		pos = Vec3(s_sphPrtPos[jpIndx+0], s_sphPrtPos[jpIndx+1], s_sphPrtPos[jpIndx+2]);
 		vel = Vec3(s_sphPrtVel[jpIndx+0], s_sphPrtVel[jpIndx+1], s_sphPrtVel[jpIndx+2]);
 	}
+}
+
+void IceObject::CalcAverageSelected(int pIndx, Vec3& pos, Vec3& vel)
+{
+	//それぞれのベクトルを合成し平均をとる
+	pos = Vec3(0.0, 0.0, 0.0);
+	vel = Vec3(0.0, 0.0, 0.0);
+	double shapeNum = 0.0;		//クラスタの数
+	int cIndx, oIndx;
+
+	for(int i = 0; i < GetPtoCIndx(pIndx); ++i)
+	{
+		cIndx = GetPtoC(pIndx, i, 0);
+		oIndx = GetPtoC(pIndx, i, 1);
+
+		if(cIndx == -1 || oIndx == -1){	continue;	}
+
+		//テスト
+		//補間粒子クラスタに含まれるデータを使わず，計算粒子クラスタに含まれるデータのみを使う
+		if(cIndx%SELECTED != 1){				continue;	}
+
+		pos += m_iceMove[cIndx]->GetVertexPos(oIndx);
+		vel += m_iceMove[cIndx]->GetVertexVel(oIndx);
+
+		shapeNum += 1.0;
+	}
+
+	//クラスタの数で割る
+	if(shapeNum != 0.0)
+	{
+		pos /= shapeNum;
+		vel /= shapeNum;
+	}		
+	//どのクラスタにも含まれていない場合，運動はSPH法に従う
+	else
+	{
+		int jpIndx = pIndx*4;
+		pos = Vec3(s_sphPrtPos[jpIndx+0], s_sphPrtPos[jpIndx+1], s_sphPrtPos[jpIndx+2]);
+		vel = Vec3(s_sphPrtVel[jpIndx+0], s_sphPrtVel[jpIndx+1], s_sphPrtVel[jpIndx+2]);
+	}
+}
+
+void IceObject::CalcWeightedVector(int pIndx, Vec3& pos, Vec3& vel)
+{
+	//それぞれのベクトルを合成し平均をとる
+	pos = Vec3(0.0, 0.0, 0.0);
+	vel = Vec3(0.0, 0.0, 0.0);
+
+	int cIndx, oIndx;
+	int clusterNum = GetPtoCIndx(pIndx);	//テストということで
+	int average = 1.0f/(float)clusterNum;
+
+	//位置，速度ベクトル算出
+	float deformAmountSum = 0.0f;
+	for(int i = 0; i < GetPtoCIndx(pIndx); ++i)
+	{
+		cIndx = GetPtoC(pIndx, i, 0);
+		oIndx = GetPtoC(pIndx, i, 1);
+
+		if(cIndx == -1 || oIndx == -1){	continue;	}
+
+		float defAmount = m_iceMove[cIndx]->GetDefAmount();
+		defAmount *= defAmount;		//二乗版
+
+		pos += m_iceMove[cIndx]->GetVertexPos(oIndx) * defAmount;
+		vel += m_iceMove[cIndx]->GetVertexVel(oIndx) * defAmount;
+
+		deformAmountSum += defAmount;
+	}
+
+	pos /= deformAmountSum;
+	vel /= deformAmountSum;
+	
+
+	//for(int i = 0; i < GetPtoCIndx(pIndx); ++i)
+	//{
+	//	cIndx = GetPtoC(pIndx, i, 0);
+	//	oIndx = GetPtoC(pIndx, i, 1);
+
+	//	if(cIndx == -1 || oIndx == -1){	continue;	}
+
+	//	float defAmount = m_iceMove[cIndx]->GetDefAmount()/deformAmountSum;
+	//	//defAmount *= defAmount;		//二乗版
+
+	//	m_iceMove[cIndx]->SetDefPriority(defAmount*10.0f/* - average*/);	//平均とどのくらい差があるかを表す
+	//}
+
+	//TODO::逆バージョン　うまく動かない　初期のdeformAmountSumが0だから
+	//float deformAmountSum = 0.0f;
+	//for(int i = 0; i < GetPtoCIndx(pIndx); ++i)
+	//{
+	//	cIndx = GetPtoC(pIndx, i, 0);
+	//	oIndx = GetPtoC(pIndx, i, 1);
+
+	//	if(cIndx == -1 || oIndx == -1){	continue;	}
+
+	//	deformAmountSum += m_iceMove[cIndx]->GetDefAmount();
+	//}
+
+	////位置，速度ベクトル算出
+	//for(int i = 0; i < GetPtoCIndx(pIndx); ++i)
+	//{
+	//	cIndx = GetPtoC(pIndx, i, 0);
+	//	oIndx = GetPtoC(pIndx, i, 1);
+
+	//	if(cIndx == -1 || oIndx == -1){	continue;	}
+
+	//	float defAmount = m_iceMove[cIndx]->GetDefAmount();
+	//	pos += m_iceMove[cIndx]->GetVertexPos(oIndx) * (deformAmountSum - defAmount)/deformAmountSum;
+	//	vel += m_iceMove[cIndx]->GetVertexVel(oIndx) * (deformAmountSum - defAmount)/deformAmountSum;
+	//}
 }
 
 //SPH法とSM法で求めた速度と位置を線形補間　CPU
@@ -856,6 +949,40 @@ void IceObject::LinerInterPolationForClusterCPU(int pIndx, const Vec3& pos, cons
 	p[pIndx*3+1] = pos[1] * m_fInterPolationCoefficience[pIndx] + s_sphPrtPos[sphIndx+1] * intrps;
 	p[pIndx*3+2] = pos[2] * m_fInterPolationCoefficience[pIndx] + s_sphPrtPos[sphIndx+2] * intrps;
 }
+
+//相変化処理や固体データの更新
+void IceObject::StepIceStructure()
+{
+	//融解
+	//凝固
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 //---------------------------------------------デバッグ------------------------------
 
@@ -906,6 +1033,106 @@ void IceObject::DebugClusterInfo()
 
 	cout << "sum = " << sum << " ave = " << (float)(sum/sm_clusterNum) << endl;
 	cout << "max = " << max << " min = " << min << endl;
+}
+
+void IceObject::DebugDeformationAmount()
+{	//cout << __FUNCTION__ << endl;
+	
+	//変形量を表示してみる
+	int deformClusterNum = 0;
+	for(int i = 0; i < sm_clusterNum; ++i)
+	{	
+		if(GetPtoCNum(i) == 0){	continue;	}
+
+		float defAmount = m_iceMove[i]->GetDefAmount();
+		if(defAmount < 0.5f){	continue;	}
+
+		//cout << "i = " << i << "::" <<  defAmount << endl;
+		deformClusterNum++;
+	}
+
+	//cout << "Deformation Amount deformClusterNum::" << deformClusterNum << endl;
+
+	ofstream ofs( "DeformationAmount.txt", ios::app);
+	ofs << deformClusterNum << endl;
+}
+
+void IceObject::DebugObjMoveUsePathWithGPU()
+{
+//	QueryCounter counter;
+//	QueryCounter counter2;	
+//	QueryCounter counter3;
+//
+//counter.Start();
+//
+//	//prefixSumの更新
+//	m_SurfSm.SetDevicePointer(sd_sphPrtPos, sd_sphPrtVel);	//VBOを使っているので，これがないとエラーが出るのに注意
+//	m_SurfSm.UpdatePrefixSumGPU();
+//
+//	double prefixSumTime = counter.End()/1000.0;
+////cout << "UpdatePrefixSumGPU：	" << prefixSumTime << endl;
+//
+//counter2.Start();
+//
+//	//クラスタのパラメータ更新
+//	//TestUpdateSMFromPath();
+//	LauchUpdateSMFromPath
+//	(
+//		sm_clusterNum,
+//		sd_sphPrtPos,
+//		sd_sphPrtVel,
+//		//SM-------------------------------------------------
+//		Ice_SM::GetOrgPosPointer(),
+//		Ice_SM::GetDevicePosPointer(),
+//		Ice_SM::GetOrgCmPointer(),
+//		Ice_SM::GetCurCmPointer(),
+//		Ice_SM::GetDeviceApqPointer(),
+//		Ice_SM::GetDeviceVelPointer(),
+//		Ice_SM::GetDeviceIndexesPointer(),
+//		Ice_SM::GetDeviceIndexSetPointer(),
+//		//Path-----------------------------------------------
+//		m_SurfSm.GetDevicePRTtoPTHPointer(),
+//		m_SurfSm.GetDevicePTHandPrfxSetPointer(),
+//		m_SurfSm.GetDecvicePrfxPos(),
+//		m_SurfSm.GetDecvicePrfxApq(),
+//		//IceStruct------------------------------------------
+//		m_iceStrct->GetDeviceCtoPointer(),
+//		m_iceStrct->GetDeviceCtoPNumPointer(),
+//		m_iceStrct->GetCtoPMax(),
+//		2,
+//		0.01		//TODO: 0.02では？いろいろばらばらっぽい
+//	);
+//
+//	double updatePosApqTime = counter2.End()/1000.0;
+////cout << "LauchUpdateSMFromPath：	" << updatePosApqTime << endl;
+//
+//counter3.Start();
+//
+//	//運動計算
+//	Ice_SM::SetDevicePosPointer(sd_sphPrtPos);				//VBOを使っているので，これがないとエラーが出るのに注意
+//	Ice_SM::UpdateUsePathGPU();
+//
+//	double updateSMTime = counter3.End()/1000.0;
+////cout << "UpdateUsePathGPU：	" << updateSMTime << endl;
+//
+////cout << "合計：		" << prefixSumTime+updatePosApqTime+updateSMTime << endl;
+//
+//
+////ホスト側のデータを転送した結果をダンプ
+//	//古いファイルを削除
+//	
+//
+//	//prefixSum
+//	ofstream ofs( "LOG_prefixSumTime.txt", ios::app);
+//	ofs << prefixSumTime << endl;
+//
+//	//updatePosApq
+//	ofstream ofs1( "LOG_updateTime.txt", ios::app);
+//	ofs1 << updatePosApqTime << endl;
+//
+//	//ShapeMatching
+//	ofstream ofs2( "LOG_SMTime.txt", ios::app);
+//	ofs2 << updateSMTime << endl;
 }
 
 //---------------------------------------------------テスト---------------------------------------------

@@ -35,22 +35,10 @@ using namespace std;
 //! 衝突判定用関数
 typedef void (*CollisionFunc)(Vec3&, Vec3&, Vec3&, int);
 
-//TODO::ここをなくす　バグの原因になりまくり．
-//#define MAXCLUSTER  27
-//#define MAXCLUSTER  729
-//#define MAXCLUSTER	1331
-//#define MAXCLUSTER	2197
-#define MAXCLUSTER	4913
-//#define MAXCLUSTER	6859
-//#define MAXCLUSTER	9261
-//#define MAXCLUSTER	12167
-//#define MAXCLUSTER	15625
-//#define MAXCLUSTER	19683	//27_27_27
-//#define MAXCLUSTER	24389	//29_29_29
-
+//TODO::この数字をパラメータにする
 //#define MAXPARTICLE 150
 //#define MAXPARTICLE 200		//2.0
-#define MAXPARTICLE 300	//layer2 300, 3.0 500
+#define MAXPARTICLE 300			//layer2 300, 3.0 500
 //#define MAXPARTICLE 15625	//MakeOneClusterの場合
 #define SM_DIM 3
 

@@ -30,6 +30,7 @@ class IceStructure
 public:	//TODO: 全てpublicにしない
 	IceStructure();
 	IceStructure(int pNum, int cNum, int tNum);
+
 	~IceStructure(void);
 
 	static int* GetDevicePtoCIndxPointer(){	return sd_piPtoCIndx;	}
@@ -39,7 +40,13 @@ public:	//TODO: 全てpublicにしない
 	void InitTetraInfo();									//四面体情報のメモリ確保
 	void InitClusterInfo();									//クラスタ情報のメモリ確保
 	
-	void InitGPU();									//GPU処理で用いるデータの初期化
+	void InitGPU();											//GPU処理で用いるデータの初期化
+
+	//相変化
+	//融解処理
+
+
+	//凝固処理
 
 	//アクセッサ
 	void SetParticleNum(int pNum){	m_iPNum = pNum; }		//現在の粒子数

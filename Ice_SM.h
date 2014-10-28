@@ -73,6 +73,8 @@ protected:
 
 	unsigned m_iIndxNum;						//配列で実装したため、穴あきに対応するための最大添字番号
 
+	float* m_pPrePos;							//前フレームの頂点位置
+
 	float* m_fpAlphas;							//!< stiffnessパラメータ[0,1] (速度計算に使用)
 	float* m_fpBetas;							//!< deformationパラメータ[0,1]	未使用
 	
@@ -85,6 +87,9 @@ protected:
 	//vector<Vec3> m_vvec3OrgQ;					//初期の位置-重心
 
 	Vec3 m_vec3DisCm;							//重心位置の変位
+	float m_fDefAmount;							//変形量
+	float m_fDefPriority;						//変形優先度合い　変形量を周りのクラスタと比べた時，どのくらい大きいかの指標
+												//平均を上回っている場合プラス，下回っている場合マイナスとなる
 
 	rxMatrix3	m_mtrx3Apq;						//変形行列Apq
 	rxMatrix3	m_mtrx3AqqInv;					//変形行列Aqqの逆行列	前計算可能
@@ -130,7 +135,7 @@ public:
 	Ice_SM(int obj);
 	~Ice_SM();
 	
-	static void Ice_SM::InitGPU(const vector<Ice_SM*>& sm, float* d_pos, float* d_vel, int prtNum);
+	static void Ice_SM::InitGPU(const vector<Ice_SM*>& sm, float* d_pos, float* d_vel, int prtNum, int maxprtNum);
 
 	static void SetPrtPointerPosAndVel(const float* pos, const float* vel){	s_pfPrtPos = pos;	s_pfPrtVel = vel;	}
 	static void SetDevicePosPointer(float* d_pos){	sd_PrtPos = d_pos;	}
@@ -170,10 +175,13 @@ public:
 	void ShapeMatchingUsePath();
 	void ShapeMatchingSolid();
 	void ShapeMatchingIteration();
+	void ShapeMatchingSelected(int selected);
 
 	void calExternalForces();
 	void calExternalForcesIteration();
-	
+
+	void CalcMass();
+
 	void integrate(double dt);
 	void integrateIteration();
 
@@ -187,6 +195,8 @@ public:
 	void SetNowCm(Vec3& nowCm){	m_vec3NowCm = nowCm;	}
 	void SetApq(rxMatrix3& Apq){	m_mtrx3Apq = Apq;	}
 
+	void SetDefPriority(float priority){	m_fDefPriority = priority;	}
+
 	void SetLinerFalg(int indx, int flag){	m_iLinearDeformation[indx] = flag; }
 	void SetVolumeFlag(int indx, int flag){	m_iVolumeConservation[indx] = flag;}
 
@@ -197,6 +207,9 @@ public:
 	Vec3 GetOrgCm(void){	return m_vec3OrgCm;	}
 
 	rxMatrix3 GetApq(void){	return m_mtrx3Apq;	}
+
+	float GetDefAmount(){	return m_fDefAmount;	}
+	float GetDefPriority(){	return m_fDefPriority;	}
 
 	int GetLayer(int indx){	return m_ipLayeres[indx];	}
 	static int GetIteration(){	return s_iIterationNum;	}

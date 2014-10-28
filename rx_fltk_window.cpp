@@ -141,7 +141,8 @@ rxFlWindow::rxFlWindow(int w_, int h_, const char* title)
 		m_pMenuBar->add("Particle/Color/Ice_Cnct",	  FL_CTRL+FL_SHIFT+'a', rxFlGLWindow::OnMenuParticle_s, m_pGLCanvas, FL_MENU_RADIO);	//’Ç‰Á
 		m_pMenuBar->add("Particle/Color/Ice_Calc",	  FL_CTRL+FL_SHIFT+'q', rxFlGLWindow::OnMenuParticle_s, m_pGLCanvas, FL_MENU_RADIO);	//’Ç‰Á
 		m_pMenuBar->add("Particle/Color/FAST_PATH",	  FL_CTRL+FL_SHIFT+'p', rxFlGLWindow::OnMenuParticle_s, m_pGLCanvas, FL_MENU_RADIO);	//’Ç‰Á
-		m_pMenuBar->add("Particle/Color/HighClstr",	  FL_CTRL+FL_SHIFT+'w', rxFlGLWindow::OnMenuParticle_s, m_pGLCanvas, FL_MENU_RADIO);	//’Ç‰Á		
+		m_pMenuBar->add("Particle/Color/SELECTED",	  FL_CTRL+FL_SHIFT+'w', rxFlGLWindow::OnMenuParticle_s, m_pGLCanvas, FL_MENU_RADIO);	//’Ç‰Á
+		m_pMenuBar->add("Particle/Color/DEFORMATION", FL_CTRL+FL_SHIFT+'e', rxFlGLWindow::OnMenuParticle_s, m_pGLCanvas, FL_MENU_RADIO);	//’Ç‰Á
 		m_pMenuBar->add("Particle/Color/Edge",				0, rxFlGLWindow::OnMenuParticle_s, m_pGLCanvas, FL_MENU_RADIO);	//’Ç‰Á
 		m_pMenuBar->add("Particle/Color/None",				0, rxFlGLWindow::OnMenuParticle_s, m_pGLCanvas, FL_MENU_RADIO);
 
@@ -535,7 +536,8 @@ void rxFlWindow::UpdateMenuState(void)
 	SetMenuItemState(m_pMenuBar, "Particle/Color/Ice_Calc",			(m_pGLCanvas->m_iColorType == rxParticleSystemBase::RX_ICE_CALC));		//’Ç‰Á
 	SetMenuItemState(m_pMenuBar, "Particle/Color/Edge",				(m_pGLCanvas->m_iColorType == rxParticleSystemBase::RX_EDGE));			//’Ç‰Á
 	SetMenuItemState(m_pMenuBar, "Particle/Color/ICE_FAST_PATH",	(m_pGLCanvas->m_iColorType == rxParticleSystemBase::RX_ICE_FAST_PATH));	//’Ç‰Á
-	SetMenuItemState(m_pMenuBar, "Particle/Color/HighClstr",		(m_pGLCanvas->m_iColorType == rxParticleSystemBase::RX_ICE_HIGH_CLUSTER));	//’Ç‰Á	
+	SetMenuItemState(m_pMenuBar, "Particle/Color/SELECTED",			(m_pGLCanvas->m_iColorType == rxParticleSystemBase::RX_ICE_SELECTED));	//’Ç‰Á	
+	SetMenuItemState(m_pMenuBar, "Particle/Color/DEFORMATION",		(m_pGLCanvas->m_iColorType == rxParticleSystemBase::RX_ICE_DEFORMATION));	//’Ç‰Á	
 	SetMenuItemState(m_pMenuBar, "Particle/Color/None",				(m_pGLCanvas->m_iColorType == rxParticleSystemBase::RX_NONE));
 
 	// Particle/Color - FL_MENU_RADIO

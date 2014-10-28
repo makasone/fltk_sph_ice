@@ -578,7 +578,7 @@ __device__
 
 	matrix3x3 R, S;
 	//PolarDecomposition(Apq, R, S, m_mtrxBeforeU);
-	//PolarDecomposition(Apq, R, S);
+	PolarDecomposition(Apq, R, S);
 
 	float dt1 = 1.0f/dt;
 	float gravity[3] = {0.0f, -9.81f, 0.0f};

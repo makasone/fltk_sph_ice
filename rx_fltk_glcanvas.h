@@ -32,6 +32,7 @@
 #include <FL/Fl_Value_Slider.H>
 #include <FL/Fl_Round_Button.H>
 #include <FL/Fl_Check_Button.H>
+#include <FL/Fl_Text_Editor.H>
 
 #include "rx_sph_commons.h"
 #include "rx_sph_config.h"
@@ -336,9 +337,10 @@ public:
 	int m_iIcePrtNum;				//初期の固体粒子数
 	int m_iIceTtrNum;				//初期の固体粒子の四面体数
 	int m_iClusteresNum;			//クラスタの数　使用中のクラスタで最大の値
-	int m_iTetraNum;				//四面体の数
+	int m_iTetraNum;				//未使用　四面体の数
 	int m_iTetraNumNum;				//デバッグ用
 
+	int m_iMaxClusterNum;			//最大クラスタ数，最大粒子数
 	int m_iIceItr;					//固体運動計算の反復回数
 
 	//
@@ -594,7 +596,7 @@ protected:
 
 	//追加：：氷
 	void InitIceObj(void);
-	void TimeStepEvent(void);
+	void StepTimeEvent(void);
 
 	//追加：：熱処理
 	void InitHT(rxSPHConfig &sph_scene);
@@ -611,6 +613,9 @@ protected:
 	void MakeClusterFromNeight();
 	void MakeOneCluster();
 	void MakeClusterHigh();
+
+	void StepIceObj();
+	void StepIceStructure();
 
 	void StepClusterCPU(double dt);
 	void StepClusterIterationCPU(double dt);
