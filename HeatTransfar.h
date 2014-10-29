@@ -13,6 +13,9 @@ public:
 	HeatTransfar(int num);
 	~HeatTransfar(void);
 
+	void MeltParticle(int pIndx);
+	void WarmParticle(int pIndx, float temp, float heat);
+
 	float* getTemps(){	return mTemps;	}								//各粒子の温度配列を取得
 	float* getHeats(){	return mHeats;	}								//各粒子の熱量配列を取得
 	int* getSurfaceParticleNums(){	return mSurfaceParticleNums;	}	//各表面粒子の番号を取得
@@ -58,7 +61,7 @@ public:
 	void AddParticle(int nowVerticesNum);								//sph法で粒子が追加された際の処理
 
 	void heatAirAndParticle();											//空気とパーティクルの熱処理
-	void heatParticleAndParticle(float* d, double h);					//パーティクル間の熱処理
+	void heatParticleAndParticle(const float* d, double h);					//パーティクル間の熱処理
 
 	void calcTempAndHeat();												//熱量から温度を求める
 	void calcTempAndHeat(int pIndx);									//1個の粒子だけ熱量から温度を求める

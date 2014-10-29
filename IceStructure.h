@@ -44,9 +44,36 @@ public:	//TODO: 全てpublicにしない
 
 	//相変化
 	//融解処理
+	void StepObjMelt();
 
+	void SearchMeltParticle(vector<int>& pList);	
+	void SearchReconstructCluster_Melt(const vector<int>& pList, vector<int>& cList, vector<int>& lList);
+	void SearchReconstructTetra_Melt(const vector<int>& pList, vector<int>& tList, vector<int>& lList);
+
+	void UpdateInfo_Melt_PandT(const vector<int>& pList);
+	void UpdateInfo_Melt_PandC(const vector<int>& pList, const vector<int>& cList);
+
+	void UpdateInfo_Delete_TandP(const vector<int>& tList, const vector<int>& deleteList);
+
+	void SetClusterInfo(const vector<int>& pList, const vector<int>& cList, const vector<int>& lList);
+	void SetTetraInfo(const vector<int>& pList, const vector<int>& cList, const vector<int>& lList);
+
+	void CheckDeleteCluster(void);
+	void CheckDeleteTetra(vector<int>& tList, vector<int>& lList);
+	void CheckSameTetra(int tIndx, const vector<int>& searchList, vector<int>& deleteList);
+	void CheckIncludeTetra(int tIndx, const vector<int>& searchList, vector<int>& deleteList);
+
+	void RemoveReconstructTetra(vector<int>& tList, vector<int>& lList, vector<int>& deleteTList);
 
 	//凝固処理
+	void StepObjFreeze();
+	
+	void SearchFreezeParticle(vector<int>& pList);
+	void SearchReconstructCluster_Freeze(const vector<int>& pList, vector<int>& cList, vector<int>& lList);
+	void SearchReconstructTetra_Freeze(const vector<int>& pList, vector<int>& tList, vector<int>& lList);
+
+	void SetFreezeTetraInfo(vector<int>& pList);
+	void SetFreezeClusterInfo(const vector<int>& pList);
 
 	//アクセッサ
 	void SetParticleNum(int pNum){	m_iPNum = pNum; }		//現在の粒子数

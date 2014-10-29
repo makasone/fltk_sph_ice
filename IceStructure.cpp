@@ -386,6 +386,194 @@ void IceStructure::InitGPU()
 
 //------------------------------------------__初期化-------------------------------------------------
 
+//------------------------------------------＿相変化-------------------------------------------------
+void IceStructure::StepObjMelt()
+{
+
+	vector<int> viClusterList;												//再定義するクラスタの集合
+	vector<int> viCLayerList;												//再定義するクラスタのレイヤー
+	vector<int> viTetraList;												//再定義する四面体の集合
+	vector<int> viTLayerList;												//再定義する四面体のレイヤー
+
+	//SearchMeltParticle(viParticleList);												//融解粒子の探索
+	//SearchReconstructTetra_Melt(viParticleList, viTetraList, viTLayerList);		//再定義四面体の探索
+	//SearchReconstructCluster_Melt(viParticleList, viClusterList, viCLayerList);	//再定義クラスタの探索
+
+	//UpdateInfo_Melt_PandT(viParticleList);									//粒子・四面体情報の更新
+	//UpdateInfo_Melt_PandC(viParticleList, viClusterList);					//粒子・クラスタ情報の更新
+
+	////CheckDeleteCluster();													//同一，包含関係にあるクラスタを削除
+	////CheckDeleteTetra(viTetraList, viTLayerList);							//同一，包含関係にある四面体を削除
+
+	//SetTetraInfo(viParticleList, viTetraList, viTLayerList);				//粒子・近傍四面体情報の再定義
+	////SetClusterInfo(viParticleList, viClusterList, viCLayerList);			//粒子・クラスタ情報の再定義
+
+//デバッグ
+	//if(viParticleList.size() == 0){	return;	}
+	//cout << "Debug" << __FUNCTION__ << endl;
+	//cout << "viParticleList.size = " << viParticleList.size() << " ";
+	//for(unsigned i = 0; i < viParticleList.size(); i++)
+	//{
+	//	cout << " " << viParticleList[i];
+	//}
+	//cout << endl;
+
+	//cout << "viClusterList.size =  " << viClusterList.size() << " ";
+	//for(unsigned i = 0; i < viClusterList.size(); i++)
+	//{
+	//	cout << " " << viClusterList[i];
+	//}
+	//cout << endl;
+
+	//cout << "viCLayerList:: ";
+	//for(unsigned i = 0; i < viCLayerList.size(); i++)
+	//{
+	//	cout << " " << viCLayerList[i];
+	//}
+	//cout << endl;
+
+	//cout << "viTetraList.size = " << viTetraList.size() << " ";
+	//for(unsigned i = 0; i < viTetraList.size(); i++)
+	//{
+	//	cout << " " << viTetraList[i];
+	//}
+	//cout << endl;
+
+	//cout << "viTLayerList:: ";
+	//for(unsigned i = 0; i < viTLayerList.size(); i++)
+	//{
+	//	cout << " " << viTLayerList[i];
+	//}
+	//cout << endl;
+
+	////クラスタ→粒子
+	//for(int i = 0; i < m_iClusteresNum; i++){	m_ice->DebugCtoP(i);	}
+
+	//粒子→クラスタ
+	//for(int i = 0; i < m_pPS->GetNumParticles(); i++){	m_ice->DebugPtoC(i);	}
+
+	//SMクラスタに含まれる粒子は機能で確認できる
+	//for(int i = 0; i < ICENUM; i++)
+	//{
+	//	cout << "pIndx = " << endl;
+
+	//	for(int j = 0; j < m_sm_cluster[i]->GetNumVertices(); j++)
+	//	{
+	//		cout << " j = " << m_sm_cluster[i]->GetParticleIndx(j);
+	//	}
+	//	cout << endl;
+	//}
+
+	//四面体→粒子は機能で確認できる
+
+	//粒子→四面体
+	//for(int i = 0; i < m_pPS->GetNumParticles(); i++){	m_ice->DebugPtoT(i);	}
+
+	//近傍四面体
+	//for(unsigned i = 0; i < m_vviTetraList.size(); i++ ){	m_ice->DebugNeighborTetra(i);	}
+}
+
+void IceStructure::StepObjFreeze()
+{
+	vector<int> viParticleList;														//凝固した粒子集合
+	vector<int> viClusterList;														//再定義するクラスタの集合
+	vector<int> viCLayerList;														//再定義するクラスタのレイヤー
+	vector<int> viTetraList;														//再定義する四面体の集合
+	vector<int> viTLayerList;														//再定義する四面体のレイヤー
+
+	//SearchFreezeParticle(viParticleList);											//凝固粒子の探索
+	//SetFreezeTetraInfo(viParticleList);												//凝固粒子に関する四面体の作成
+	//SetFreezeClusterInfo(viParticleList);											//凝固粒子に関するクラスタの作成
+	//SearchReconstructTetra_Freeze(viParticleList, viTetraList, viTLayerList);		//再定義四面体の探索
+	//SearchReconstructCluster_Freeze(viParticleList, viClusterList, viCLayerList);	//再定義クラスタの探索
+
+	////CheckDeleteCluster();															//同一，包含関係にあるクラスタを削除
+	////CheckDeleteTetra(viTetraList, viTLayerList);									//同一，包含関係にある四面体を削除
+
+	//SetTetraInfo(viParticleList, viTetraList, viTLayerList);						//粒子・近傍四面体情報の再定義
+	//SetClusterInfo(viParticleList, viClusterList, viCLayerList);					//粒子・クラスタ情報の再定義
+
+	////デバッグ
+	//if(viParticleList.size() == 0 || viClusterList.size() == 0){	return;	}
+	//cout << "Debug " << __FUNCTION__ << "viParticleList.size = " << viParticleList.size() << " " << endl;
+
+	//for(unsigned i = 0; i < viParticleList.size(); i++)
+	//{
+	//	cout << " " << viParticleList[i];
+	//}
+	//cout << endl;
+
+	//cout << "viClusterList.size =  " << viClusterList.size() << " ";
+	//for(unsigned i = 0; i < viClusterList.size(); i++)
+	//{
+	//	cout << " " << viClusterList[i];
+	//}
+	//cout << endl;
+
+	//cout << "viCLayerList:: ";
+	//for(unsigned i = 0; i < viCLayerList.size(); i++)
+	//{
+	//	cout << " " << viCLayerList[i];
+	//}
+	//cout << endl;
+
+	//cout << "viTetraList.size = " << viTetraList.size() << " ";
+	//for(unsigned i = 0; i < viTetraList.size(); i++)
+	//{
+	//	cout << " " << viTetraList[i];
+	//}
+	//cout << endl;
+
+	//cout << "viTLayerList:: "3
+	//for(unsigned i = 0; i < viTLayerList.size(); i++)
+	//{
+	//	cout << " " << viTLayerList[i];
+	//}
+	//cout << endl;
+
+	//クラスタ→粒子
+	//for(int i = 0; i < m_iClusteresNum; i++){	m_ice->DebugCtoP(i);	}
+
+	//粒子→クラスタ
+	//for(int i = 0; i < m_pPS->GetNumParticles(); i++){	m_ice->DebugPtoC(i);	}
+
+	//SMクラスタに含まれる粒子は機能で確認できる
+	//for(int i = 0; i < ICENUM; i++)
+	//{
+	//	cout << "pIndx = " << endl;
+
+	//	for(int j = 0; j < m_sm_cluster[i]->GetNumVertices(); j++)
+	//	{
+	//		cout << " j = " << m_sm_cluster[i]->GetParticleIndx(j);
+	//	}
+	//	cout << endl;
+	//}
+
+	//四面体→粒子は機能で確認できる
+
+	//粒子→四面体
+	//for(int i = 0; i < m_pPS->GetNumParticles(); i++){	m_ice->DebugPtoT(i);	}
+
+	//近傍四面体
+	//for(unsigned i = 0; i < m_vviTetraList.size(); i++ ){	m_ice->DebugNeighborTetra(i);	}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+//------------------------------------------相変化＿-------------------------------------------------
+
+
+
 
 //-------------------------------------------取得----------------------------------------
 /*!

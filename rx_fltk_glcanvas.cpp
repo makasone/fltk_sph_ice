@@ -334,7 +334,6 @@ rxFlGLWindow::~rxFlGLWindow()
 	if(m_pPS) delete m_pPS;
 
 	if(m_ice) delete m_ice;
-	if(m_ht)  delete m_ht;
 }
 
 
@@ -766,7 +765,6 @@ void rxFlGLWindow::ClearPick(void)
 	if( m_iPickedParticle != -1 )
 	{
 		if(m_iceObj == 0)	return;
-		if(m_ht == 0)	return;
 		if(m_iceObj->GetParticleNum() <= m_iPickedParticle){	return;	}	//融解のみの実験のときに必要になる．
 
 		//クラスタの情報を更新
@@ -835,7 +833,6 @@ void rxFlGLWindow::Motion(int x, int y)
 		else if( m_iPickedParticle != -1 )
 		{
 			if(m_iceObj == 0)	return;
-			if(m_ht == 0)		return;
 			if(m_iceObj->GetParticleNum() <= m_iPickedParticle){	return;	}	//融解のみの実験のときに必要になる．
 
 			Vec3 ray_from, ray_to;
@@ -857,10 +854,6 @@ void rxFlGLWindow::Motion(int x, int y)
 				m_iceObj->GetMoveObj(cIndx)->FixVertex(oIndx, new_pos);
 				m_iceObj->GetMoveObj(cIndx)->SetCurrentPos(oIndx, new_pos);
 			}
-
-			//粒子の温度上昇
-			m_ht->setTemps(m_iPickedParticle, m_ht->getAirTemp());
-			m_ht->setHeats(m_iPickedParticle, m_ht->getAirTemp());
 
 			//粒子の移動
 			RXREAL *p  = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
@@ -1105,8 +1098,8 @@ void rxFlGLWindow::Idle(void)
 	if( m_bMode == MODE_HEAT )
 	{
 		RXTIMER_RESET;
-
-		StepHT(m_fDt);						//熱処理
+		
+		StepHeatTransfer();
 		StepPS(m_fDt);
 //		StepSM(m_fDt);
 	}
@@ -1127,9 +1120,9 @@ void rxFlGLWindow::Idle(void)
 	{
 		//StepTimeEvent();											//タイムイベント
 
-		//StepHT(m_fDt);			RXTIMER("StepHt");				//熱処理
 		//StepPS(m_fDt);			RXTIMER("StepPS");				//液体運動
 		StepIceObj();												//固体運動
+		StepHeatTransfer();			RXTIMER("StepHt");				//熱処理
 		StepIceStructure();											//相変化
 
 		//StepSolid_Melt(m_fDt);	RXTIMER("StepMelt");			//融解処理
@@ -1517,7 +1510,6 @@ void rxFlGLWindow::OnMenuSimulation(double val, string label)
 		if(m_pPS) delete m_pPS;
 		m_pPS = 0;
 		InitSPH(m_Scene);
-		InitHT(m_Scene);
 	}
 
 	if(label.find("Wavelet Turbulence") != string::npos){	
@@ -1696,7 +1688,7 @@ void rxFlGLWindow::OnMenuParticleColor(double val, string label)
 	{
 		((RXSPH*)m_pPS)->DetectSurfaceParticles();
 		m_pPS->SetColorType(rxParticleSystemBase::RX_TEMP);
-		m_pPS->SetColorVBOFromArray(m_ht->getTemps(), 1, false, 1.5f * m_ht->getTempMax());
+		m_pPS->SetColorVBOFromArray(m_iceObj->GetTemps(), 1, false, 1.5f * 500.0f);
 		m_iColorType = rxParticleSystemBase::RX_TEMP;
 	}
 	//追加　氷
@@ -1930,7 +1922,6 @@ void rxFlGLWindow::OnMenuScene(double val, string label)
 	if(m_Scene.SetCurrentSceneFromTitle(label)){
 		m_iCurrentSceneIdx = m_Scene.GetCurrentSceneIdx();
 		InitSPH(m_Scene);
-		InitHT(m_Scene);
 	}
 	
 	m_pParent->UpdateMenuState();
@@ -2503,13 +2494,13 @@ void rxFlGLWindow::UpdateInfo()
 	//cout << __FUNCTION__ << " AddInfo beforeSize = " << beforeSize << " nowSize = " << nowSize << endl;
 
 	//熱処理
-	m_ht->AddParticle( nowSize );
+	//m_ht->AddParticle( nowSize );
 
 	//線形補間
-	for( int i = beforeSize; i < nowSize; i++ )
-	{
-		m_fIntrps.push_back( 1.0f-(m_ht->getTemps()[i] / m_ht->getTempMax()) );
-	}
+	//for( int i = beforeSize; i < nowSize; i++ )
+	//{
+	//	m_fIntrps.push_back( 1.0f-(m_ht->getTemps()[i] / m_ht->getTempMax()) );
+	//}
 
 	//融解の場合は，一切凝固が行われないとして追加しない
 	return;
@@ -2536,157 +2527,6 @@ void rxFlGLWindow::UpdateInfo()
 	////デバイスメモリの更新
 
 }
-
-//-----------------------------------------------------------------------------
-// 熱処理関数
-//-----------------------------------------------------------------------------
-/*!
- * 熱処理の初期化
- * @param[in] fn_scene シーン記述ファイル名
- */
-void rxFlGLWindow::InitHT(rxSPHConfig &sph_scene)
-{	cout << __FUNCTION__ <<	endl;
-	//	if( m_ht ) delete m_ht;
-	m_ht = new HeatTransfar( m_Scene.GetSphEnv().max_particles );		//最初に最大数を確保しておいて，使うのは作成されたパーティクルまでとする
-	m_ht->setCarnelConstant( ((RXSPH*)m_pPS)->GetEffectiveRadius() );	//カーネル関数の定数のための処理
-	m_ht->setNumVertices(m_iIcePrtNum);									//パーティクルの数を取得
-
-	//ファイルからパラメータの読み込み
-	rxSPHEnviroment sph_env = sph_scene.GetSphEnv();
-
-	m_ht->setTimeStep(sph_env.htTimeStep);
-	m_ht->setTempMax(sph_env.tempMax);
-	m_ht->setTempMin(sph_env.tempMin);
-	m_ht->setLatentHeat(sph_env.latentHeat);
-	m_ht->setCffCntHt(sph_env.cffcntHt);
-	m_ht->setCffCntTd(sph_env.cffcntTd);
-	meltPIndx = 0;
-	debugIndx = 0;
-	ClearRect();
-}
-/*!
- * 熱処理のタイムステップを進める
- * @param[in] dt タイムステップ幅
- */
-void rxFlGLWindow::StepHT(double dt)
-{//	cout << "StepHT" << endl;
-
-	//熱処理
-	RXREAL *d  = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_DENSITY);		//各粒子の密度
-	RXREAL *p  = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);		//各粒子の位置
-
-	((RXSPH*)m_pPS)->DetectSurfaceParticles();								//表面粒子検出
-
-	int *surfaceParticles = (int *)( ((RXSPH*)m_pPS)->GetArraySurf() );		//表面粒子
-	vector<int> ids;														//表面粒子の添え字
-	vector<float> dists;													//表面粒子の距離
-
-	//初期化
-	m_ht->resetNeighborhoodsId();
-	m_ht->resetNeighborhoodsDist();
-	
-	//近傍粒子を取得
-	vector<vector<rxNeigh>>& neights = ((RXSPH*)m_pPS)->GetNeights();
-
-//	cout << __FUNCTION__ << "Step1" << endl;
-//	RXTIMER("ht1");
-
-	//近傍粒子の添え字と距離の設定
-	for( int i = 0; i < m_pPS->GetNumParticles(); i++ )
-	{
-		if( m_fIntrps.size() <= (unsigned)i ) continue;			//四面体ベース版のみ
-
-		//表面粒子判定情報　１ならば表面粒子，０なら内部粒子　その際の数値は近傍粒子総数を表す
-		//近傍粒子総数で表面積を近似
-		if( surfaceParticles[i] == 1 )
-		{
-			//床に近く，圧力の高い粒子は，表面ではなく底面とする
-			double floor = -m_Scene.GetSphEnv().boundary_ext[1];		//床の高さ　負の値
-//			cout << "d[" << i << "] = " << d[i] << endl;
-
-			//粒子数によってパラメータを変えないといけない．
-			//表面粒子判定に不具合があるので修正が必要．
-			//0.75で下２段とれる
-			if(p[i*4+1] < floor+((RXSPH*)m_pPS)->GetEffectiveRadius()*0.2)				//1331　下１段
-			{
-				if(d[i] < 950.0)
-				{
-					m_ht->setSurfaceParticleNums(i, (int)( neights[i].size() ));		//表面扱い
-				}
-				else
-				{
-					m_ht->setSurfaceParticleNums(i, -1);								//底面扱い
-				}
-			}
-			else
-			{
-				m_ht->setSurfaceParticleNums(i, (int)( neights[i].size() ));
-			}
-		}
-		else
-		{
-			m_ht->setSurfaceParticleNums(i, -1);
-		}
-		
-		//初期化
-		ids.clear();
-		dists.clear();
-
-		for( unsigned j = 0; j < neights[i].size(); j++)
-		{
-			if( i == (int)( neights[i][j].Idx ) ) continue;							//自分自身を省く
-			ids.push_back( (int)( neights[i][j].Idx ) );
-			dists.push_back( (float)( neights[i][j].Dist ) );
-		}
-
-		m_ht->AddNeighborhoodsId( ids );
-		m_ht->AddNeighborhoodsDist( dists );
-	}
-//	cout << __FUNCTION__ << "Step2" << endl;
-//	RXTIMER("ht2");
-
-	//熱処理計算
-	m_ht->heatAirAndParticle(); 		 										//熱処理　空気と粒子
-	m_ht->heatParticleAndParticle(d, ((RXSPH*)m_pPS)->GetEffectiveRadius());	//熱処理　粒子間
-	m_ht->calcTempAndHeat();													//熱量の温度変換，温度の熱量変換
-
-//	RXTIMER("ht3");
-//	cout << __FUNCTION__ << "Step3" << endl;
-}
-
-/*
- * 特定の粒子を融解
- */
-void rxFlGLWindow::MeltParticle(int pIndx)
-{
-	//顕熱変化終了
-	m_ht->setTemps(pIndx, 1000);
-	m_ht->setHeats(pIndx, 1000);
-	m_ht->calcTempAndHeat(pIndx);						//熱量の温度変換，温度の熱量変換
-
-	//潜熱変化終了
-	m_ht->setTemps(pIndx, 1000);
-	m_ht->setHeats(pIndx, 1000);
-	m_ht->calcTempAndHeat(pIndx);						//熱量の温度変換，温度の熱量変換
-}
-
-/*
- * 特定の粒子の温度・熱量上昇
- */
-void rxFlGLWindow::WarmParticle(int pIndx, float temp, float heat)
-{
-	//顕熱変化終了
-	float newTemp = m_ht->getTemps()[pIndx] + temp;
-	float newHeat = m_ht->getHeats()[pIndx] + heat;
-
-	m_ht->setTemps(pIndx, newTemp);
-	m_ht->setHeats(pIndx, newHeat);
-	m_ht->calcTempAndHeat(pIndx);						//熱量の温度変換，温度の熱量変換
-
-	//潜熱変化終了
-	m_ht->calcTempAndHeat(pIndx);
-}
-
 
 //-----------------------------------------------------------------------------
 // ShapeMatching関数
@@ -2773,12 +2613,8 @@ void rxFlGLWindow::InitIceObj(void)
 	rxSPHEnviroment sph_env = m_Scene.GetSphEnv();
 
 	//ポインタの初期化
-	m_ht = 0;
 	m_ice = 0;
 	m_iceObj = 0;
-
-	//熱処理初期化
-	InitHT(m_Scene);											
 
 	RXREAL *hp = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
 	RXREAL *hv = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_VELOCITY);
@@ -2805,6 +2641,17 @@ void rxFlGLWindow::InitIceObj(void)
 	);															//sm法の初期化
 
 	m_iceObj->InitStrct();										//粒子とクラスタの関係情報を初期化
+
+	//熱処理初期化
+	m_iceObj->InitHeatTransfer(
+		((RXSPH*)m_pPS)->GetEffectiveRadius(),
+		sph_env.htTimeStep,
+		sph_env.tempMax,
+		sph_env.tempMin,
+		sph_env.latentHeat,
+		sph_env.cffcntHt,
+		sph_env.cffcntTd
+	);
 
 #ifdef USE_PATH
 	m_iceObj->InitPath();										//高速な運動計算のためのパスを準備
@@ -3119,6 +2966,24 @@ void rxFlGLWindow::StepIceObj()
 #endif
 }
 
+//熱処理
+void rxFlGLWindow::StepHeatTransfer()
+{
+	RXREAL *d  = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_DENSITY);		//各粒子の密度
+	RXREAL *p  = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);		//各粒子の位置
+
+	((RXSPH*)m_pPS)->DetectSurfaceParticles();								//表面粒子検出
+
+	int* surfaceParticles = (int *)( ((RXSPH*)m_pPS)->GetArraySurf() );		//表面粒子
+	vector<vector<rxNeigh>>& neights = ((RXSPH*)m_pPS)->GetNeights();
+
+	float floor = -m_Scene.GetSphEnv().boundary_ext[2];		//TODO::なんかうまくいってない
+	float radius = ((RXSPH*)m_pPS)->GetEffectiveRadius();
+
+	m_iceObj->StepHeatTransfer(surfaceParticles, neights, floor, radius, p, d);
+}
+
+
 //相変化処理
 void rxFlGLWindow::StepIceStructure()
 {
@@ -3159,22 +3024,6 @@ void rxFlGLWindow::StepCalcParam(double dt)
 //				m_sm_connects[cIndx]->SetAlphas( oIndx, 0.0 );
 //		}
 //	}
-
-	//線形補間パラメータ
-	for(int i = 0, num = m_pPS->GetNumParticles(); i < num; ++i)
-	{
-		//if( m_fIntrps.size() <= (unsigned)i )					continue;				//存在しない場合は戻る　四面体ベースのみ
-		if( m_ice->GetPtoCNum(i) == 0)							continue;
-		if( m_ht->getPhase(i) == 2 || m_ht->getPhase(i) == -2 ) continue;				//中間状態でない場合は戻る
-
-		m_fIntrps[i] = 1.0f - (m_ht->getTemps()[i] / m_ht->getTempMax());				//温度で決定　こっちのほうが自然
-//		m_fIntrps[i] = 1.0f - (g_ht->getTemps()[i] / g_ht->getLatentHeat());			//熱量で決定
-
-		//値域の制限
-		if( m_fIntrps[i] > 1.0f ) m_fIntrps[i] = 1.0f;
-		if( m_fIntrps[i] < 0.0f ) m_fIntrps[i] = 0.0f;
-	}
-//	cout << __FUNCTION__ << "Step3" << endl;
 }
 
 /*!
@@ -3422,125 +3271,6 @@ void rxFlGLWindow::MakeClusterInfo(int cIndx)
 	m_ice->SetCtoP(cIndx, pIndxList, pLayerList);						//四面体が含んでいる粒子を登録
 
 	delete[] pLayerList;
-}
-
-/*!
- * 固体の融解処理
- * @param dt タイムステップ
- */
-void rxFlGLWindow::StepSolid_Melt(double dt)
-{	//cout << __FUNCTION__ << endl;
-
-	vector<int> viParticleList;												//融解した粒子集合
-	vector<int> viClusterList;												//再定義するクラスタの集合
-	vector<int> viCLayerList;												//再定義するクラスタのレイヤー
-	vector<int> viTetraList;												//再定義する四面体の集合
-	vector<int> viTLayerList;												//再定義する四面体のレイヤー
-
-	//RXTIMER("Melt_Search start");
-	SearchMeltParticle(viParticleList);											//融解粒子の探索
-	SearchReconstructTetra_Melt(viParticleList, viTetraList, viTLayerList);		//再定義四面体の探索
-	SearchReconstructCluster_Melt(viParticleList, viClusterList, viCLayerList);	//再定義クラスタの探索
-	//RXTIMER("Melt_Search  end");
-
-	//RXTIMER("Melt_Update start");
-	UpdateInfo_Melt_PandT(viParticleList);									//粒子・四面体情報の更新
-	UpdateInfo_Melt_PandC(viParticleList, viClusterList);					//粒子・クラスタ情報の更新
-	//RXTIMER("Melt_Update  end");
-
-	//CheckDeleteCluster();													//同一，包含関係にあるクラスタを削除
-	//CheckDeleteTetra(viTetraList, viTLayerList);							//同一，包含関係にある四面体を削除
-
-	//RXTIMER("Melt_Set start");
-	SetTetraInfo(viParticleList, viTetraList, viTLayerList);				//粒子・近傍四面体情報の再定義
-	//SetClusterInfo(viParticleList, viClusterList, viCLayerList);			//粒子・クラスタ情報の再定義
-	//RXTIMER("Melt_Set end");
-
-//デバッグ
-	//if(viParticleList.size() == 0){	return;	}
-	//cout << "Debug" << __FUNCTION__ << endl;
-	//cout << "viParticleList.size = " << viParticleList.size() << " ";
-	//for(unsigned i = 0; i < viParticleList.size(); i++)
-	//{
-	//	cout << " " << viParticleList[i];
-	//}
-	//cout << endl;
-
-	//cout << "viClusterList.size =  " << viClusterList.size() << " ";
-	//for(unsigned i = 0; i < viClusterList.size(); i++)
-	//{
-	//	cout << " " << viClusterList[i];
-	//}
-	//cout << endl;
-
-	//cout << "viCLayerList:: ";
-	//for(unsigned i = 0; i < viCLayerList.size(); i++)
-	//{
-	//	cout << " " << viCLayerList[i];
-	//}
-	//cout << endl;
-
-	//cout << "viTetraList.size = " << viTetraList.size() << " ";
-	//for(unsigned i = 0; i < viTetraList.size(); i++)
-	//{
-	//	cout << " " << viTetraList[i];
-	//}
-	//cout << endl;
-
-	//cout << "viTLayerList:: ";
-	//for(unsigned i = 0; i < viTLayerList.size(); i++)
-	//{
-	//	cout << " " << viTLayerList[i];
-	//}
-	//cout << endl;
-
-	////クラスタ→粒子
-	//for(int i = 0; i < m_iClusteresNum; i++){	m_ice->DebugCtoP(i);	}
-
-	//粒子→クラスタ
-	//for(int i = 0; i < m_pPS->GetNumParticles(); i++){	m_ice->DebugPtoC(i);	}
-
-	//SMクラスタに含まれる粒子は機能で確認できる
-	//for(int i = 0; i < ICENUM; i++)
-	//{
-	//	cout << "pIndx = " << endl;
-
-	//	for(int j = 0; j < m_sm_cluster[i]->GetNumVertices(); j++)
-	//	{
-	//		cout << " j = " << m_sm_cluster[i]->GetParticleIndx(j);
-	//	}
-	//	cout << endl;
-	//}
-
-	//四面体→粒子は機能で確認できる
-
-	//粒子→四面体
-	//for(int i = 0; i < m_pPS->GetNumParticles(); i++){	m_ice->DebugPtoT(i);	}
-
-	//近傍四面体
-	//for(unsigned i = 0; i < m_vviTetraList.size(); i++ ){	m_ice->DebugNeighborTetra(i);	}
-}
-
-/*!
- * 融解粒子の探索
- * @param pList 粒子番号リスト
- */
-void rxFlGLWindow::SearchMeltParticle(vector<int>& pList)
-{//	cout << __FUNCTION__ << endl;
-	for(int i = 0; i < m_pPS->GetNumParticles(); ++i)
-	{	
-		if( m_ht->getPhaseChange(i) != 1 )				continue;	//相転移の条件を満たしていない場合は戻る
-		if( m_ht->getPhase(i) != 2 )					continue;	//水へと相転移していない場合は戻る
-		if( m_ice->GetParticleNum() <= i)				continue;	//融解のみの実験のときに必要になる．
-		if( m_ice->GetPtoCNum(i) == 0 )					continue;	//クラスタに含まれている
-		if( m_ice->GetPtoTNum(i) == 0 )					continue;	//四面体に含まれている
-
-		if(pList.size() > 200){	break;	}							//融解粒子数の制限
-
-		m_fIntrps[i] = 0.0f;										//線形補間もしない
-		m_ht->setPhaseChange(i, 0);									//相転移し終わったことを伝える
-		pList.push_back(i);											//融解粒子の記録
-	}
 }
 
 /*!
@@ -4162,113 +3892,6 @@ void rxFlGLWindow::CheckDeleteCluster()
 }
 
 /*!
- * 凝固処理
- * @param dt タイムステップ
- */
-void rxFlGLWindow::StepSolid_Freeze(double dt)
-{
-	vector<int> viParticleList;														//凝固した粒子集合
-	vector<int> viClusterList;														//再定義するクラスタの集合
-	vector<int> viCLayerList;														//再定義するクラスタのレイヤー
-	vector<int> viTetraList;														//再定義する四面体の集合
-	vector<int> viTLayerList;														//再定義する四面体のレイヤー
-	
-	SearchFreezeParticle(viParticleList);											//凝固粒子の探索
-	SetFreezeTetraInfo(viParticleList);												//凝固粒子に関する四面体の作成
-	SetFreezeClusterInfo(viParticleList);											//凝固粒子に関するクラスタの作成
-	SearchReconstructTetra_Freeze(viParticleList, viTetraList, viTLayerList);		//再定義四面体の探索
-	SearchReconstructCluster_Freeze(viParticleList, viClusterList, viCLayerList);	//再定義クラスタの探索
-
-	//CheckDeleteCluster();															//同一，包含関係にあるクラスタを削除
-	//CheckDeleteTetra(viTetraList, viTLayerList);									//同一，包含関係にある四面体を削除
-
-	SetTetraInfo(viParticleList, viTetraList, viTLayerList);						//粒子・近傍四面体情報の再定義
-	SetClusterInfo(viParticleList, viClusterList, viCLayerList);					//粒子・クラスタ情報の再定義
-
-	//デバッグ
-	if(viParticleList.size() == 0 || viClusterList.size() == 0){	return;	}
-	cout << "Debug " << __FUNCTION__ << "viParticleList.size = " << viParticleList.size() << " " << endl;
-	//for(unsigned i = 0; i < viParticleList.size(); i++)
-	//{
-	//	cout << " " << viParticleList[i];
-	//}
-	//cout << endl;
-
-	//cout << "viClusterList.size =  " << viClusterList.size() << " ";
-	//for(unsigned i = 0; i < viClusterList.size(); i++)
-	//{
-	//	cout << " " << viClusterList[i];
-	//}
-	//cout << endl;
-
-	//cout << "viCLayerList:: ";
-	//for(unsigned i = 0; i < viCLayerList.size(); i++)
-	//{
-	//	cout << " " << viCLayerList[i];
-	//}
-	//cout << endl;
-
-	//cout << "viTetraList.size = " << viTetraList.size() << " ";
-	//for(unsigned i = 0; i < viTetraList.size(); i++)
-	//{
-	//	cout << " " << viTetraList[i];
-	//}
-	//cout << endl;
-
-	//cout << "viTLayerList:: "3
-	//for(unsigned i = 0; i < viTLayerList.size(); i++)
-	//{
-	//	cout << " " << viTLayerList[i];
-	//}
-	//cout << endl;
-
-	//クラスタ→粒子
-	//for(int i = 0; i < m_iClusteresNum; i++){	m_ice->DebugCtoP(i);	}
-
-	//粒子→クラスタ
-	//for(int i = 0; i < m_pPS->GetNumParticles(); i++){	m_ice->DebugPtoC(i);	}
-
-	//SMクラスタに含まれる粒子は機能で確認できる
-	//for(int i = 0; i < ICENUM; i++)
-	//{
-	//	cout << "pIndx = " << endl;
-
-	//	for(int j = 0; j < m_sm_cluster[i]->GetNumVertices(); j++)
-	//	{
-	//		cout << " j = " << m_sm_cluster[i]->GetParticleIndx(j);
-	//	}
-	//	cout << endl;
-	//}
-
-	//四面体→粒子は機能で確認できる
-
-	//粒子→四面体
-	//for(int i = 0; i < m_pPS->GetNumParticles(); i++){	m_ice->DebugPtoT(i);	}
-
-	//近傍四面体
-	//for(unsigned i = 0; i < m_vviTetraList.size(); i++ ){	m_ice->DebugNeighborTetra(i);	}
-}
-
-/*!
- * 凝固粒子の探索
- * @param pList 粒子番号リスト
- */
-void rxFlGLWindow::SearchFreezeParticle(vector<int>& pList)
-{//	cout << __FUNCTION__ << endl;
-	for(int i = 0; i < m_pPS->GetNumParticles(); i++)
-	{	
-		if(m_ht->getPhaseChange(i) != 1)				continue;	//相転移の条件を満たしていない場合は戻る
-		if(m_ht->getPhase(i) != -2)						continue;	//氷へと相転移していない場合は戻る
-		if(m_ice->GetParticleNum() <= i)				continue;	//融解のみの実験のときに必要になる．
-		if(m_ice->GetPtoCNum(i) != 0)					continue;	//クラスタに含まれている
-		if(m_ice->GetPtoTNum(i) != 0)					continue;	//クラスタに含まれている
-//		if(pList.size() > 1){	break;	}							//凝固粒子数の制限
-		
-		pList.push_back(i);											//凝固粒子の記録
-	}
-}
-
-/*!
  * 凝固粒子に関する情報の作成　四面体
  */
 void rxFlGLWindow::SetFreezeTetraInfo(vector<int>& pList)
@@ -4542,18 +4165,16 @@ void rxFlGLWindow::StepParticleColor()
 		float* tempColor = new float[m_pPS->GetNumParticles()];
 		for( int i = 0; i < m_pPS->GetNumParticles(); i++ )
 		{
-			//if( m_fIntrps.size() <= (unsigned)i )
-			//if(m_ice->GetPtoCNum(i) == 0 || m_ice->GetPtoTNum(i) == 0)
 			if(false)
 			{
 				tempColor[i] = 100.0f;
 			}
 			else
 			{
-				tempColor[i] = m_ht->getTemps()[i] + 100.0f;
+				tempColor[i] = m_iceObj->GetTemps()[i] + 100.0f;
 			}
 		}
-		m_pPS->SetColorVBOFromArray( tempColor, 1, false, 1.5f * m_ht->getTempMax() );
+		m_pPS->SetColorVBOFromArray( tempColor, 1, false, 1000.0f );
 		delete[] tempColor;
 	}
 	//SM法
@@ -4596,7 +4217,7 @@ void rxFlGLWindow::StepParticleColor()
 			}
 		}
 
-		m_pPS->SetColorVBOFromArray( tempColor, 1, false, 1.5f * m_ht->getTempMax() );
+		m_pPS->SetColorVBOFromArray( tempColor, 1, false, 1000.0f );
 		delete[] tempColor;
 	}
 	//クラスタ
@@ -4648,7 +4269,7 @@ void rxFlGLWindow::StepParticleColor()
 			}
 		}
 
-		m_pPS->SetColorVBOFromArray( tempColor, 1, false, 1.5f * m_ht->getTempMax() );
+		m_pPS->SetColorVBOFromArray( tempColor, 1, false, 1000.0f );
 		delete[] tempColor;
 	}		
 	//高速化用パス
@@ -4674,7 +4295,7 @@ void rxFlGLWindow::StepParticleColor()
 			}
 		}
 
-		m_pPS->SetColorVBOFromArray( tempColor, 1, false, 1.5f * m_ht->getTempMax() );
+		m_pPS->SetColorVBOFromArray( tempColor, 1, false, 1000.0f );
 
 		delete[] tempColor;
 	}
@@ -4752,7 +4373,7 @@ void rxFlGLWindow::MakeFreezeTetrahedra(vector<int>& pList, vector<int>& tList)
 			//cout << "distance = " << distance << " radius = " << radius << endl;
 
 			if(ipIndx == jpIndx )								continue;	//自分自身は除く
-			if(m_ht->getTemps()[jpIndx] > 250)					continue;	//粒子の温度が一定以下
+			//if(m_ht->getTemps()[jpIndx] > 250)					continue;	//粒子の温度が一定以下
 			if(m_ice->GetParticleNum() <= jpIndx)			{	continue;	}	//融解のみの実験のときに必要になる．
 			if(m_ice->GetPtoCNum(jpIndx) <= 0)					continue;	//クラスタに所属していないなら戻る
 			if(m_ice->GetPtoTNum(jpIndx) <= 0)					continue;	//四面体に属していないなら戻る
@@ -4820,7 +4441,7 @@ void rxFlGLWindow::MakeFreezeTetrahedra(vector<int>& pList, vector<int>& tList)
 			//cout << endl;
 
 			m_fIntrps[ipIndx] = 1.0f;										//線形補間もしない
-			m_ht->setPhaseChange(ipIndx, 0);								//相転移し終わったことを伝える
+			//m_ht->setPhaseChange(ipIndx, 0);								//相転移し終わったことを伝える
 		}
 		else
 		{

@@ -10,7 +10,7 @@ using namespace std;
 #define RX_PI          (double)(3.1415926535897932384626433832795)   
 
 HeatTransfar::HeatTransfar(int num)
-{
+{	
 	mNumVertices = num;
 
 	mAirTemp = 0.0f;
@@ -53,6 +53,33 @@ HeatTransfar::~HeatTransfar(void)
 void HeatTransfar::initState()
 {
 
+}
+
+void HeatTransfar::MeltParticle(int pIndx)
+{
+	////Œ°”M•Ï‰»I—¹
+	//m_ht->setTemps(pIndx, 1000);
+	//m_ht->setHeats(pIndx, 1000);
+	//m_ht->calcTempAndHeat(pIndx);						//”M—Ê‚Ì‰·“x•ÏŠ·C‰·“x‚Ì”M—Ê•ÏŠ·
+
+	////ö”M•Ï‰»I—¹
+	//m_ht->setTemps(pIndx, 1000);
+	//m_ht->setHeats(pIndx, 1000);
+	//m_ht->calcTempAndHeat(pIndx);						//”M—Ê‚Ì‰·“x•ÏŠ·C‰·“x‚Ì”M—Ê•ÏŠ·
+}
+
+void HeatTransfar::WarmParticle(int pIndx, float temp, float heat)
+{
+	////Œ°”M•Ï‰»I—¹
+	//float newTemp = m_ht->getTemps()[pIndx] + temp;
+	//float newHeat = m_ht->getHeats()[pIndx] + heat;
+
+	//m_ht->setTemps(pIndx, newTemp);
+	//m_ht->setHeats(pIndx, newHeat);
+	//m_ht->calcTempAndHeat(pIndx);						//”M—Ê‚Ì‰·“x•ÏŠ·C‰·“x‚Ì”M—Ê•ÏŠ·
+
+	////ö”M•Ï‰»I—¹
+	//m_ht->calcTempAndHeat(pIndx);
 }
 
 void HeatTransfar::AddParticle(int nowVerticesNum)
@@ -373,7 +400,7 @@ void HeatTransfar::heatAirAndParticle()
 }
 
 //—±q“¯m‚Ì”Mˆ—
-void HeatTransfar::heatParticleAndParticle(float* d, double h)	//d:–§“x”z—ñ@h:‰e‹¿”¼Œa
+void HeatTransfar::heatParticleAndParticle(const float* d, double h)	//d:–§“x”z—ñ@h:‰e‹¿”¼Œa
 {
 	double tmp = 0.0;
 

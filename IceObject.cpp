@@ -208,6 +208,21 @@ void IceObject::InitStrct()
 	//}
 }
 
+//熱処理初期化
+void IceObject::InitHeatTransfer(float effectiveRadius, float timeStep, float tempMax, float tempMin, float latentHeat, float cffcntHt, float cffcntTd)
+{//	cout << __FUNCTION__ << endl;
+	m_heatTransfer = new HeatTransfar(sm_particleNum*2);		//最初に最大数を確保しておいて，使うのは作成されたパーティクルまでとする
+	m_heatTransfer->setCarnelConstant(effectiveRadius);			//カーネル関数の定数のための処理
+	m_heatTransfer->setNumVertices(sm_particleNum);				//パーティクルの数を取得
+
+	m_heatTransfer->setTimeStep(timeStep);
+	m_heatTransfer->setTempMax(tempMax);
+	m_heatTransfer->setTempMin(tempMin);
+	m_heatTransfer->setLatentHeat(latentHeat);
+	m_heatTransfer->setCffCntHt(cffcntHt);
+	m_heatTransfer->setCffCntTd(cffcntTd);
+}
+
 //高速化に用いるパスの初期化
 void IceObject::InitPath()
 {
@@ -950,39 +965,140 @@ void IceObject::LinerInterPolationForClusterCPU(int pIndx, const Vec3& pos, cons
 	p[pIndx*3+2] = pos[2] * m_fInterPolationCoefficience[pIndx] + s_sphPrtPos[sphIndx+2] * intrps;
 }
 
-//相変化処理や固体データの更新
-void IceObject::StepIceStructure()
+//熱処理
+void IceObject::StepHeatTransfer(const int* surfParticles, const vector<vector<rxNeigh>>& neights, float floor, float effRadius, const float* pos, const float* dens)
 {
-	//融解
-	//凝固
+	vector<int> ids;														//表面粒子の添え字
+	vector<float> dists;													//表面粒子の距離
+
+	//初期化
+	m_heatTransfer->resetNeighborhoodsId();
+	m_heatTransfer->resetNeighborhoodsDist();
+
+	//近傍粒子の添え字と距離の設定
+	for( int i = 0; i < sm_particleNum; i++ )
+	{
+		//表面粒子判定情報　１ならば表面粒子，０なら内部粒子　その際の数値は近傍粒子総数を表す
+		//近傍粒子総数で表面積を近似
+		if( surfParticles[i] == 1 )
+		{
+			//床に近く，圧力の高い粒子は，表面ではなく底面とする
+			//粒子数によってパラメータを変えないといけない．
+			//表面粒子判定に不具合があるので修正が必要．
+			//0.75で下２段とれる
+			if(pos[i*4+1] < floor+effRadius*0.2)				//1331　下１段
+			{
+				if(dens[i] < 950.0)
+				{
+					m_heatTransfer->setSurfaceParticleNums(i, (int)( neights[i].size() ));		//表面扱い
+				}
+				else
+				{
+					m_heatTransfer->setSurfaceParticleNums(i, -1);								//底面扱い
+				}
+			}
+			else
+			{
+				m_heatTransfer->setSurfaceParticleNums(i, (int)( neights[i].size() ));
+			}
+		}
+		else
+		{
+			m_heatTransfer->setSurfaceParticleNums(i, -1);
+		}
+		
+		//初期化
+		ids.clear();
+		dists.clear();
+
+		for( unsigned j = 0; j < neights[i].size(); j++)
+		{
+			if( i == (int)( neights[i][j].Idx ) ) continue;							//自分自身を省く
+			ids.push_back( (int)( neights[i][j].Idx ) );
+			dists.push_back( (float)( neights[i][j].Dist ) );
+		}
+
+		m_heatTransfer->AddNeighborhoodsId( ids );
+		m_heatTransfer->AddNeighborhoodsDist( dists );
+	}
+
+	//熱処理計算
+	m_heatTransfer->heatAirAndParticle(); 		 										//熱処理　空気と粒子
+	m_heatTransfer->heatParticleAndParticle(dens, effRadius);	//熱処理　粒子間
+	m_heatTransfer->calcTempAndHeat();													//熱量の温度変換，温度の熱量変換
+
+//デバッグ
+	//for(int i = 0; i < sm_particleNum; i++)
+	//{
+	//	cout << m_heatTransfer->getTemps()[i] << endl;
+	//}
 }
 
+//伝熱処理，相変化処理や固体データの更新
+void IceObject::StepIceStructure()
+{
+	StepMelting();			//融解
+	//StepFreezing();		//凝固
+}
 
+void IceObject::StepMelting()
+{
+	vector<unsigned> vuMeltPrtList;			//融解した粒子の集合
 
+	SearchMeltParticle(vuMeltPrtList);		//融解粒子探索
+	m_iceStrct->StepObjMelt();				//融解処理
+}
 
+void IceObject::StepFreezing()
+{
+	vector<unsigned> vuFreezePrtList;			//凝固した粒子の集合
 
+	SearchMeltParticle(vuFreezePrtList);		//凝固粒子探索
+	m_iceStrct->StepObjFreeze();
+}
 
+void IceObject::SearchMeltParticle(vector<unsigned>& pList)
+{
+	for(int i = 0; i < sm_particleNum; ++i)
+	{	
+		if( m_heatTransfer->getPhaseChange(i) != 1 )	continue;	//相転移の条件を満たしていない場合は戻る
+		if( m_heatTransfer->getPhase(i) != 2 )			continue;	//水へと相転移していない場合は戻る
+		if( m_iceStrct->GetParticleNum() <= i)			continue;	//融解のみの実験のときに必要になる．
+		if( m_iceStrct->GetPtoCNum(i) == 0 )			continue;	//クラスタに含まれている
+		if( m_iceStrct->GetPtoTNum(i) == 0 )			continue;	//四面体に含まれている
 
+		//if(pList.size() > 200){	break;	}							//融解粒子数の制限
 
+		m_fInterPolationCoefficience[i] = 0.0f;						//線形補間もしない
+		m_heatTransfer->setPhaseChange(i, 0);						//相転移し終わったことを伝える
+		pList.push_back(i);											//融解粒子の記録
+	}
 
+//デバッグ
+	cout << __FUNCTION__ << endl;
 
+	for(unsigned i = 0; i < pList.size(); i++)
+	{
+		cout << pList[i] << endl;
+	}
 
+	cout << "pList.size() = " << pList.size() << endl;
+}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+void IceObject::SearchFreezeParticle(vector<unsigned>& pList)
+{
+//	for(int i = 0; i < m_pPS->GetNumParticles(); i++)
+//	{	
+//		if(m_ht->getPhaseChange(i) != 1)				continue;	//相転移の条件を満たしていない場合は戻る
+//		if(m_ht->getPhase(i) != -2)						continue;	//氷へと相転移していない場合は戻る
+//		if(m_ice->GetParticleNum() <= i)				continue;	//融解のみの実験のときに必要になる．
+//		if(m_ice->GetPtoCNum(i) != 0)					continue;	//クラスタに含まれている
+//		if(m_ice->GetPtoTNum(i) != 0)					continue;	//クラスタに含まれている
+////		if(pList.size() > 1){	break;	}							//凝固粒子数の制限
+//		
+//		pList.push_back(i);											//凝固粒子の記録
+//	}
+}
 
 //---------------------------------------------デバッグ------------------------------
 

@@ -311,7 +311,6 @@ public:
 	//
 	// 追加　熱処理関連変数
 	//
-	HeatTransfar *m_ht;
 	vector<float> m_fIntrps;		//SPH法とSM法の線形補間のパラメータ配列　各パーティクルごとに適用してやる
 
 	Vec2 m_ht_vStartPoint;			//矩形内の粒子温度を上げるための始点
@@ -598,12 +597,6 @@ protected:
 	void InitIceObj(void);
 	void StepTimeEvent(void);
 
-	//追加：：熱処理
-	void InitHT(rxSPHConfig &sph_scene);
-	void StepHT(double dt);
-	void MeltParticle(int indx);
-	void WarmParticle(int pIndx, float temp, float heat);
-
 	void CountTetraHedra(int tIndx, vector<int>& pList);
 	void MakeTetraInfo(int tIndx, int* PtoTNum);
 	void MakeTetraInfo(int tIndx, vector<int> pList);
@@ -616,6 +609,7 @@ protected:
 
 	void StepIceObj();
 	void StepIceStructure();
+	void StepHeatTransfer();
 
 	void StepClusterCPU(double dt);
 	void StepClusterIterationCPU(double dt);
@@ -629,11 +623,6 @@ protected:
 
 	//追加：：粒子ベース：：固体情報（クラスタ情報）
 	void MakeClusterInfo(int cIndx);
-	void StepSolid_Melt(double dt);
-	void StepSolid_Freeze(double dt);
-
-	void SearchMeltParticle(vector<int>& pList);	
-	void SearchFreezeParticle(vector<int>& pList);
 
 	void SearchReconstructCluster_Melt(const vector<int>& pList, vector<int>& cList, vector<int>& lList);
 	void SearchReconstructCluster_Freeze(const vector<int>& pList, vector<int>& cList, vector<int>& lList);

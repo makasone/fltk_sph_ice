@@ -697,7 +697,7 @@ void rxFlWindow::OnSliderParam(Fl_Widget *widget)
 
 	if(label.find("AirTemp") != string::npos)
 	{
-		m_pGLCanvas->m_ht->setAirTemp(val);
+		m_pGLCanvas->m_iceObj->SetAirTemp(val);
 	}
 	//else if(label.find("Mesh Threshold") != string::npos){
 	//	m_pGLCanvas->m_fMeshThr = val;

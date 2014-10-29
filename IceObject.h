@@ -9,6 +9,7 @@
 #include "Ice_SM.h"
 #include "IceStructure.h"
 #include "IceTetrahedra.h"
+#include "HeatTransfar.h"
 #include "Surf_SM.h"
 #include "QueryCounter.h"
 
@@ -60,7 +61,11 @@ private:
 	//TODO::ポインタにしたら？
 	Surf_SM m_SurfSm;
 
-	static float* m_fInterPolationCoefficience;			//線形補間係数
+	//熱処理
+	HeatTransfar* m_heatTransfer;
+
+	
+	static float* m_fInterPolationCoefficience;		//線形補間係数
 
 public:
 	IceObject(int pMaxNum, int cMaxNum, int tMaxNum, int prtNum, float* hp, float* hv, float* dp, float* dv, int layer, int maxParticleNum);
@@ -72,6 +77,7 @@ public:
 	void InitCluster(Vec3 boundarySpaceHigh, Vec3 boundarySpaceLow, float timeStep, int itr);
 	void InitStrct();
 	void InitPath();
+	void InitHeatTransfer(float effectiveRadius, float timeStep, float tempMax, float tempMin, float latentHeat, float cffcntHt, float cffcntTd);
 
 	static void InitInterPolation();
 	void InitGPU();
@@ -80,6 +86,7 @@ public:
 	void SetSPHHostPointer(float* pos, float* vel){		s_sphPrtPos = pos;	s_sphPrtVel = vel;	}
 	void SetSearchLayerNum(int layer){					sm_layerNum = layer;				}
 	void SetMaxParticleNum(int particleNum){			sm_maxParticleNum = particleNum;	}
+	void SetAirTemp(float temp){						m_heatTransfer->setAirTemp(temp);	}
 
 	void SetClusterMoveInfo(int pIndx);
 	void SetClusterStrctInfo(int cIndx, int *PtoCNum);
@@ -89,6 +96,8 @@ public:
 	static int GetTetrahedraNum(){	return sm_tetraNum;			}
 
 	static int GetMaxClusterNum(){	return sm_maxParticleNum;	}
+
+	float* GetTemps(){	return m_heatTransfer->getTemps();}
 
 	Ice_SM* GetMoveObj(int cIndx){	return m_iceMove[cIndx];	}
 
@@ -109,10 +118,14 @@ public:
 	void StepInterPolationForCluster();
 	void StepInterPolationSelected();
 	void StepWeightedInterPolation();
-
+	
+	void StepHeatTransfer(const int* surfParticles, const vector<vector<rxNeigh>>& neights, float floor, float effRadius, const float* pos, const float* dens);		//熱処理
 	void StepIceStructure();								//相変化処理
+	void StepMelting();										//融解
+	void StepFreezing();									//凝固
 
-	void TestStepInterPolation();
+	void SearchMeltParticle(vector<unsigned>& pList);
+	void SearchFreezeParticle(vector<unsigned>& pList);
 
 	void CalcAverageCPU(int pIndx, Vec3& pos, Vec3& vel);
 	void CalcAverageSelected(int pIndx, Vec3& pos, Vec3& vel);
@@ -139,6 +152,7 @@ public:
 
 
 	//テスト
+	void TestStepInterPolation();
 	void TestUpdateSMFromPath();
 
 
