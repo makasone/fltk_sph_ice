@@ -29,7 +29,7 @@ class IceStructure
 {
 public:	//TODO: 全てpublicにしない
 	IceStructure();
-	IceStructure(int pNum, int cNum, int tNum);
+	IceStructure(int pNum, int cNum, int tNum, int layer);
 
 	~IceStructure(void);
 
@@ -44,19 +44,19 @@ public:	//TODO: 全てpublicにしない
 
 	//相変化
 	//融解処理
-	void StepObjMelt();
+	void StepObjMelt(vector<unsigned>& pList, vector<unsigned>& cList, vector<unsigned>& tList, vector<unsigned>& cLayerList, vector<unsigned>& tLayerList);
 
 	void SearchMeltParticle(vector<int>& pList);	
-	void SearchReconstructCluster_Melt(const vector<int>& pList, vector<int>& cList, vector<int>& lList);
-	void SearchReconstructTetra_Melt(const vector<int>& pList, vector<int>& tList, vector<int>& lList);
+	void SearchReconstruct_Cluster_Melt(const vector<unsigned>& pList, vector<unsigned>& cList, vector<unsigned>& lList);
+	void SearchReconstruct_Tetra_Melt(const vector<unsigned>& pList, vector<unsigned>& tList, vector<unsigned>& lList);
 
-	void UpdateInfo_Melt_PandT(const vector<int>& pList);
-	void UpdateInfo_Melt_PandC(const vector<int>& pList, const vector<int>& cList);
+	void UpdateInfo_Melt_PandT(const vector<unsigned>& pList);
+	void UpdateInfo_Melt_PandC(const vector<unsigned>& pList, const vector<unsigned>& cList);
 
 	void UpdateInfo_Delete_TandP(const vector<int>& tList, const vector<int>& deleteList);
 
-	void SetClusterInfo(const vector<int>& pList, const vector<int>& cList, const vector<int>& lList);
-	void SetTetraInfo(const vector<int>& pList, const vector<int>& cList, const vector<int>& lList);
+	void SetInfo_Cluster(const vector<unsigned>& pList, const vector<unsigned>& cList, const vector<unsigned>& lList);
+	void SetInfo_Tetra(const vector<unsigned>& pList, const vector<unsigned>& tList, const vector<unsigned>& lList);
 
 	void CheckDeleteCluster(void);
 	void CheckDeleteTetra(vector<int>& tList, vector<int>& lList);
@@ -165,6 +165,7 @@ public:	//TODO: 全てpublicにしない
 	void DebugCtoP(int cIndx);
 	void DebugTtoP(int tIndx);
 	void DebugNeighborTetra(int tIndx);
+	void DebugStepObjMelt(vector<unsigned>& pList, vector<unsigned>& cList);
 
 	//フラグ　未使用
 	void SetPFlag(int indx, bool state){	m_pbPFlag[indx] = state;	}
@@ -203,6 +204,7 @@ protected:
 	int m_iCNum;								//現在のクラスタ数
 
 	int m_iNeighborMax;							//近傍粒子の最大数
+	int m_iLayer;
 
 	//とりあえず，擬似多次元配列にポインタは使わない
 	//粒子→

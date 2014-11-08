@@ -12,10 +12,10 @@ void LaunchUpdatePrefixSumGPU
 	int ApqSizeX,
 	int ApqSizeY,
 	int* md_2DiPTHtoPRT,
-	int* md_2DiPRTtoPTH,
+	short int* md_2DiPRTtoPTH,
 	float* md_2Df3PrfxPos,
 	float* md_2Df9PrfxApq,
-	int* md_3DiPTHandPrfxSet,
+	short int* md_3DiPTHandPrfxSet,
 	float* md_f3OrgPos,
 	float* md_f3OrgCm,
 	unsigned* dgroupPos,
@@ -65,85 +65,85 @@ void LaunchUpdatePrefixSumGPU
 	cudaThreadSynchronize();
 }
 
-//Trustのテスト
-void ThrustTest()
-{
-	cout << __FUNCTION__ << endl;
-
-	float* dPosOutData;
-	float* dApqOutData;
-	cudaMalloc((void**)&dPosOutData,	sizeof(float) * 3*3);
-	cudaMalloc((void**)&dApqOutData,	sizeof(float) * 3*3);
-
-	float* posData = new float[3 * 3];
-	for(int i = 0; i < 3 * 3; i++)
-	{
-		posData[i] = (float)i;
-	}
-
-	for(int i = 0; i < 3 * 3; i++)
-	{
-		cout << "in:" << posData[i] << endl;
-	}
-
-	cudaMemcpy(dPosOutData, posData, sizeof(float) * 3*3, cudaMemcpyHostToDevice);	
-
-	for(int indx = 0; indx < 3; indx++)
-	{
-		int startIndx = 3 * indx;
-		int endIndx = 3 * (indx+1);
-		thrust::inclusive_scan(
-			thrust::device_ptr<float>(dPosOutData + startIndx),
-			thrust::device_ptr<float>(dPosOutData + endIndx), 
-			thrust::device_ptr<float>(dApqOutData + startIndx)); // in-place scan
-	}
-
-	cudaMemcpy(posData, dApqOutData, sizeof(float) * 3*3, cudaMemcpyDeviceToHost);
-	
-	for(int i = 0; i < 3*3; i++)
-	{
-		cout << "out:" << posData[i] << endl;
-	}
-
-	delete[] posData;
-	cudaFree(dPosOutData);
-	cudaFree(dApqOutData);
-}
-
-void ThrustTest2()
-{
-	int data[10] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
-	int keys[10] = {0, 0, 0, 1, 1, 2, 3, 3, 3, 3};
-	int out[10];
-
-	int* group = new int[10];
-	for(int i = 0; i < 10; i++)
-	{
-		if( i < 5)
-		{
-			group[i] = 0;
-		}
-		else if( i >= 5 && i < 8)
-		{
-			group[i] = 1;
-		}
-		else
-		{
-			group[i] = 2;
-		}
-
-		cout << "group:" << group[i] << endl;
-	}
-
-	thrust::inclusive_scan_by_key(group, group + 10, data, out); // in-place scan
-
-	for(int i = 0; i < 10; i++)
-	{
-		cout << "out:" << out[i] << endl;
-	}
-
-	delete[] group;
-}
+////Trustのテスト
+//void ThrustTest()
+//{
+//	cout << __FUNCTION__ << endl;
+//
+//	float* dPosOutData;
+//	float* dApqOutData;
+//	cudaMalloc((void**)&dPosOutData,	sizeof(float) * 3*3);
+//	cudaMalloc((void**)&dApqOutData,	sizeof(float) * 3*3);
+//
+//	float* posData = new float[3 * 3];
+//	for(int i = 0; i < 3 * 3; i++)
+//	{
+//		posData[i] = (float)i;
+//	}
+//
+//	for(int i = 0; i < 3 * 3; i++)
+//	{
+//		cout << "in:" << posData[i] << endl;
+//	}
+//
+//	cudaMemcpy(dPosOutData, posData, sizeof(float) * 3*3, cudaMemcpyHostToDevice);	
+//
+//	for(int indx = 0; indx < 3; indx++)
+//	{
+//		int startIndx = 3 * indx;
+//		int endIndx = 3 * (indx+1);
+//		thrust::inclusive_scan(
+//			thrust::device_ptr<float>(dPosOutData + startIndx),
+//			thrust::device_ptr<float>(dPosOutData + endIndx), 
+//			thrust::device_ptr<float>(dApqOutData + startIndx)); // in-place scan
+//	}
+//
+//	cudaMemcpy(posData, dApqOutData, sizeof(float) * 3*3, cudaMemcpyDeviceToHost);
+//	
+//	for(int i = 0; i < 3*3; i++)
+//	{
+//		cout << "out:" << posData[i] << endl;
+//	}
+//
+//	delete[] posData;
+//	cudaFree(dPosOutData);
+//	cudaFree(dApqOutData);
+//}
+//
+//void ThrustTest2()
+//{
+//	int data[10] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+//	int keys[10] = {0, 0, 0, 1, 1, 2, 3, 3, 3, 3};
+//	int out[10];
+//
+//	int* group = new int[10];
+//	for(int i = 0; i < 10; i++)
+//	{
+//		if( i < 5)
+//		{
+//			group[i] = 0;
+//		}
+//		else if( i >= 5 && i < 8)
+//		{
+//			group[i] = 1;
+//		}
+//		else
+//		{
+//			group[i] = 2;
+//		}
+//
+//		cout << "group:" << group[i] << endl;
+//	}
+//
+//	thrust::inclusive_scan_by_key(group, group + 10, data, out); // in-place scan
+//
+//	for(int i = 0; i < 10; i++)
+//	{
+//		cout << "out:" << out[i] << endl;
+//	}
+//
+//	delete[] group;
+//}
 
 __global__
 void UpdatePrefixSumGPU(
@@ -153,10 +153,10 @@ void UpdatePrefixSumGPU(
 	int ApqSizeX,
 	int ApqSizeY,
 	int* md_2DiPTHtoPRT,
-	int* md_2DiPRTtoPTH,
+	short int* md_2DiPRTtoPTH,
 	float* prfxPos,
 	float* prfxApq,
-	int* md_3DiPTHandPrfxSet,
+	short int* md_3DiPTHandPrfxSet,
 	float* orgPos,
 	float* md_f3OrgCm,
 	const float* pos,

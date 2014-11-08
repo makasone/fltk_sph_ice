@@ -57,29 +57,29 @@ void HeatTransfar::initState()
 
 void HeatTransfar::MeltParticle(int pIndx)
 {
-	////Œ°”M•Ï‰»I—¹
-	//m_ht->setTemps(pIndx, 1000);
-	//m_ht->setHeats(pIndx, 1000);
-	//m_ht->calcTempAndHeat(pIndx);						//”M—Ê‚Ì‰·“x•ÏŠ·C‰·“x‚Ì”M—Ê•ÏŠ·
+	//Œ°”M•Ï‰»I—¹
+	setTemps(pIndx, 1000);
+	setHeats(pIndx, 1000);
+	calcTempAndHeat(pIndx);						//”M—Ê‚Ì‰·“x•ÏŠ·C‰·“x‚Ì”M—Ê•ÏŠ·
 
-	////ö”M•Ï‰»I—¹
-	//m_ht->setTemps(pIndx, 1000);
-	//m_ht->setHeats(pIndx, 1000);
-	//m_ht->calcTempAndHeat(pIndx);						//”M—Ê‚Ì‰·“x•ÏŠ·C‰·“x‚Ì”M—Ê•ÏŠ·
+	//ö”M•Ï‰»I—¹
+	setTemps(pIndx, 1000);
+	setHeats(pIndx, 1000);
+	calcTempAndHeat(pIndx);						//”M—Ê‚Ì‰·“x•ÏŠ·C‰·“x‚Ì”M—Ê•ÏŠ·
 }
 
 void HeatTransfar::WarmParticle(int pIndx, float temp, float heat)
 {
-	////Œ°”M•Ï‰»I—¹
-	//float newTemp = m_ht->getTemps()[pIndx] + temp;
-	//float newHeat = m_ht->getHeats()[pIndx] + heat;
+	//Œ°”M•Ï‰»I—¹
+	float newTemp = getTemps()[pIndx] + temp;
+	float newHeat = getHeats()[pIndx] + heat;
 
-	//m_ht->setTemps(pIndx, newTemp);
-	//m_ht->setHeats(pIndx, newHeat);
-	//m_ht->calcTempAndHeat(pIndx);						//”M—Ê‚Ì‰·“x•ÏŠ·C‰·“x‚Ì”M—Ê•ÏŠ·
+	setTemps(pIndx, newTemp);
+	setHeats(pIndx, newHeat);
+	calcTempAndHeat(pIndx);						//”M—Ê‚Ì‰·“x•ÏŠ·C‰·“x‚Ì”M—Ê•ÏŠ·
 
-	////ö”M•Ï‰»I—¹
-	//m_ht->calcTempAndHeat(pIndx);
+	//ö”M•Ï‰»I—¹
+	calcTempAndHeat(pIndx);
 }
 
 void HeatTransfar::AddParticle(int nowVerticesNum)

@@ -42,7 +42,7 @@ IceStructure::IceStructure()
 {
 }
 
-IceStructure::IceStructure(int pNumMax, int cNumMax, int tNumMax)
+IceStructure::IceStructure(int pNumMax, int cNumMax, int tNumMax, int layer)
 {	cout << __FUNCTION__ << endl;
 
 	//最大数の登録
@@ -51,17 +51,21 @@ IceStructure::IceStructure(int pNumMax, int cNumMax, int tNumMax)
 	m_iTNumMax = tNumMax;
 
 	//粒子情報の初期化
-	m_iPtoCMax = m_iCNumMax*0.1;	//1331 layer2 0.4 layer3 0.75
+	m_iPtoCMax = m_iCNumMax*0.01f;	//1331 layer2 0.4 layer3 0.75
 									//2197 layer2 0.4 layer3 0.4 layer4 0.5
 									//4913 layer2 0.3
 									//4913 layer1 0.1
-									//19683 layer1 0.01
-	m_iPtoTMax = m_iTNumMax*0.1;	//1331 layer2 0.3 layer3 0.5
-									//2197 layer2 0.3 layer3 0.3
-									//4913 layer2 0.3
+									//12167 layer1 0.01
 									//19683 layer1 0.01
 
-	//高速化をテストするときはPtoTはコメントに
+	m_iPtoTMax = m_iTNumMax*0.01f;	//1331 layer2 0.3 layer3 0.5
+									//2197 layer2 0.3 layer3 0.3
+									//4913 layer2 0.3
+									//12167 layer1 0.01
+									//19683 layer1 0.01
+
+cout << __FUNCTION__ << " check1" << endl;
+
 	m_piPtoCNum = new int[m_iPNumMax];
 	m_piPtoTNum = new int[m_iPNumMax];
 
@@ -80,15 +84,18 @@ IceStructure::IceStructure(int pNumMax, int cNumMax, int tNumMax)
 	//クラスタ情報の初期化
 	//CtoTMaxは粒子数と等しいので定義しない
 	//高速化をテストするときはCtoTはコメントに
-	m_iCtoPMax = m_iPNumMax*0.1;	//1331 layer2 0.5 layer3 0.75
+	m_iCtoPMax = m_iPNumMax*0.01f;	//1331 layer2 0.5 layer3 0.75
 									//2197 layer2 0.5 layre3 0.5
 									//4913 layer2
 									//4913 layer1 0.1
+									//12167 layer1 0.01
 									//19683 layer1 0.01
 	//m_iCtoPMax = m_iPNumMax;		//単一クラスタ
 
 	m_piCtoPNum = new int[m_iCNumMax];
 	m_piCtoPIndx = new int[m_iCNumMax];
+
+cout << __FUNCTION__ << " check2" << endl;
 
 	for(int i = 0; i < m_iCNumMax; i++)
 	{
@@ -108,6 +115,8 @@ IceStructure::IceStructure(int pNumMax, int cNumMax, int tNumMax)
 	m_piTtoPIndx = new int[m_iTNumMax];
 	m_piTtoCIndx = new int[m_iTNumMax];
 
+cout << __FUNCTION__ << " check3" << endl;
+
 	for(int i = 0; i < m_iTNumMax; i++)
 	{
 		m_piTtoPNum[i] = 0;
@@ -118,16 +127,25 @@ IceStructure::IceStructure(int pNumMax, int cNumMax, int tNumMax)
 	}
 
 	//近傍四面体
-	//高速化のための実験ではコメントにしておく
-	m_piNTNum = new int[m_iTNumMax];
+	int ntnSize = m_iTNumMax * 1.0f;
+	m_piNTNum = new int[ntnSize];
 
-	m_iNeighborMax = m_iTNumMax*0.1;		//1331 layer2 0.3 layer3 0.75
-											//2197 layer2 0.3 layre3 0.3 layer4 0.4
-											//4913 layer2 0.1
-	//m_iNeighborMax = 300;					//layer1なら大丈夫
+cout << __FUNCTION__ << " check3.5" << endl;
+
+	//m_iNeighborMax = m_iTNumMax*0.1f;		//1331  layer2 0.3 layer3 0.75
+											//2197  layer2 0.3 layre3 0.3 layer4 0.4
+											//4913  layer2 0.1
+											//6859  layer1 0.01
+											//9261  layer1 0.005
+											//12167 layer1
+
+	m_iNeighborMax = 150;					//layer1なら大丈夫
+
+	cout << "m_iTNumMax = " << m_iTNumMax << ", m_iNeighborMax = " << m_iNeighborMax << endl;
 
 	m_mk3DiNeighborTetra.SetSize(m_iTNumMax, m_iNeighborMax, 2);
 
+cout << __FUNCTION__ << " check4" << endl;
 
 	for(int i = 0; i < m_iTNumMax; i++)
 	{
@@ -142,14 +160,18 @@ IceStructure::IceStructure(int pNumMax, int cNumMax, int tNumMax)
 		}
 	}
 
+	m_iLayer = layer;
+
 	//フラグ
-	m_pbPFlag = new bool[m_iPNumMax];
-	m_pbCFlag = new bool[m_iCNumMax];
+	//m_pbPFlag = new bool[m_iPNumMax];
+	//m_pbCFlag = new bool[m_iCNumMax];
 	m_pbTFlag = new bool[m_iTNumMax];
 
-	ResetPFlag(m_iPNumMax);
-	ResetCFlag(m_iCNumMax);
+	//ResetPFlag(m_iPNumMax);
+	//ResetCFlag(m_iCNumMax);
 	ResetTFlag(m_iTNumMax);
+
+cout << __FUNCTION__ << " check5" << endl;
 }
 
 IceStructure::~IceStructure(void)
@@ -242,6 +264,7 @@ void IceStructure::InitClusterInfo()
 
 	//粒子→クラスタ
 	m_mk3DiPtoC.SetSize(m_iPNumMax, m_iPtoCMax, 3);
+	cout << __FUNCTION__ << ", check1" << endl;
 
 	for(int i = 0; i < m_iPNumMax; i++)
 	{
@@ -257,6 +280,7 @@ void IceStructure::InitClusterInfo()
 
 	//クラスタ→粒子
 	m_mk3DiCtoP.SetSize(m_iCNumMax, m_iCtoPMax, 2);
+	cout << __FUNCTION__ << ", check2" << endl;
 
 	for(int i = 0; i < m_iCNumMax; i++)
 	{
@@ -280,6 +304,8 @@ void IceStructure::InitClusterInfo()
 	{
 		m_piCtoPIndx[i] = m_piCtoPNum[i];
 	}
+
+	cout << __FUNCTION__ << ", check3" << endl;
 }
 
 //GPU処理で用いるデータの初期化
@@ -387,90 +413,26 @@ void IceStructure::InitGPU()
 //------------------------------------------__初期化-------------------------------------------------
 
 //------------------------------------------＿相変化-------------------------------------------------
-void IceStructure::StepObjMelt()
+void IceStructure::StepObjMelt(
+	vector<unsigned>& pList,
+	vector<unsigned>& cList,
+	vector<unsigned>& tList,
+	vector<unsigned>& cLayerList,
+	vector<unsigned>& tLayerList)
 {
+	SearchReconstruct_Tetra_Melt(pList, tList, tLayerList);			//再定義四面体の探索
+	SearchReconstruct_Cluster_Melt(pList, cList, cLayerList);		//再定義クラスタの探索
 
-	vector<int> viClusterList;												//再定義するクラスタの集合
-	vector<int> viCLayerList;												//再定義するクラスタのレイヤー
-	vector<int> viTetraList;												//再定義する四面体の集合
-	vector<int> viTLayerList;												//再定義する四面体のレイヤー
-
-	//SearchMeltParticle(viParticleList);												//融解粒子の探索
-	//SearchReconstructTetra_Melt(viParticleList, viTetraList, viTLayerList);		//再定義四面体の探索
-	//SearchReconstructCluster_Melt(viParticleList, viClusterList, viCLayerList);	//再定義クラスタの探索
-
-	//UpdateInfo_Melt_PandT(viParticleList);									//粒子・四面体情報の更新
-	//UpdateInfo_Melt_PandC(viParticleList, viClusterList);					//粒子・クラスタ情報の更新
+	UpdateInfo_Melt_PandT(pList);									//粒子・四面体情報の更新
+	UpdateInfo_Melt_PandC(pList, cList);							//粒子・クラスタ情報の更新
 
 	////CheckDeleteCluster();													//同一，包含関係にあるクラスタを削除
 	////CheckDeleteTetra(viTetraList, viTLayerList);							//同一，包含関係にある四面体を削除
 
-	//SetTetraInfo(viParticleList, viTetraList, viTLayerList);				//粒子・近傍四面体情報の再定義
-	////SetClusterInfo(viParticleList, viClusterList, viCLayerList);			//粒子・クラスタ情報の再定義
+	SetInfo_Tetra(pList, tList, tLayerList);						//粒子・近傍四面体情報の再定義
 
 //デバッグ
-	//if(viParticleList.size() == 0){	return;	}
-	//cout << "Debug" << __FUNCTION__ << endl;
-	//cout << "viParticleList.size = " << viParticleList.size() << " ";
-	//for(unsigned i = 0; i < viParticleList.size(); i++)
-	//{
-	//	cout << " " << viParticleList[i];
-	//}
-	//cout << endl;
-
-	//cout << "viClusterList.size =  " << viClusterList.size() << " ";
-	//for(unsigned i = 0; i < viClusterList.size(); i++)
-	//{
-	//	cout << " " << viClusterList[i];
-	//}
-	//cout << endl;
-
-	//cout << "viCLayerList:: ";
-	//for(unsigned i = 0; i < viCLayerList.size(); i++)
-	//{
-	//	cout << " " << viCLayerList[i];
-	//}
-	//cout << endl;
-
-	//cout << "viTetraList.size = " << viTetraList.size() << " ";
-	//for(unsigned i = 0; i < viTetraList.size(); i++)
-	//{
-	//	cout << " " << viTetraList[i];
-	//}
-	//cout << endl;
-
-	//cout << "viTLayerList:: ";
-	//for(unsigned i = 0; i < viTLayerList.size(); i++)
-	//{
-	//	cout << " " << viTLayerList[i];
-	//}
-	//cout << endl;
-
-	////クラスタ→粒子
-	//for(int i = 0; i < m_iClusteresNum; i++){	m_ice->DebugCtoP(i);	}
-
-	//粒子→クラスタ
-	//for(int i = 0; i < m_pPS->GetNumParticles(); i++){	m_ice->DebugPtoC(i);	}
-
-	//SMクラスタに含まれる粒子は機能で確認できる
-	//for(int i = 0; i < ICENUM; i++)
-	//{
-	//	cout << "pIndx = " << endl;
-
-	//	for(int j = 0; j < m_sm_cluster[i]->GetNumVertices(); j++)
-	//	{
-	//		cout << " j = " << m_sm_cluster[i]->GetParticleIndx(j);
-	//	}
-	//	cout << endl;
-	//}
-
-	//四面体→粒子は機能で確認できる
-
-	//粒子→四面体
-	//for(int i = 0; i < m_pPS->GetNumParticles(); i++){	m_ice->DebugPtoT(i);	}
-
-	//近傍四面体
-	//for(unsigned i = 0; i < m_vviTetraList.size(); i++ ){	m_ice->DebugNeighborTetra(i);	}
+	//DebugStepObjMelt(pList, cList);
 }
 
 void IceStructure::StepObjFreeze()
@@ -558,16 +520,257 @@ void IceStructure::StepObjFreeze()
 	//for(unsigned i = 0; i < m_vviTetraList.size(); i++ ){	m_ice->DebugNeighborTetra(i);	}
 }
 
+void IceStructure::SearchReconstruct_Tetra_Melt(const vector<unsigned>& pList, vector<unsigned>& tList, vector<unsigned>& lList)
+{
+	unsigned pListSize = pList.size();
+	if(pListSize == 0){	return;}
+
+	ResetTFlag(m_iTNum);							//四面体探索フラグの初期化
+
+	//１　粒子が含まれていた，いる四面体
+	//２　１の四面体の近傍四面体
+	//つまりはクラスタを構成した四面体　TODO::覚えられる情報なので，ここの計算コストが高ければ修正可能
+	
+	//１ 融解粒子が含まれていた四面体
+	for(unsigned i = 0; i < pListSize; i++)
+	{
+		int ipIndx = pList[i];
+
+		for(int j = 0; j < GetPtoTIndx(ipIndx); j++)
+		{
+			if(GetPtoT(ipIndx, j, 0) == -1 || GetPtoT(ipIndx, j, 1) == -1){	continue;	}
+
+			//四面体探索フラグから既に探索したかどうかを判定
+			if( GetTFlag(GetPtoT(ipIndx, j, 0)) )	{	continue;								}
+			else									{	SetTFlag(GetPtoT(ipIndx, j, 0), true);	}
+
+			tList.push_back(GetPtoT(ipIndx, j, 0));
+			lList.push_back(1);								//0か1かの判断はできないので1に合わせる．
+		}
+	}
+
+	//２　１の四面体の近傍四面体
+	int tetraNum = tList.size();
+	for(int i = 0; i < tetraNum; i++)
+	{
+		int itIndx = tList[i];
+
+		for(int j = 0; j < GetNTNum(itIndx); j++)
+		{
+			int jtIndx = GetNeighborTetra(itIndx, j, 0);
+			int jlIndx = GetNeighborTetra(itIndx, j, 1);
+
+			if(GetTFlag(jtIndx))
+			{
+				vector<unsigned>::iterator check = std::find(tList.begin(), tList.end(), jtIndx);
+				
+				//TODO::既に含まれているのなら，layerを比べて小さいほうを優先する
+				int layerIndx = check - tList.begin();
+				if(lList[layerIndx] > jlIndx)
+				{
+					lList[layerIndx] = jlIndx;
+				}
+				continue;
+			}
+			else
+			{
+				SetTFlag(jtIndx, true);	
+			}
+
+			tList.push_back(jtIndx);
+			lList.push_back(jlIndx);
+		}
+	}
+}
+
+void IceStructure::SearchReconstruct_Cluster_Melt(const vector<unsigned>& pList, vector<unsigned>& cList, vector<unsigned>& lList)
+{
+	unsigned pListSize = pList.size();
+	if(pListSize == 0){	return;}	
+
+	//再定義クラスタは，融解粒子が所属していたクラスタ
+	for(unsigned i = 0;  i < pListSize; i++)
+	{
+		unsigned ipIndx = pList[i];
+
+		for(unsigned j = 0, ctopIndx = GetCtoPIndx(ipIndx); j < ctopIndx; j++)
+		{
+			unsigned jcIndx = GetPtoC(ipIndx, j, 0);
+			unsigned joIndx = GetPtoC(ipIndx, j, 1);
+			unsigned jlIndx = GetPtoC(ipIndx, j, 2);
+
+			if(jcIndx == -1 || joIndx == -1){	continue;	}
+
+			vector<unsigned>::iterator check = std::find(cList.begin(), cList.end(), jcIndx);
+
+			//TODO::既に再定義クラスタとして取得されているなら，layerを比べて小さいほうを優先する
+			if(check != cList.end())
+			{
+				int layerIndx = check - cList.begin();
+				if(lList[layerIndx] > jlIndx)
+				{
+					lList[layerIndx] = jlIndx;
+				}
+				continue;
+			}
+
+			cList.push_back(jcIndx);
+			lList.push_back(jlIndx);
+		}
+	}
+}
+
+void IceStructure::UpdateInfo_Melt_PandT(const vector<unsigned>& pList)
+{
+	unsigned pListSize = pList.size();
+	if(pListSize == 0){	return;}	
 
 
+	for(unsigned i = 0; i < pListSize; i++)
+	{
+		int ipIndx = pList[i];
 
+		for(int j = 0; j < GetPtoTIndx(ipIndx); j++)
+		{
+			int tIndx = GetPtoT(ipIndx, j, 0);
+			int oIndx = GetPtoT(ipIndx, j, 1);	//この場合はそのまま添え字
+			
+			if(tIndx == -1 || oIndx == -1){ continue;	}
 
+			DeleteTtoP(tIndx, oIndx);
+		}
 
+		ClearPtoT(ipIndx);
+	}
+}
 
+void IceStructure::UpdateInfo_Melt_PandC(const vector<unsigned>& pList, const vector<unsigned>& cList)
+{
+	int pListSize = pList.size();
+	int cListSize = cList.size();
 
+	if(pListSize == 0 || cListSize == 0){	return; }
 
+	//並列処理で用いる変数をまとめて定義
+	int j= 0, k = 0;
+	int icIndx = 0;
+	int jpIndx = 0;
 
+	//融解粒子＝クラスタ情報を，融解クラスタに含まれていた粒子から取り除く
+	#pragma omp parallel
+	{
+	#pragma omp for private(j,k,icIndx,jpIndx)
+		for(int i = 0; i < pListSize; i++)
+		{
+			icIndx = pList[i];		//各粒子にクラスタが用意されているのでpIndx->cIndxとしている
+	
+			for(j = 0; j < GetCtoPIndx(icIndx); j++)
+			{
+				jpIndx = GetCtoP(icIndx, j, 0);		//融解クラスタに含まれていた粒子
+													//この粒子から，融解したクラスタの情報を取り除く
+				
+				if(jpIndx == -1){	continue;	}
 
+				for(k = 0; k < GetPtoCIndx(jpIndx); k++)
+				{					
+					if(GetPtoC(jpIndx, k, 0) == -1
+					|| GetPtoC(jpIndx, k, 1) == -1
+					|| GetPtoC(jpIndx, k, 0) != icIndx)
+					{
+						continue;
+					}
+	
+					#pragma omp critical (DeletePtoC)	//TODO：：後にカウントしたほうが並列化できてよい
+					{
+						DeletePtoC(jpIndx, k);
+					}
+
+					break;			//同じクラスタに複数所属することは無いので，break
+				}
+			}
+		}
+	}//end #pragma omp parallel
+
+	//融解粒子→クラスタ情報を削除
+	#pragma omp parallel
+	{
+	#pragma omp for
+		for(int i = 0; i < pListSize; i++)
+		{
+			ClearPtoC(pList[i]);
+		}
+	}//end #pragma omp parallel
+
+	//融解クラスタ→粒子情報を削除
+	#pragma omp parallel
+	{
+	#pragma omp for
+		for(int i = 0; i < pListSize; i++)
+		{
+			ClearCtoP(pList[i]);
+			//m_iceObj->GetMoveObj(pList[i])->Clear();
+		}
+	}//end #pragma omp parallel
+
+	//再定義クラスタに含まれる粒子から、再定義クラスタの情報を消去
+	#pragma omp parallel
+	{
+	#pragma omp for private(j,k,icIndx,jpIndx)
+		for(int i = 0; i < cListSize; i++)
+		{
+			icIndx = cList[i];
+	
+			for(j = 0; j < GetCtoPIndx(icIndx); j++)
+			{
+				jpIndx = GetCtoP(icIndx, j, 0);
+				
+				if(jpIndx == -1){	continue;	}
+
+				for(k = 0; k < GetPtoCIndx(jpIndx); k++)
+				{
+					if(GetPtoC(jpIndx, k, 0) == -1
+					|| GetPtoC(jpIndx, k, 1) == -1
+					|| GetPtoC(jpIndx, k, 0) != icIndx)
+					{
+						continue;
+					}
+
+					#pragma omp critical (DeletePtoC)	//TODO：：後にカウントしたほうが並列化できてよい
+					{
+						DeletePtoC(jpIndx, k);
+					}
+
+					break;			//同じクラスタに複数所属することは無いので，break
+				}
+			}
+		}
+	}//end #pragma omp parallel
+}
+
+void IceStructure::SetInfo_Tetra(const vector<unsigned>& pList, const vector<unsigned>& tList, const vector<unsigned>& lList)
+{
+	int pListSize = pList.size();
+	int tListSize = tList.size();
+
+	if(pListSize == 0 || tListSize == 0){	return; }
+
+	int itIndx = 0;
+	int ilayer = 0;
+
+	#pragma omp parallel
+	{
+	#pragma omp for private(itIndx,ilayer)
+		//近傍四面体の再定義
+		for(int i = 0; i < tListSize; i++)
+		{
+			itIndx = tList[i];
+			ilayer = lList[i];
+
+			ClearNeighborTetraFromLayer(itIndx, ilayer);
+			SetNeighborTetraFromLayer(itIndx, m_iLayer, ilayer);	//ここが非常に重い
+		}
+	}//end #pragma omp parallel
+}
 
 
 //------------------------------------------相変化＿-------------------------------------------------
@@ -1313,9 +1516,7 @@ int IceStructure::CheckNeighborTetra(int tIndx, int checkTIndx)
 
 //-------------------------------------更新----------------------------------------
 
-//-------------------------------------粒子ベース処理----------------------------------------
-
-//--------------------------------------------粒子ベース-------------------------------------
+//-------------------------------------デバッグ----------------------------------------
 void IceStructure::DebugPtoT(int pIndx)
 {	cout << __FUNCTION__ << " pIndx = " << pIndx;
 	cout << " num=" << GetPtoTNum(pIndx) << " Indx=" << GetPtoTIndx(pIndx);
@@ -1369,4 +1570,74 @@ void IceStructure::DebugNeighborTetra(int tIndx)
 		cout << " NC=" << GetNeighborTetra(tIndx, j, 0) << " Ly=" << GetNeighborTetra(tIndx, j, 1);
 	}
 	cout << endl;
+}
+
+void IceStructure::DebugStepObjMelt(vector<unsigned>& pList, vector<unsigned>& cList)
+{	cout << __FUNCTION__ << endl;
+	if(pList.size() == 0){	return;	}
+	
+	cout << "pList.size = " << pList.size() << " ";
+	sort(pList.begin(), pList.end());
+
+	for(unsigned i = 0; i < pList.size(); i++)
+	{
+		cout << " " << pList[i];
+	}
+	cout << endl;
+
+	cout << "cList.size =  " << cList.size() << " ";
+	sort(cList.begin(), cList.end());
+
+	for(unsigned i = 0; i < cList.size(); i++)
+	{
+		cout << " " << cList[i];
+	}
+	cout << endl;
+
+	//cout << "viCLayerList:: ";
+	//for(unsigned i = 0; i < viCLayerList.size(); i++)
+	//{
+	//	cout << " " << viCLayerList[i];
+	//}
+	//cout << endl;
+
+	//cout << "viTetraList.size = " << viTetraList.size() << " ";
+	//for(unsigned i = 0; i < viTetraList.size(); i++)
+	//{
+	//	cout << " " << viTetraList[i];
+	//}
+	//cout << endl;
+
+	//cout << "viTLayerList:: ";
+	//for(unsigned i = 0; i < viTLayerList.size(); i++)
+	//{
+	//	cout << " " << viTLayerList[i];
+	//}
+	//cout << endl;
+
+	////クラスタ→粒子
+	//for(int i = 0; i < m_iClusteresNum; i++){	m_ice->DebugCtoP(i);	}
+
+	//粒子→クラスタ
+	//for(int i = 0; i < m_pPS->GetNumParticles(); i++){	m_ice->DebugPtoC(i);	}
+
+	//SMクラスタに含まれる粒子は機能で確認できる
+	//for(int i = 0; i < ICENUM; i++)
+	//{
+	//	cout << "pIndx = " << endl;
+
+	//	for(int j = 0; j < m_sm_cluster[i]->GetNumVertices(); j++)
+	//	{
+	//		cout << " j = " << m_sm_cluster[i]->GetParticleIndx(j);
+	//	}
+	//	cout << endl;
+	//}
+
+	//四面体→粒子は機能で確認できる
+
+	//粒子→四面体
+	//for(int i = 0; i < m_pPS->GetNumParticles(); i++){	m_ice->DebugPtoT(i);	}
+
+	//近傍四面体
+	//for(unsigned i = 0; i < m_vviTetraList.size(); i++ ){	m_ice->DebugNeighborTetra(i);	}
 }

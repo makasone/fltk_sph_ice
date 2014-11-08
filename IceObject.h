@@ -3,6 +3,7 @@
 #ifndef _ICE_OBJECT_
 #define _ICE_OBJECT_
 
+#include "rx_sph.h"
 #include "rx_utility.h"
 #include "rx_matrix.h"
 
@@ -94,6 +95,7 @@ public:
 	static int GetParticleNum(){	return sm_particleNum;		}
 	static int GetClusterNum(){		return sm_clusterNum;		}
 	static int GetTetrahedraNum(){	return sm_tetraNum;			}
+	static int GetLayerNum(){		return sm_layerNum;			}
 
 	static int GetMaxClusterNum(){	return sm_maxParticleNum;	}
 
@@ -109,13 +111,15 @@ public:
 
 	void StepObjMoveIteration();							//”½•œˆ—‚ð—p‚¢‚½‰^“®ŒvŽZ
 	void StepObjMoveIterationUsePath();						//‚‘¬‰»Žè–@‚ð—p‚¢‚½”½•œ‰^“®ŒvŽZ
-	
+	void StepObjMoveIterationWeighted();					//d‚Ý•t‚¯{”½•œˆ—
+
 	void StepObjMoveSelected();
 
 	void StepObjCalcWidhIteration();						//ŒÅ‘Ì‚Ì‰^“®ŒvŽZC‘˜aŒvŽZC•âŠÔˆ—@GPUˆ—@”½•œˆ—‚ ‚è
 
 	void StepInterPolation();								//üŒ`•âŠÔ@‚¢‚¸‚ê‚Íˆ—‚ª•¡ŽG‚É‚È‚é‚Ì‚ÅƒNƒ‰ƒX‚É‚µ‚½‚¢D
 	void StepInterPolationForCluster();
+	void StepInterPolationForClusterWeighted();
 	void StepInterPolationSelected();
 	void StepWeightedInterPolation();
 	
@@ -133,13 +137,13 @@ public:
 
 	void LinerInterPolationCPU(int pIndx, const Vec3& pos, const Vec3& vel);
 	void LinerInterPolationForClusterCPU(const int pIndx, const Vec3& pos, const Vec3& vel);
-	
 
+	void WarmParticle(int pIndx, float temp, float heat){	m_heatTransfer->WarmParticle(pIndx, temp, heat);	}
+	void MeltParticle(int pIndx){	m_heatTransfer->MeltParticle(pIndx);	}
 
+	void ReConstructCluster(vector<unsigned>& particleList, vector<unsigned>& clusterList);
 
-
-
-
+	void UpdateUnSelectedCluster(int pIndx, const Vec3& pos, const Vec3& vel, const vector<Vec3>& prePos);
 
 
 
@@ -149,7 +153,7 @@ public:
 	void DebugClusterInfo();
 	void DebugObjMoveUsePathWithGPU();
 	void DebugDeformationAmount();
-
+	void DebugDeformationAverage();
 
 	//ƒeƒXƒg
 	void TestStepInterPolation();
@@ -260,8 +264,8 @@ extern void LauchUpdateSMFromPath
 	int* pIndxes, 
 	int* startEndSet,
 	//-----------------Path---------------------
-	int* PRTtoPTH,
-	int* PTHandPrfxSet,
+	short int* PRTtoPTH,
+	short int* PTHandPrfxSet,
 	float* prfxPos,
 	float* prfxApq,
 	//-----------------Struct-------------------

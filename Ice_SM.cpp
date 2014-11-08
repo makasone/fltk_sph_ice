@@ -738,7 +738,7 @@ void Ice_SM::ShapeMatchingSolid()
 		//	}
 		//}
 
-		m_fDefAmount = 0.0f;	
+		m_fDefAmount = 0.0f;
 		//vector<float> defAmountes(m_iIndxNum, 0.0f);
 
 		// 目標座標を計算し，現在の頂点座標を移動
@@ -866,6 +866,8 @@ void Ice_SM::ShapeMatchingSelected(int selected)
 
 	PolarDecomposition(Apq, R, S);
 
+	m_fDefAmount = 0.0f;
+
 	if(m_bLinearDeformation)
 	{
 		// 目標座標を計算し，現在の頂点座標を移動
@@ -886,7 +888,10 @@ void Ice_SM::ShapeMatchingSelected(int selected)
 
 			for(int j = 0; j < SM_DIM; j++)
 			{
-				m_pCurPos[cIndx+j] += (gp[j]-m_pCurPos[cIndx+j]) * m_fpAlphas[i];
+				float defAmount = (gp[j]-m_pCurPos[cIndx+j]) * m_fpAlphas[i];
+
+				m_pCurPos[cIndx+j] += defAmount;
+				m_fDefAmount += abs(defAmount);
 			}
 		}
 	}
@@ -1115,7 +1120,7 @@ void Ice_SM::ShapeMatchingIteration()
 		//cout << "計測開始2" << endl;
 		//qc.Start();
 
-		m_fDefAmount = 0.0;
+		m_fDefAmount = 0.0f;
 
 		// 目標座標を計算し，現在の頂点座標を移動
 		for(int i = 0; i < m_iIndxNum; ++i)

@@ -1118,11 +1118,11 @@ void rxFlGLWindow::Idle(void)
 	//
 	else if(m_bMode == MODE_ICE)
 	{
-		//StepTimeEvent();											//タイムイベント
+		StepTimeEvent();			RXTIMER("StepTimeEvent");		//タイムイベント
 
-		//StepPS(m_fDt);			RXTIMER("StepPS");				//液体運動
+		//StepPS(m_fDt);				RXTIMER("StepPS");				//液体運動
 		StepIceObj();												//固体運動
-		StepHeatTransfer();			RXTIMER("StepHt");				//熱処理
+		//StepHeatTransfer();			RXTIMER("StepHt");				//熱処理
 		StepIceStructure();											//相変化
 
 		//StepSolid_Melt(m_fDt);	RXTIMER("StepMelt");			//融解処理
@@ -2689,6 +2689,35 @@ void rxFlGLWindow::StepTimeEvent(void)
 	//		WarmParticle(pIndx, 20.0f, 20.0f);
 	//	}
 	//}
+
+	////特定の番号の粒子が融解
+	//if(g_iTimeCount == 100)
+	//{
+	//	for(int i = 0; i < 2500; i++)
+	//	{
+	//		int pIndx = i;
+	//		m_iceObj->MeltParticle(pIndx);
+	//	}
+	//}
+
+	////粒子が中心の列から融解
+	//if(200 <= g_iTimeCount && g_iTimeCount <= 300)
+	//{		
+	//	//特定領域の粒子を融解　真ん中から真っ二つ
+	//	int SIDE = 17;
+
+	//	for(int i = SIDE*SIDE*(SIDE/2); i < SIDE*SIDE*(SIDE/2+1); i++)	//一列
+	//	//for(int i = SIDE*SIDE*(SIDE/2 -1); i < SIDE*SIDE*(SIDE/2+2); i++)	//三列
+	//	{
+	//		int pIndx = i;
+	//		m_iceObj->MeltParticle(pIndx);
+	//	}
+	//}
+
+	//if(g_iTimeCount == 1)
+	//{
+	//	StepPS(m_fDt);
+	//}
 }
 
 /*!
@@ -3038,11 +3067,17 @@ void rxFlGLWindow::StepClusterCPU(double dt)
 	m_pPS->GetArrayVBO(rxParticleSystemBase::RX_VELOCITY);
 
 #ifdef USE_PATH
-	m_iceObj->StepObjMoveUsePath();		//高速化手法を用いた場合
+	m_iceObj->StepObjMoveUsePath();		//高速化手法を用いた
 #else
-	m_iceObj->StepObjMoveCPU();			//高速化手法を用いない場合
-	//m_iceObj->StepObjMoveSelected();		//選択的な場合
+
+	#ifdef USE_SELECTED
+		m_iceObj->StepObjMoveSelected();		//選択的
+	#else
+		m_iceObj->StepObjMoveCPU();				//いつものSM法
+	#endif
+
 #endif
+
 }
 
 /*!
@@ -3059,6 +3094,7 @@ void rxFlGLWindow::StepClusterIterationCPU(double dt)
 	m_iceObj->StepObjMoveIterationUsePath();	//高速化手法を用いた場合
 #else
 	m_iceObj->StepObjMoveIteration();			//高速化手法を用いない場合
+	//m_iceObj->StepObjMoveIterationWeighted();	//重み付け＋反復
 #endif
 }
 
@@ -3081,7 +3117,7 @@ void rxFlGLWindow::StepClusterGPU(double dt)
 
 #ifdef USE_PATH
 
-	m_iceObj->StepObjMoveGPUUsePath();	RXTIMER("StepObjMoveGPUUsePath");	//
+	m_iceObj->StepObjMoveGPUUsePath();	//RXTIMER("StepObjMoveGPUUsePath");	//
 
 #else
 
@@ -3226,8 +3262,13 @@ void rxFlGLWindow::StepInterpolation(double dt)
 	RXREAL *v = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_VELOCITY);
 	
 	m_iceObj->SetSPHHostPointer(p, v);
-	m_iceObj->StepInterPolation();		//総和計算，線形補間
-	//m_iceObj->StepInterPolationSelected();
+
+#ifdef USE_SELECTED
+	m_iceObj->StepInterPolationSelected();
+#else
+	m_iceObj->StepInterPolation();				//総和計算，線形補間
+#endif
+
 	//m_iceObj->StepWeightedInterPolation();
 
 
@@ -3274,148 +3315,6 @@ void rxFlGLWindow::MakeClusterInfo(int cIndx)
 }
 
 /*!
- * 再定義するクラスタの探索
- * @param[in] pList   融解粒子リスト
- * @param[in] cList   再定義するクラスタの参照リスト
- * @param[in] lList   再定義するクラスタのレイヤー参照リスト
- */
-void rxFlGLWindow::SearchReconstructCluster_Melt(const vector<int>& pList, vector<int>& cList, vector<int>& lList)
-{
-	if(pList.size() == 0){	return; }
-
-	//融解粒子が所属していたクラスタが再定義クラスタ．
-	for(unsigned i = 0; i < pList.size(); i++)
-	{
-		int ipIndx = pList[i];
-
-		for(int j = 0; j < m_ice->GetPtoCIndx(ipIndx); j++)
-		{
-			int jcIndx = m_ice->GetPtoC(ipIndx, j, 0);
-			int joIndx = m_ice->GetPtoC(ipIndx, j, 1);
-			int jlIndx = m_ice->GetPtoC(ipIndx, j, 2);
-
-			if( jcIndx == -1 || joIndx == -1)
-			{
-				continue;
-			}
-
-			vector<int>::iterator check = std::find(cList.begin(), cList.end(), jcIndx);
-
-			//既に含まれているのなら，layerを比べて小さいほうを優先する
-			if(check != cList.end())
-			{
-				int layerIndx = check-cList.begin();
-				if(lList[layerIndx] > jlIndx)
-				{
-					lList[layerIndx] = jlIndx;
-				}
-				continue;
-			}
-
-			cList.push_back(jcIndx);
-			lList.push_back(jlIndx);
-		}
-	}
-}
-
-/*!
- * 再定義する四面体の探索
- * @param[in] pList   融解粒子リスト
- * @param[in] tList   再定義する四面体のリスト
- * @param[in] lList   再定義する四面体のレイヤーリスト
- */
-void rxFlGLWindow::SearchReconstructTetra_Melt(const vector<int>& pList, vector<int>& tList, vector<int>& lList)
-{//	cout << __FUNCTION__ << endl;
-	if(pList.size() == 0){	return; }
-
-	//１，粒子が含まれていた，いる四面体
-	//２，１の四面体の近傍四面体
-	//つまりはクラスタを構成した四面体　TODO::覚えられる情報なので，ここの計算コストが高ければ修正可能
-	
-	m_ice->ResetTFlag(m_iTetraNum);							//四面体探索フラグの初期化
-
-	//１，融解粒子が含まれていた四面体
-	for(unsigned i = 0; i < pList.size(); i++)
-	{
-		int ipIndx = pList[i];
-
-		for(int j = 0; j < m_ice->GetPtoTIndx(ipIndx); j++)
-		{
-			if(m_ice->GetPtoT(ipIndx, j, 0) == -1 || m_ice->GetPtoT(ipIndx, j, 1) == -1)
-			{
-				continue;
-			}
-
-			//if(std::find(tList.begin(), tList.end(), jtlSet[0]) != tList.end()){ continue;	}
-			if( m_ice->GetTFlag(m_ice->GetPtoT(ipIndx, j, 0)) )	{	continue;	}
-			else												{	m_ice->SetTFlag(m_ice->GetPtoT(ipIndx, j, 0), true);	}
-
-			tList.push_back(m_ice->GetPtoT(ipIndx, j, 0));
-			lList.push_back(1);								//0か1かの判断はできないので1に合わせる．
-		}
-	}
-
-	//２，１の四面体の近傍四面体
-	int tetraNum = tList.size();
-	for(int i = 0; i < tetraNum; i++)
-	{
-		int itIndx = tList[i];
-
-		for(int j = 0; j < m_ice->GetNTNum(itIndx); j++)
-		{
-			int jtIndx = m_ice->GetNeighborTetra(itIndx, j, 0);
-			int jlIndx = m_ice->GetNeighborTetra(itIndx, j, 1);
-
-			//既に含まれているのなら，layerを比べて小さいほうを優先する
-			if(m_ice->GetTFlag(jtIndx))
-			{
-				vector<int>::iterator check = std::find(tList.begin(), tList.end(), jtIndx);
-
-				int layerIndx = check-tList.begin();
-				if(lList[layerIndx] > jlIndx)
-				{
-					lList[layerIndx] = jlIndx;
-				}
-				continue;
-			}
-			else
-			{
-				m_ice->SetTFlag(jtIndx, true);	
-			}
-
-			tList.push_back(jtIndx);
-			lList.push_back(jlIndx);
-		}
-	}
-}
-
-/*!
- * 粒子融解時の粒子・四面体情報の更新
- * @param pList 粒子番号参照リスト
- */
-void rxFlGLWindow::UpdateInfo_Melt_PandT(const vector<int>& pList)
-{//	cout << __FUNCTION__ << endl;
-	if(pList.size() == 0){	return; }
-
-	for(unsigned i = 0; i < pList.size(); i++)
-	{
-		int ipIndx = pList[i];
-
-		for(int j = 0; j < m_ice->GetPtoTIndx(ipIndx); j++)
-		{
-			int tIndx = m_ice->GetPtoT(ipIndx, j, 0);
-			int oIndx = m_ice->GetPtoT(ipIndx, j, 1);										//この場合はそのまま添え字
-			
-			if(tIndx == -1 || oIndx == -1){ continue;	}
-
-			m_ice->DeleteTtoP(tIndx, oIndx);
-		}
-
-		m_ice->ClearPtoT(ipIndx);
-	}
-}
-
-/*!
  * 四面体削除時の粒子・四面体情報の更新
  * @param tList 四面体番号参照リスト
  */
@@ -3447,109 +3346,6 @@ void rxFlGLWindow::UpdateInfo_Delete_TandP(const vector<int>& tList, const vecto
 		m_ice->ClearTtoP(itIndx);
 		m_iTetraNumNum--;
 	}
-}
-
-/*!
- * 粒子融解時の粒子・クラスタ情報の更新
- * @param pList 融解粒子配列
- * @param cList 再定義クラスタ
- */
-void rxFlGLWindow::UpdateInfo_Melt_PandC(const vector<int>& pList, const vector<int>& cList)
-{//	cout << __FUNCTION__ << endl;
-	if(pList.size() == 0){	return; }
-
-	//並列処理で用いる変数をまとめて定義
-	int j= 0, k = 0;
-	int icIndx = 0;
-	int jpIndx = 0;
-
-	//融解したクラスタ情報を，他の粒子から取り除く
-	#pragma omp parallel
-	{
-	#pragma omp for private(j,k,icIndx,jpIndx)
-		for(int i = 0; i < (int)pList.size(); i++)
-		{
-			icIndx = pList[i];
-	
-			for(j = 0; j < m_ice->GetCtoPIndx(icIndx); j++)
-			{
-				jpIndx = m_ice->GetCtoP(icIndx, j, 0);
-				
-				if(jpIndx == -1){	continue;	}
-
-				for(k = 0; k < m_ice->GetPtoCIndx(jpIndx); k++)
-				{					
-					if(m_ice->GetPtoC(jpIndx, k, 0) == -1
-					|| m_ice->GetPtoC(jpIndx, k, 1) == -1
-					|| m_ice->GetPtoC(jpIndx, k, 0) != icIndx)
-					{
-						continue;
-					}
-	
-	#pragma omp critical (DeletePtoC)	//TODO：：後にカウントしたほうが並列化できてよい
-	{
-					m_ice->DeletePtoC(jpIndx, k);
-	}
-					break;			//同じクラスタに複数所属することは無いので，break
-				}
-			}
-		}
-	}//end #pragma omp parallel
-
-	//融解した粒子→クラスタ情報を削除
-	#pragma omp parallel
-	{
-	#pragma omp for
-		for(int i = 0; i < (int)pList.size(); i++)
-		{
-			m_ice->ClearPtoC(pList[i]);
-		}
-	}//end #pragma omp parallel
-
-	//融解したクラスタ→粒子情報を削除　粒子番号＝クラスタ番号
-	#pragma omp parallel
-	{
-	#pragma omp for
-		for(int i = 0; i < (int)pList.size(); i++)
-		{
-			m_ice->ClearCtoP(pList[i]);
-			m_iceObj->GetMoveObj(pList[i])->Clear();
-		}
-	}//end #pragma omp parallel
-
-	//再定義するクラスタに含まれる粒子から、再定義するクラスタの情報を消去
-	#pragma omp parallel
-	{
-	#pragma omp for private(j,k,icIndx,jpIndx)
-		for(int i = 0; i < (int)cList.size(); i++)
-		{
-			icIndx = cList[i];
-	
-			for(j = 0; j < m_ice->GetCtoPIndx(icIndx); j++)
-			{
-				jpIndx = m_ice->GetCtoP(icIndx, j, 0);
-				
-				if(jpIndx == -1){	continue;	}
-
-				for(k = 0; k < m_ice->GetPtoCIndx(jpIndx); k++)
-				{
-					if(m_ice->GetPtoC(jpIndx, k, 0) == -1
-					|| m_ice->GetPtoC(jpIndx, k, 1) == -1
-					|| m_ice->GetPtoC(jpIndx, k, 0) != icIndx)
-					{
-						continue;
-					}
-
-
-	#pragma omp critical (DeletePtoC)	//TODO：：後にカウントしたほうが並列化できてよい
-	{
-					m_ice->DeletePtoC(jpIndx, k);
-	}
-					break;			//同じクラスタに複数所属することは無いので，break
-				}
-			}
-		}
-	}//end #pragma omp parallel
 }
 
 /*!
@@ -4165,22 +3961,36 @@ void rxFlGLWindow::StepParticleColor()
 		float* tempColor = new float[m_pPS->GetNumParticles()];
 		for( int i = 0; i < m_pPS->GetNumParticles(); i++ )
 		{
-			if(false)
-			{
-				tempColor[i] = 100.0f;
-			}
-			else
-			{
-				tempColor[i] = m_iceObj->GetTemps()[i] + 100.0f;
-			}
+			tempColor[i] = m_iceObj->GetTemps()[i] + 100.0f;
 		}
+
 		m_pPS->SetColorVBOFromArray( tempColor, 1, false, 1000.0f );
 		delete[] tempColor;
 	}
-	//SM法
-	else if( m_iColorType == rxParticleSystemBase::RX_SHPMTCHNG )
+	//表面粒子
+	else if(m_iColorType == rxParticleSystemBase::RX_SURFACE)
 	{
+		((RXSPH*)m_pPS)->DetectSurfaceParticles();								//表面粒子検出
 
+		int* surfaceParticles = (int *)( ((RXSPH*)m_pPS)->GetArraySurf() );		//表面粒子
+		vector<vector<rxNeigh>>& neights = ((RXSPH*)m_pPS)->GetNeights();
+
+		float* tempColor = new float[m_pPS->GetNumParticles()];
+
+		for( int i = 0; i < m_pPS->GetNumParticles(); i++ )
+		{
+			if(surfaceParticles[i] == 1)
+			{
+				tempColor[i] = /*(float)neights[i].size()*/ 90.0f;
+			}
+			else
+			{
+				tempColor[i] = 0.0f;
+			}
+		}
+
+		m_pPS->SetColorVBOFromArray( tempColor, 1, false, 100.0f );
+		delete[] tempColor;
 	}
 	//四面体情報
 	//TODO::いずれGUIから入力して操作できるようにする

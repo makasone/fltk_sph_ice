@@ -22,6 +22,7 @@ void Surf_SM::InitPath(const float* pos, const float* vel, const vector<Ice_SM*>
 	//なぜかだめとされている１本のパスでやってみる．
 	//パス→粒子
 	int pthNum = 1;								//とりあえず1本
+
 	cout << "check1" << endl;
 	m_mk2DiPTHtoPRT.SetSize(pthNum, pthSize);
 
@@ -32,11 +33,13 @@ void Surf_SM::InitPath(const float* pos, const float* vel, const vector<Ice_SM*>
 			m_mk2DiPTHtoPRT(i, j) = -1;		//-1で初期化
 		}
 	}
+
 	cout << "check2" << endl;
 	for(int i = 0; i < prtNum; i++)
 	{
 		m_mk2DiPTHtoPRT(0, i) = i;			//実際のパスの初期化 1本用
 	}
+
 	cout << "check3" << endl;
 	//粒子→パス
 	m_mk2DiPRTtoPTH.SetSize(prtNum, 2);
@@ -54,12 +57,15 @@ void Surf_SM::InitPath(const float* pos, const float* vel, const vector<Ice_SM*>
 	m_mk2Dvec3_PrfxPos.SetSize(pthNum, prtNum);	//位置
 	UpdatePrefixSumPos();
 
+	cout << "check4" << endl;
 	m_mk2Dmat3_PrfxApq.SetSize(pthNum, prtNum);	//変形行列
 	UpdatePrefixSumApq();
 
+	cout << "check5" << endl;
 	InitPathPrfxIndxSet(iceSM, strct);			//どのパスのどの部分が必要なのか，をクラスタごとに計算
 
 	InitOrgCm();								//初期重心
+	cout << "check6" << endl;
 
 //デバッグ
 	//DebugPathDataPos();
@@ -79,14 +85,14 @@ void Surf_SM::InitPathGPU()
 	md_f3ClusterOrgCm	= Ice_SM::GetOrgCmPointer();							//クラスタの初期重心		
 
 	cudaMalloc((void**)&md_2DiPTHtoPRT,	sizeof(int) * pthNum * pthSize);		//パス→粒子
-	cudaMalloc((void**)&md_2DiPRTtoPTH,	sizeof(int) * m_iPrtclNum * 2);			//粒子→パス
+	cudaMalloc((void**)&md_2DiPRTtoPTH,	sizeof(short int) * m_iPrtclNum * 2);			//粒子→パス
 
 	cudaMalloc((void**)&md_f3OrgPos,	sizeof(float) * m_iPrtclNum * 3);		//粒子の初期位置
 
 	cudaMalloc((void**)&md_2Df3PrfxPos,	sizeof(float) * pthNum * pthSize * 3);	//位置のprefixSum
 	cudaMalloc((void**)&md_2Df9PrfxApq,	sizeof(float) * pthNum * pthSize * 9);	//変形のprefixSum
 
-	cudaMalloc((void**)&md_3DiPTHandPrfxSet, sizeof(int) * m_iPrtclNum * m_iPrtclNum * 2);	//各クラスタにおける，パスとprefixSumの番地セット
+	cudaMalloc((void**)&md_3DiPTHandPrfxSet, sizeof(short int) * m_iPrtclNum * m_iPrtclNum * 2);	//各クラスタにおける，パスとprefixSumの番地セット
 
 	//Group Pos
 	unsigned* groupPos = new unsigned[m_iPrtclNum*3];
@@ -116,7 +122,7 @@ void Surf_SM::InitPathGPU()
 	//パス→粒子
 	cudaMemcpy(md_2DiPTHtoPRT, &m_mk2DiPTHtoPRT.Get()[0], sizeof(int) * pthNum * pthSize, cudaMemcpyHostToDevice);
 	//粒子→パス
-	cudaMemcpy(md_2DiPRTtoPTH, &m_mk2DiPRTtoPTH.Get()[0], sizeof(int) * m_iPrtclNum * 2 , cudaMemcpyHostToDevice);
+	cudaMemcpy(md_2DiPRTtoPTH, &m_mk2DiPRTtoPTH.Get()[0], sizeof(short int) * m_iPrtclNum * 2 , cudaMemcpyHostToDevice);
 
 	//粒子の初期位置
 	float* orgPos = new float[m_iPrtclNum * 3];
@@ -159,7 +165,7 @@ void Surf_SM::InitPathGPU()
 	cudaMemcpy(md_2Df9PrfxApq, prfxApq, sizeof(float) * pthNum * pthSize * 9, cudaMemcpyHostToDevice);
 
 	//各クラスタにおける，パスとprefixSumの番地セット *2は開始位置と終了位置
-	cudaMemcpy(md_3DiPTHandPrfxSet, &m_mk3DiPTHandPrfxSet.Get()[0], sizeof(int) * m_iPrtclNum * m_iPrtclNum * 2, cudaMemcpyHostToDevice);
+	cudaMemcpy(md_3DiPTHandPrfxSet, &m_mk3DiPTHandPrfxSet.Get()[0], sizeof(short int) * m_iPrtclNum * m_iPrtclNum * 2, cudaMemcpyHostToDevice);
 
 	delete[] orgPos;
 	delete[] prfxPos;

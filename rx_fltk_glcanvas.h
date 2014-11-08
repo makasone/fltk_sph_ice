@@ -624,14 +624,9 @@ protected:
 	//追加：：粒子ベース：：固体情報（クラスタ情報）
 	void MakeClusterInfo(int cIndx);
 
-	void SearchReconstructCluster_Melt(const vector<int>& pList, vector<int>& cList, vector<int>& lList);
 	void SearchReconstructCluster_Freeze(const vector<int>& pList, vector<int>& cList, vector<int>& lList);
 
-	void SearchReconstructTetra_Melt(const vector<int>& pList, vector<int>& tList, vector<int>& lList);
 	void SearchReconstructTetra_Freeze(const vector<int>& pList, vector<int>& tList, vector<int>& lList);
-
-	void UpdateInfo_Melt_PandT(const vector<int>& pList);
-	void UpdateInfo_Melt_PandC(const vector<int>& pList, const vector<int>& cList);
 
 	void UpdateInfo_Delete_TandP(const vector<int>& tList, const vector<int>& deleteList);
 

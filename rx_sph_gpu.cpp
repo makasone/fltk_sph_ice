@@ -832,7 +832,7 @@ bool rxSPH_GPU::Update(RXREAL dt, int step)
 
 		// 位置，速度の更新
 		if(m_iNumTris == 0){
-			CuSphIntegrate(dPos, m_dVel, m_dFrc, m_dDens, m_dAttr, dt, m_uNumParticles);
+			//CuSphIntegrate(dPos, m_dVel, m_dFrc, m_dDens, m_dAttr, dt, m_uNumParticles);
 		}
 		else{	// ポリゴンによる固体境界有り
 			CuSphIntegrateWithPolygon(dPos, m_dVel, m_dFrc, m_dDens, m_dAttr, 

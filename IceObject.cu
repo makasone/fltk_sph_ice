@@ -7,34 +7,6 @@
 
 //#include "Path_SM.cuh"
 
-
-void LauchUpdateSMFromPath(
-	int prtNum,
-	float* prtPos, 
-	float* prtVel,
-	//-----------------------SM---------------------
-	float* orgPos, 
-	float* curPos,
-	float* orgCm,
-	float* curCm,
-	float* clstrApq,
-	float* vel,
-	int* pIndxes, 
-	int* indxSet,
-	//-----------------------Path-------------------
-	int* PRTtoPTH,
-	int* PTHandPrfxSet,
-	float* prfxPos,
-	float* prfxApq,
-	//----------------------Struct-------------------
-	int* CtoP,
-	int* CtoPNum,
-	int CtoPSizeY,
-	int CtoPSizeZ,
-
-	float dt
-);
-
 __global__ void UpdateSMFromPath(
 	float* prtPos,
 	float* prtVel,
@@ -48,8 +20,8 @@ __global__ void UpdateSMFromPath(
 	int* pIndxes, 
 	int* indxSet,
 	//-----------------------Path-------------------
-	int* PRTtoPTH,
-	int* PTHandPrfxSet,
+	short int* PRTtoPTH,
+	short int* PTHandPrfxSet,
 	float* prfxPos,
 	float* prfxApq,
 	//----------------------Struct-------------------
@@ -67,8 +39,8 @@ __device__ void CalcCmSum
 (
 	float* curCm,
 	float* prfxPos,
-	int* PRTtoPTH,
-	int* PTHandPrfxSet,
+	short int* PRTtoPTH,
+	short int* PTHandPrfxSet,
 	int* CtoP,
 	int* CtoPNum,
 	int CtoPSizeY,
@@ -82,8 +54,8 @@ __device__ void CalcApqSum
 	float* curCmes,
 	float* prfxApq,
 	float* clstrApq,
-	int* PRTtoPTH,
-	int* PTHandPrfxSet,
+	short int* PRTtoPTH,
+	short int* PTHandPrfxSet,
 	int* CtoP,
 	int* CtoPNumes,
 	int CtoPSizeY,
@@ -94,8 +66,8 @@ __device__ void CalcApqSum
 void LauchUpdateSMFromPath(
 	int prtNum, float* prtPos, float* prtVel, 
 	float* orgPos, float* curPos, float* orgCm, float* curCm, float* clstrApq, float* vel, int* pIndxes, int* indxSet,
-	int* PRTtoPTH,
-	int* PTHandPrfxSet,
+	short int* PRTtoPTH,
+	short int* PTHandPrfxSet,
 	float* prfxPos,
 	float* prfxApq,
 	int* CtoP,
@@ -133,8 +105,8 @@ __global__
 	void UpdateSMFromPath(
 	float* prtPos, float* prtVel,
 	float* orgPos, float* curPos, float* orgCm, float* curCm, float* clstrApq, float* vel, int* pIndxes, int* indxSet,
-	int* PRTtoPTH,
-	int* PTHandPrfxSet,
+	short int* PRTtoPTH,
+	short int* PTHandPrfxSet,
 	float* prfxPos,
 	float* prfxApq,
 	int* CtoP,
@@ -155,8 +127,8 @@ void CalcCmSum
 (
 	float* curCm,
 	float* prfxPos,
-	int* PRTtoPTH,
-	int* PTHandPrfxSet,
+	short int* PRTtoPTH,
+	short int* PTHandPrfxSet,
 	int* CtoP,
 	int* CtoPNumes,
 	int CtoPSizeY,
@@ -215,8 +187,8 @@ void CalcApqSum
 	float* curCm,
 	float* prfxApq,
 	float* clstrApq,
-	int* PRTtoPTH,
-	int* PTHandPrfxSet,
+	short int* PRTtoPTH,
+	short int* PTHandPrfxSet,
 	int* CtoP,
 	int* CtoPNumes,
 	int CtoPSizeY,

@@ -195,6 +195,7 @@ public:
 	void SetNowCm(Vec3& nowCm){	m_vec3NowCm = nowCm;	}
 	void SetApq(rxMatrix3& Apq){	m_mtrx3Apq = Apq;	}
 
+	void SetDefAmount(float amount){	m_fDefAmount = amount;	}
 	void SetDefPriority(float priority){	m_fDefPriority = priority;	}
 
 	void SetLinerFalg(int indx, int flag){	m_iLinearDeformation[indx] = flag; }

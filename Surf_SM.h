@@ -39,10 +39,10 @@ extern void LaunchUpdatePrefixSumGPU
 	int ApqSizeX,
 	int ApqSizeY,
 	int* md_2DiPTHtoPRT,
-	int* md_2DiPRTtoPTH,
+	short int* md_2DiPRTtoPTH,
 	float* md_2Df3PrfxPos,
 	float* md_2Df9PrfxApq,
-	int* md_3DiPTHandPrfxSet,
+	short int* md_3DiPTHandPrfxSet,
 	float* md_f3OrgPos,
 	float* md_f3OrgCm,
 	unsigned* dgroupPos,
@@ -58,9 +58,9 @@ private:
 	mk_Vector2D<rxMatrix3>	m_mk2Dmat3_PrfxApq;		//パスごとの，変形行列のためのprefixSum　（完全な変形行列Apqではないよ　詳しくは論文を参照）
 	
 	mk_Vector2D<int>		m_mk2DiPTHtoPRT;		//パス→粒子　不規則配列になる
-	mk_Vector2D<int>		m_mk2DiPRTtoPTH;		//粒子→パス　0:パス番号，1:パス内番号　粒子は１つのパスにしか属さない
+	mk_Vector2D<short int>		m_mk2DiPRTtoPTH;		//粒子→パス　0:パス番号，1:パス内番号　粒子は１つのパスにしか属さない
 
-	mk_Vector3D<int>		m_mk3DiPTHandPrfxSet;	//各クラスタにおける，パスとprefixSumの番地セット[0]：始点　[1]：終点　prefixSum番地のみでいい　path番号は粒子から経由して取得できる
+	mk_Vector3D<short int>		m_mk3DiPTHandPrfxSet;	//各クラスタにおける，パスとprefixSumの番地セット[0]：始点　[1]：終点　prefixSum番地のみでいい　path番号は粒子から経由して取得できる
 
 	vector<Vec3> m_vvec3OrgPos;						//粒子の初期位置
 	vector<Vec3> m_vvec3OrgCm;						//クラスタの初期重心
@@ -78,9 +78,9 @@ private:
 	float* md_2Df9PrfxApq;							//パスごとの，変形行列のためのprefixSum　（完全な変形行列Apqではないよ　詳しくは論文を参照）
 	
 	int* md_2DiPTHtoPRT;							//パス→粒子　不規則配列になる
-	int* md_2DiPRTtoPTH;							//粒子→パス　0:パス番号，1:パス内番号　粒子は１つのパスにしか属さない
+	short int* md_2DiPRTtoPTH;							//粒子→パス　0:パス番号，1:パス内番号　粒子は１つのパスにしか属さない
 
-	int* md_3DiPTHandPrfxSet;						//各クラス多における，パスとprefixSumの番地セット[0]：始点　[1]：終点　prefixSum番地のみでいい　path番号は粒子から経由して取得できる
+	short int* md_3DiPTHandPrfxSet;						//各クラス多における，パスとprefixSumの番地セット[0]：始点　[1]：終点　prefixSum番地のみでいい　path番号は粒子から経由して取得できる
 
 	float* md_f3OrgPos;								//粒子の初期位置
 
@@ -119,8 +119,9 @@ public:
 	const rxMatrix3 CalcApqFromPrfxSm(const int& path, const int& start, const int& end);
 
 //アクセッサ
-	int* GetDevicePRTtoPTHPointer(){		return md_2DiPRTtoPTH;		}
-	int* GetDevicePTHandPrfxSetPointer(){	return md_3DiPTHandPrfxSet;	}
+	short int* GetDevicePRTtoPTHPointer(){		return md_2DiPRTtoPTH;		}
+	short int* GetDevicePTHandPrfxSetPointer(){	return md_3DiPTHandPrfxSet;	}
+
 	float* GetDecvicePrfxPos(){	return md_2Df3PrfxPos;	}
 	float* GetDecvicePrfxApq(){	return md_2Df9PrfxApq;	}
 

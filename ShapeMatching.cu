@@ -114,9 +114,160 @@ void Update(
 	int prtNum,
 	int side)
 {
-	ExternalForce(prtPos, prtVel, curPos, vel, pIndxes, indxSet, dt, prtNum, side);
-	ProjectPos(prtPos, prtVel, orgPos, curPos, orgCm, vel, pIndxes, indxSet, dt, prtNum, side);
-	Integrate(prtPos, prtVel, curPos, vel, pIndxes, indxSet, dt, prtNum, side);
+	//ExternalForce(prtPos, prtVel, curPos, vel, pIndxes, indxSet, dt, prtNum, side);
+	//ProjectPos(prtPos, prtVel, orgPos, curPos, orgCm, vel, pIndxes, indxSet, dt, prtNum, side);
+	//Integrate(prtPos, prtVel, curPos, vel, pIndxes, indxSet, dt, prtNum, side);
+
+	//関数をひとつにまとめ計算時間の変化を測定
+//ExternalForce
+	if(blockIdx.x > side) return;
+	if(blockIdx.y > side) return;
+	if(threadIdx.x > side) return;
+	if(threadIdx.y > side) return;
+
+	//計算するクラスタの判定
+	int clusterIndx = blockIdx.x * side * side + blockIdx.y * side + threadIdx.x;
+	//int clusterIndx = threadIdx.x * side * side + threadIdx.y * side + blockIdx.x;
+
+	int startIndx	= indxSet[clusterIndx*2+0];
+	int endIndx		= indxSet[clusterIndx*2+1];
+
+	// 重力の影響を付加，速度を反映
+	for(int i = startIndx; i < endIndx+1; ++i)
+	{
+		int pIndx = pIndxes[i]*4;
+		int cIndx = i*SM_DIM;
+
+		curPos[cIndx+0] = prtPos[pIndx+0] + prtVel[pIndx+0]*dt;
+		curPos[cIndx+1] = prtPos[pIndx+1] + prtVel[pIndx+1]*dt;
+		curPos[cIndx+2] = prtPos[pIndx+2] + prtVel[pIndx+2]*dt;
+	}
+
+	//// 境界壁の影響
+	////処理がかなり重くなるが，安定はするみたい
+	//float res = 0.9;	// 反発係数
+	//for(int i = startIndx; i < endIndx; ++i){
+	//	Clamp(curPos, i*SM_DIM);
+	//}
+
+//ProjectPos
+	float cm_x, cm_y, cm_z;
+	float cm_org_x, cm_org_y, cm_org_z;
+
+	float mass = 0.0f;	// 総質量
+
+	// 重心座標の計算
+	for(int i = startIndx; i < endIndx+1; ++i)
+	{
+		//float m = m_pMass[i];
+		float m = 1.0f;
+		//if(m_pFix[i]) m *= 300.0;	// 固定点の質量を大きくする
+		
+		int cIndx = i*SM_DIM;
+		mass += m;
+
+		cm_x += curPos[cIndx+0]*m;
+		cm_y += curPos[cIndx+1]*m;
+		cm_z += curPos[cIndx+2]*m;
+	}
+
+	cm_x /= mass;
+	cm_y /= mass;
+	cm_z /= mass;
+
+	//前計算した初期データを利用
+	cm_org_x = orgCm[clusterIndx*SM_DIM+0];
+	cm_org_y = orgCm[clusterIndx*SM_DIM+1];
+	cm_org_z = orgCm[clusterIndx*SM_DIM+2];
+
+	matrix3x3 Apq;
+	//matrix3x3 Aqq;
+	
+	float p_x, p_y, p_z;
+	float q_x, q_y, q_z;
+
+	// Apq = Σmpq^T
+	// Aqq = Σmqq^T
+	for(int i = startIndx; i < endIndx+1; ++i)
+	{
+		int cIndx = i*SM_DIM;
+
+		p_x = curPos[cIndx+0]-cm_x;
+		p_y = curPos[cIndx+1]-cm_y;
+		p_z = curPos[cIndx+2]-cm_z;
+
+		q_x = orgPos[cIndx+0]-cm_org_x;
+		q_y = orgPos[cIndx+1]-cm_org_y;
+		q_z = orgPos[cIndx+2]-cm_org_z;
+
+		float m = 1.0f;
+
+		Apq.e[0].x += m*p_x*q_x;
+		Apq.e[0].y += m*p_x*q_y;
+		Apq.e[0].z += m*p_x*q_z;
+		Apq.e[1].x += m*p_y*q_x;
+		Apq.e[1].y += m*p_y*q_y;
+		Apq.e[1].z += m*p_y*q_z;
+		Apq.e[2].x += m*p_z*q_x;
+		Apq.e[2].y += m*p_z*q_y;
+		Apq.e[2].z += m*p_z*q_z;
+	}
+
+	matrix3x3 R, S;
+	////PolarDecomposition(Apq, R, S, m_mtrxBeforeU);
+	PolarDecomposition(Apq, R, S);
+
+	float dt1 = 1.0f/dt;
+	float gravity[3] = {0.0f, -9.81f, 0.0f};
+	float param = 1.0f;
+
+	gravity[0] *= dt * param;
+	gravity[1] *= dt * param;
+	gravity[2] *= dt * param;
+
+	// 目標座標を計算し，現在の頂点座標を移動
+	for(int i = startIndx; i < endIndx+1; ++i)
+	{
+		//if(m_pFix[i]) continue;
+		
+		int cIndx = i*SM_DIM;
+		int pIndx = pIndxes[i]*4;
+
+		float3 curPosTemp;
+		curPosTemp.x = curPos[cIndx+0];
+		curPosTemp.y = curPos[cIndx+1];
+		curPosTemp.z = curPos[cIndx+2];
+
+		// 回転行列Rの代わりの行列RL=βA+(1-β)Rを計算
+		q_x = orgPos[cIndx+0] - cm_org_x;
+		q_y = orgPos[cIndx+1] - cm_org_y;
+		q_z = orgPos[cIndx+2] - cm_org_z;
+
+		float Rq_x, Rq_y, Rq_z;
+		Rq_x = R.e[0].x * q_x + R.e[0].y * q_y + R.e[0].z * q_z;
+		Rq_y = R.e[1].x * q_y + R.e[1].y * q_y + R.e[1].z * q_z;
+		Rq_z = R.e[2].x * q_z + R.e[2].y * q_y + R.e[2].z * q_z;
+		
+		curPosTemp.x += (Rq_x + cm_x - curPosTemp.x) * 1.0f/*m_dAlphas[i]*/;
+		curPosTemp.y += (Rq_y + cm_y - curPosTemp.y) * 1.0f/*m_dAlphas[i]*/;
+		curPosTemp.z += (Rq_z + cm_z - curPosTemp.z) * 1.0f/*m_dAlphas[i]*/;
+
+		if(curPosTemp.x > 0.75f) curPosTemp.x = 0.75f;
+		if(curPosTemp.x < -0.75f)curPosTemp.x = -0.75f;
+		if(curPosTemp.y > 1.5f)  curPosTemp.y = 1.5f;
+		if(curPosTemp.y < -1.5f) curPosTemp.y = -1.5f;
+		if(curPosTemp.z > 2.0f)  curPosTemp.z = 2.0f;
+		if(curPosTemp.z < -2.0f) curPosTemp.z = -2.0f;
+
+//Integrate
+		vel[cIndx+0] = (curPosTemp.x - prtPos[pIndx+0]) * dt1 + gravity[0];
+		vel[cIndx+1] = (curPosTemp.y - prtPos[pIndx+1]) * dt1 + gravity[1];
+		vel[cIndx+2] = (curPosTemp.z - prtPos[pIndx+2]) * dt1 + gravity[2];
+
+		curPos[cIndx+0] = curPosTemp.x;
+		curPos[cIndx+1] = curPosTemp.y;
+		curPos[cIndx+2] = curPosTemp.z;
+	}
 }
 
 //GPUの位置・速度更新
@@ -430,66 +581,6 @@ __device__
 			curPos[cIndx+1] += (Rq_y + cm_y - curPos[cIndx+1]) * 1.0f/*m_dAlphas[i]*/;
 			curPos[cIndx+2] += (Rq_z + cm_z - curPos[cIndx+2]) * 1.0f/*m_dAlphas[i]*/;
 		}
-
-		//float dt1 = 1.0f/dt;
-		//float gravity[3] = {0.0f, -9.81f, 0.0f};
-		//float param = 1.0f;
-	
-		//gravity[0] *= dt * param;
-		//gravity[1] *= dt * param;
-		//gravity[2] *= dt * param;
-
-		//// 目標座標を計算し，現在の頂点座標を移動
-		//for(int i = startIndx; i < endIndx+1; ++i)
-		//{
-		//	//if(m_pFix[i]) continue;
-
-		//	int ipIndx = pIndxes[i]*4;
-		//	int icIndx = i*SM_DIM;
-
-		//	// 回転行列Rの代わりの行列RL=βA+(1-β)Rを計算
-		//	q_x = orgPos[icIndx+0] - cm_org_x;
-		//	q_y = orgPos[icIndx+1] - cm_org_y;
-		//	q_z = orgPos[icIndx+2] - cm_org_z;
-
-		//	float Rq_x, Rq_y, Rq_z;
-		//	Rq_x = R.e[0].x * q_x + R.e[0].y * q_y + R.e[0].z * q_z;
-		//	Rq_y = R.e[1].x * q_y + R.e[1].y * q_y + R.e[1].z * q_z;
-		//	Rq_z = R.e[2].x * q_z + R.e[2].y * q_y + R.e[2].z * q_z;
-		//	
-		//	float3 gCurPos;
-		//	float3 gNowPos;
-
-		//	gCurPos.x = curPos[icIndx+0];
-		//	gCurPos.y = curPos[icIndx+1];
-		//	gCurPos.z = curPos[icIndx+2];
-
-		//	gNowPos.x = gCurPos.x;
-		//	gNowPos.y = gCurPos.y;
-		//	gNowPos.z = gCurPos.z;
-
-		//	gNowPos.x += (Rq_x + cm_x - gCurPos.x) * 1.0f/*m_dAlphas[i]*/;
-		//	gNowPos.y += (Rq_y + cm_y - gCurPos.y) * 1.0f/*m_dAlphas[i]*/;
-		//	gNowPos.z += (Rq_z + cm_z - gCurPos.z) * 1.0f/*m_dAlphas[i]*/;
-
-		//	// 境界壁
-		//	if(gNowPos.x > 0.75f) gNowPos.x = 0.75f;
-		//	if(gNowPos.x < -0.75f)gNowPos.x = -0.75f;
-		//	if(gNowPos.y > 1.5f)  gNowPos.y = 1.5f;
-		//	if(gNowPos.y < -1.5f) gNowPos.y = -1.5f;
-		//	if(gNowPos.z > 2.0f)  gNowPos.z = 2.0f;
-		//	if(gNowPos.z < -2.0f) gNowPos.z = -2.0f;
-
-		//	//位置
-		//	curPos[icIndx+0] = gNowPos.x;
-		//	curPos[icIndx+1] = gNowPos.y;
-		//	curPos[icIndx+2] = gNowPos.z;
-
-		//	//速度
-		//	vel[icIndx+0] = (gNowPos.x - gCurPos.x) * dt1 + gravity[0];
-		//	vel[icIndx+1] = (gNowPos.y - gCurPos.y) * dt1 + gravity[1];
-		//	vel[icIndx+2] = (gNowPos.z - gCurPos.z) * dt1 + gravity[2];		
-		//}
 	}
 }
 
