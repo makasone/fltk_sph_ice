@@ -251,6 +251,7 @@ public:
 public:
 	// ƒˆ‰¼‘zŠÖ”
 	virtual bool Update(RXREAL dt, int step = 0) = 0;
+	virtual bool UpdateWithoutPosAndVel(RXREAL dt, int step = 0) = 0;
 
 	virtual RXREAL* GetArrayVBO(rxParticleArray type, bool d2h = true, int num = -1) = 0;
 	virtual void SetArrayVBO(rxParticleArray type, const RXREAL* data, int start, int count) = 0;

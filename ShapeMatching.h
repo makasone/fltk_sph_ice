@@ -59,7 +59,8 @@ protected:
 	float* m_pMass;					//!< 頂点質量(変形時の重み)
 	float* m_pVel;					//!< 頂点速度
 
-	int* m_iPIndxes;				//!< クラスタに所属する粒子の番号
+	//int* m_iPIndxes;				//!< クラスタに所属する粒子の番号
+	vector<int> m_iPIndxes;
 
 	bool* m_pFix;					//!< 頂点固定フラグ
 

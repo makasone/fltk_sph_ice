@@ -51,14 +51,14 @@ IceStructure::IceStructure(int pNumMax, int cNumMax, int tNumMax, int layer)
 	m_iTNumMax = tNumMax;
 
 	//粒子情報の初期化
-	m_iPtoCMax = m_iCNumMax*0.01f;	//1331 layer2 0.4 layer3 0.75
+	m_iPtoCMax = m_iCNumMax*0.1f;	//1331 layer2 0.4 layer3 0.75
 									//2197 layer2 0.4 layer3 0.4 layer4 0.5
 									//4913 layer2 0.3
 									//4913 layer1 0.1
 									//12167 layer1 0.01
 									//19683 layer1 0.01
 
-	m_iPtoTMax = m_iTNumMax*0.01f;	//1331 layer2 0.3 layer3 0.5
+	m_iPtoTMax = m_iTNumMax*0.1f;	//1331 layer2 0.3 layer3 0.5
 									//2197 layer2 0.3 layer3 0.3
 									//4913 layer2 0.3
 									//12167 layer1 0.01
@@ -84,7 +84,7 @@ cout << __FUNCTION__ << " check1" << endl;
 	//クラスタ情報の初期化
 	//CtoTMaxは粒子数と等しいので定義しない
 	//高速化をテストするときはCtoTはコメントに
-	m_iCtoPMax = m_iPNumMax*0.01f;	//1331 layer2 0.5 layer3 0.75
+	m_iCtoPMax = m_iPNumMax*0.1f;	//1331 layer2 0.5 layer3 0.75
 									//2197 layer2 0.5 layre3 0.5
 									//4913 layer2
 									//4913 layer1 0.1
@@ -170,6 +170,14 @@ cout << __FUNCTION__ << " check4" << endl;
 	//ResetPFlag(m_iPNumMax);
 	//ResetCFlag(m_iCNumMax);
 	ResetTFlag(m_iTNumMax);
+
+	//選択的運動計算
+	m_psuSelectClusterIndx = new short unsigned[m_iPNumMax];
+	
+	for(int i = 0; i < m_iPNumMax; i++)
+	{
+		UpdateMotionCalcCluster(i, 1);
+	}
 
 cout << __FUNCTION__ << " check5" << endl;
 }
@@ -420,9 +428,11 @@ void IceStructure::StepObjMelt(
 	vector<unsigned>& cLayerList,
 	vector<unsigned>& tLayerList)
 {
+	QueryCounter counter;
+	counter.Start();
+		double end = counter.End();
 	SearchReconstruct_Tetra_Melt(pList, tList, tLayerList);			//再定義四面体の探索
 	SearchReconstruct_Cluster_Melt(pList, cList, cLayerList);		//再定義クラスタの探索
-
 	UpdateInfo_Melt_PandT(pList);									//粒子・四面体情報の更新
 	UpdateInfo_Melt_PandC(pList, cList);							//粒子・クラスタ情報の更新
 
@@ -430,6 +440,7 @@ void IceStructure::StepObjMelt(
 	////CheckDeleteTetra(viTetraList, viTLayerList);							//同一，包含関係にある四面体を削除
 
 	SetInfo_Tetra(pList, tList, tLayerList);						//粒子・近傍四面体情報の再定義
+	//RXTIMER("SetInfo_Tetra");
 
 //デバッグ
 	//DebugStepObjMelt(pList, cList);
@@ -525,10 +536,10 @@ void IceStructure::SearchReconstruct_Tetra_Melt(const vector<unsigned>& pList, v
 	unsigned pListSize = pList.size();
 	if(pListSize == 0){	return;}
 
-	ResetTFlag(m_iTNum);							//四面体探索フラグの初期化
+	ResetTFlag(m_iTNum);	//四面体探索フラグの初期化
 
 	//１　粒子が含まれていた，いる四面体
-	//２　１の四面体の近傍四面体
+	//２　１の四面体の近傍四面体　めちゃくちゃ重い
 	//つまりはクラスタを構成した四面体　TODO::覚えられる情報なので，ここの計算コストが高ければ修正可能
 	
 	//１ 融解粒子が含まれていた四面体
@@ -548,6 +559,8 @@ void IceStructure::SearchReconstruct_Tetra_Melt(const vector<unsigned>& pList, v
 			lList.push_back(1);								//0か1かの判断はできないので1に合わせる．
 		}
 	}
+
+	//return;	//２を処理しないならめちゃくちゃ早くなる
 
 	//２　１の四面体の近傍四面体
 	int tetraNum = tList.size();
@@ -1019,6 +1032,7 @@ void IceStructure::SetNeighborTetra(int tIndx, int layer)
 	{
 		nowSize = GetNTNum(tIndx);
 		d_addNum = GetNTNum(tIndx);
+
 		//探索するクラスタをnowSizeとnowIndxで制限している
 		for(int j = nowIndx; j < nowSize; j++)
 		{
@@ -1516,6 +1530,20 @@ int IceStructure::CheckNeighborTetra(int tIndx, int checkTIndx)
 
 //-------------------------------------更新----------------------------------------
 
+//-------------------------------------選択的運動計算------------------------------------------
+
+void IceStructure::UpdateMotionCalcCluster(unsigned cIndx, short unsigned num)
+{
+	//cout << __FUNCTION__ << ", cIndx = " << cIndx << ", num = " << num << endl;
+	m_psuSelectClusterIndx[cIndx] = num;
+}
+
+short unsigned IceStructure::GetMotionCalcCluster(unsigned cIndx)
+{
+	return m_psuSelectClusterIndx[cIndx];
+}
+
+
 //-------------------------------------デバッグ----------------------------------------
 void IceStructure::DebugPtoT(int pIndx)
 {	cout << __FUNCTION__ << " pIndx = " << pIndx;
@@ -1640,4 +1668,52 @@ void IceStructure::DebugStepObjMelt(vector<unsigned>& pList, vector<unsigned>& c
 
 	//近傍四面体
 	//for(unsigned i = 0; i < m_vviTetraList.size(); i++ ){	m_ice->DebugNeighborTetra(i);	}
+}
+
+//テスト
+void IceStructure::TestStepObjMelt(
+	vector<unsigned>& pList,
+	vector<unsigned>& cList,
+	vector<unsigned>& tList,
+	vector<unsigned>& cLayerList,
+	vector<unsigned>& tLayerList)
+{
+	QueryCounter counter1;
+	QueryCounter counter2;
+	QueryCounter counter3;
+	QueryCounter counter4;
+	QueryCounter counter5;
+
+counter1.Start();
+	SearchReconstruct_Tetra_Melt(pList, tList, tLayerList);			//再定義四面体の探索
+double end1 = counter1.End();
+
+counter2.Start();
+	SearchReconstruct_Cluster_Melt(pList, cList, cLayerList);		//再定義クラスタの探索
+double end2 = counter2.End();
+
+counter3.Start();
+	UpdateInfo_Melt_PandT(pList);									//粒子・四面体情報の更新
+double end3 = counter3.End();
+
+counter4.Start();
+	UpdateInfo_Melt_PandC(pList, cList);							//粒子・クラスタ情報の更新
+double end4 = counter4.End();
+
+	////CheckDeleteCluster();													//同一，包含関係にあるクラスタを削除
+	////CheckDeleteTetra(viTetraList, viTLayerList);							//同一，包含関係にある四面体を削除
+
+counter5.Start();
+	SetInfo_Tetra(pList, tList, tLayerList);						//粒子・近傍四面体情報の再定義
+double end5 = counter5.End();
+
+	if(pList.size() == 0) return;
+	cout << "SearchReconstruct_Tetra_Melt	:" << end1 << endl;
+	cout << "SearchReconstruct_Cluster_Melt	:" << end2 << endl;
+	cout << "UpdateInfo_Melt_PandT		:" << end3 << endl;
+	cout << "UpdateInfo_Melt_PandC		:" << end4 << endl;
+	cout << "SetInfo_Tetra			:" << end5 << endl;
+
+//デバッグ
+	//DebugStepObjMelt(pList, cList);
 }

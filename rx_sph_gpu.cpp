@@ -832,6 +832,178 @@ bool rxSPH_GPU::Update(RXREAL dt, int step)
 
 		// 位置，速度の更新
 		if(m_iNumTris == 0){
+			CuSphIntegrate(dPos, m_dVel, m_dFrc, m_dDens, m_dAttr, dt, m_uNumParticles);
+		}
+		else{	// ポリゴンによる固体境界有り
+			CuSphIntegrateWithPolygon(dPos, m_dVel, m_dFrc, m_dDens, m_dAttr, 
+									  m_dVrts, m_dTris, m_iNumTris, dt, m_dCellData);
+		}
+
+
+		// パーティクルの位置を見て指定範囲に来たらそのパーティクルの属性を-1にする．
+		if(m_iDeleteRegion){
+			for(int k = 0; k < m_iDeleteRegion; ++k){
+				float minp[3], maxp[3], farpoint[3] = {0, 0, 1000000};
+				minp[0] = m_vDeleteRegion[2*k+0][0];
+				minp[1] = m_vDeleteRegion[2*k+0][1];
+				minp[2] = m_vDeleteRegion[2*k+0][2];
+				maxp[0] = m_vDeleteRegion[2*k+1][0];
+				maxp[1] = m_vDeleteRegion[2*k+1][1];
+				maxp[2] = m_vDeleteRegion[2*k+1][2];
+				CuSphCheckDelete(dPos, m_dVel, m_dAttr, minp, maxp, farpoint, m_uNumParticles);
+				//CuSphCheckDeleteX(dPos, m_dVel, m_dAttr, minp[0], farpoint, m_uNumParticles);
+			}
+		}
+
+
+//		RXTIMER("update position");
+
+		// サブパーティクル位置の更新
+		if(m_bSubParticle){
+			UpdateSubParticle(dPos ,dSubPos, scale, dt);		
+			RXTIMER("update position(sp)");
+		}
+
+		init = false;
+	}
+
+
+
+
+	if(m_bUseOpenGL){
+		CuUnmapGLBufferObject(m_pPosResource);
+		CuUnmapGLBufferObject(m_pSubPosResource);
+	}
+
+	m_fTime += dt;
+
+	// VBOからメモリへ
+	//m_hPos = GetArrayVBO(RX_POSITION);
+	//m_hVel = GetArrayVBO(RX_VELOCITY);
+
+	SetColorVBO(m_iColorType);
+
+	//追加：GPUからCPUにデータをコピー
+	searchNeighbors();		
+
+	//RXTIMER("color(vbo)");
+
+	m_bSubPacked = false;
+	m_bCalAnisotropic = false;
+
+	return true;
+}
+
+bool rxSPH_GPU::UpdateWithoutPosAndVel(RXREAL dt, int step)
+{
+	//RXTIMER_RESET;
+
+	// 流入パーティクルを追加
+	if(!m_vInletLines.empty()){
+		int start = (m_iInletStart == -1 ? 0 : m_iInletStart);
+		int num = 0;
+		int attr = 0;
+		vector<rxInletLine>::iterator itr = m_vInletLines.begin();
+		for(; itr != m_vInletLines.end(); ++itr){
+			rxInletLine iline = *itr;
+			if(iline.span > 0 && step%(iline.span) == 0){
+				int count = addParticles(m_iInletStart, iline, attr);
+				//AddSubParticles(m_iInletStart, count);
+				num += count;
+			}
+			attr++;
+		}
+
+		//追加：バグがあったので先生が修正
+		if(num){
+			SetArrayVBO(RX_POSITION, &m_hPos[DIM*start], start, num);
+			SetArrayVBO(RX_VELOCITY, &m_hVel[DIM*start], start, num);
+			SetArrayVBO(RX_ATTRIBUTE, &m_hAttr[DIM*start], start, num);
+		}
+	}
+
+	if(!m_uNumParticles) return false;
+
+	assert(m_bInitialized);
+
+	static bool init = true;
+
+	m_params.Dt = dt;
+	UpdateParams();
+
+	// GPU用変数にパーティクル数を設定
+	m_params.NumBodies = m_uNumParticles;
+	m_dCellData.uNumParticles = m_uNumParticles;
+
+	// パーティクル座標配列をマッピング
+	RXREAL *dPos, *dSubPos;
+	if(m_bUseOpenGL){
+		dPos = (RXREAL*)CuMapGLBufferObject(&m_pPosResource);
+		dSubPos = (RXREAL*)CuMapGLBufferObject(&m_pSubPosResource);
+	}
+	else{
+		dPos = (RXREAL*)m_dPos;
+		dSubPos = (RXREAL*)m_dSubPos;
+	}
+
+	//if(init){
+	//	InitBoundary();
+	//}
+
+	for(uint j = 0; j < m_solverIterations; ++j){
+		// 近傍探索高速化用グリッドデータの作成
+		// 分割セルのハッシュを計算
+		CuCalcHash(m_dCellData.dGridParticleHash, m_dCellData.dSortedIndex, dPos, m_dAttr, m_uNumParticles);
+
+		// ハッシュに基づきパーティクルをソート
+		CuSort(m_dCellData.dGridParticleHash, m_dCellData.dSortedIndex, m_uNumParticles);
+
+		// パーティクル配列をソートされた順番に並び替え，
+		// 各セルの始まりと終わりのインデックスを検索
+		CuReorderDataAndFindCellStart(m_dCellData, dPos, m_dVel);
+
+		//RXTIMER("cell construction");
+
+		// 密度計算
+		CuSphDensity(m_dDens, m_dPres, m_dCellData);
+
+#ifdef RX_USE_BOUNDARY_PARTICLE
+		// 境界パーティクルによる密度
+		CuSphBoundaryDensity(m_dDens, m_dPres, dPos, m_dVolB, m_dCellDataB, m_uNumParticles);
+#endif
+
+		if(m_bCalNormal){
+			// 法線計算
+			CuSphNormal(m_dNrm, m_dDens, m_dCellData);
+
+			m_hNrm = GetArrayVBO(RX_NORMAL);
+		}
+
+		// パーティクルにかかる力(外力，圧力，粘性拡散力など)を計算
+		CuSphForces(m_dDens, m_dPres, m_dFrc, m_dCellData, dt);
+
+#ifdef RX_USE_BOUNDARY_PARTICLE
+		// 境界パーティクルによる力
+		CuSphBoundaryForces(m_dDens, m_dPres, dPos, m_dVolB, m_dFrc, m_dCellDataB, m_uNumParticles);
+#endif
+
+//		RXTIMER("force calculation");
+
+		// パーティクルCWT
+		RXREAL scale = g_fWaveletScale*m_params.EffectiveRadius;
+		if(m_bUseWaveletTurb){
+			// パーティクルからのウェーブレット解析により乱流エネルギを計算
+			CalWaveletTurbulence(scale, dPos, dt);
+			//RXTIMER("wavelet turbulence");
+		}
+		else if(m_iColorType == RX_ENERGY_SPECTRUM){
+			// パーティクルからのウェーブレット解析により乱流エネルギを計算(描画用)
+			CalParticleCWT(scale);
+			RXTIMER("energy spectrum");
+		}
+
+		// 位置，速度の更新
+		if(m_iNumTris == 0){
 			//CuSphIntegrate(dPos, m_dVel, m_dFrc, m_dDens, m_dAttr, dt, m_uNumParticles);
 		}
 		else{	// ポリゴンによる固体境界有り

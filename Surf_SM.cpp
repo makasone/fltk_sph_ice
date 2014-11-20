@@ -2,13 +2,18 @@
 #include <Surf_SM.h>
 
 //------------------------------------------------初期化----------------------------------------------
+Surf_SM::Surf_SM(const float* pos, const float* vel, const vector<Ice_SM*>& iceSM, IceStructure* strct, int pthSize, int prtNum)
+{
+	InitPath(pos, vel, iceSM, strct, pthSize, prtNum);
+}
+
 /*!
  * prefixSumを計算するためのパス初期化
  * @param[in]
  * @param[in]
  * @param[in]
  */
-void Surf_SM::InitPath(const float* pos, const float* vel, const vector<Ice_SM*> iceSM, IceStructure* strct, int pthSize, int prtNum)
+void Surf_SM::InitPath(const float* pos, const float* vel, const vector<Ice_SM*>& iceSM, IceStructure* strct, int pthSize, int prtNum)
 {	cout << __FUNCTION__ << endl;
 
 	m_iceSM = iceSM;
@@ -51,7 +56,7 @@ void Surf_SM::InitPath(const float* pos, const float* vel, const vector<Ice_SM*>
 		m_mk2DiPRTtoPTH(i, 1) = i;
 	}
 
-	InitOrgPos(prtNum);							//初期位置
+	InitOrgPos(prtNum, iceSM);							//初期位置
 
 	//prefixSumを初期化
 	m_mk2Dvec3_PrfxPos.SetSize(pthNum, prtNum);	//位置
@@ -65,7 +70,7 @@ void Surf_SM::InitPath(const float* pos, const float* vel, const vector<Ice_SM*>
 	InitPathPrfxIndxSet(iceSM, strct);			//どのパスのどの部分が必要なのか，をクラスタごとに計算
 
 	InitOrgCm();								//初期重心
-	cout << "check6" << endl;
+	cout << "end" << endl;
 
 //デバッグ
 	//DebugPathDataPos();
@@ -177,13 +182,17 @@ void Surf_SM::InitPathGPU()
 
 
 //初期位置の初期化
-void Surf_SM::InitOrgPos(int prtNum)
+void Surf_SM::InitOrgPos(int prtNum, const vector<Ice_SM*>& iceSM)
 {
 	m_vvec3OrgPos.resize(prtNum);
 
 	for(int pIndx = 0; pIndx < prtNum; pIndx++)
 	{
-		m_vvec3OrgPos[pIndx] = Vec3(m_fPos[pIndx*4+0], m_fPos[pIndx*4+1], m_fPos[pIndx*4+2]);
+		//クラスタから粒子を探索して初期位置を登録
+		int cIndx = iceSM[pIndx]->SearchIndx(pIndx);
+		if(cIndx == MAXINT){	cout << __FUNCTION__ << " Error!" << endl;	}
+
+		m_vvec3OrgPos[pIndx] = iceSM[pIndx]->GetOrgPos(cIndx);
 	}
 }
 
@@ -194,9 +203,7 @@ void Surf_SM::InitOrgCm()
 
 	for(int iclstr = 0; iclstr < m_iPrtclNum; iclstr++)
 	{
-		Vec3 vec(0.0);
-		vec = CalcCmSum(iclstr);
-		m_vvec3OrgCm[iclstr] = vec;
+		m_vvec3OrgCm[iclstr] = CalcCmSum(iclstr);
 	}
 }
 
@@ -254,7 +261,7 @@ void Surf_SM::InitPathPrfxIndxSet(const vector<Ice_SM*> iceSM, IceStructure* str
 				unsigned kprtIndx = m_mk2DiPTHtoPRT(jpthIndx, kord);	//前の粒子
 				int ksearchIndx = iceSM[iclstr]->SearchIndx(kprtIndx);	//クラスタ内での順番を取得
 																		//iceSMから取得できそうだが，実はできないのに注意　探索しないといけない
-				if(ksearchIndx != -1)
+				if(ksearchIndx != MAXINT)
 				{
 					m_mk3DiPTHandPrfxSet(iclstr, isetIndx, 0) = kord;	//存在するなら始点を更新
 					searchFlag[ksearchIndx] = true;						//探索済みなのでフラグオン
@@ -271,7 +278,7 @@ void Surf_SM::InitPathPrfxIndxSet(const vector<Ice_SM*> iceSM, IceStructure* str
 				unsigned kprtIndx = m_mk2DiPTHtoPRT(jpthIndx, kord);	//次の粒子
 				int ksearchIndx = iceSM[iclstr]->SearchIndx(kprtIndx);	//クラスタ内での順番を取得
 
-				if(ksearchIndx != -1)
+				if(ksearchIndx != MAXINT)
 				{
 					m_mk3DiPTHandPrfxSet(iclstr, isetIndx, 1) = kord;	//存在するなら終点を更新
 					searchFlag[ksearchIndx] = true;						//探索済みなのでフラグオン
@@ -496,7 +503,7 @@ void Surf_SM::UpdatePrefixSumPos()
 			double mass = 1.0;		//とりあえず1.0で固定
 
 			m_mk2Dvec3_PrfxPos(indxX, indxY) = Vec3(m_fPos[pIndx+0], m_fPos[pIndx+1], m_fPos[pIndx+2]) * mass
-											+ Vec3(m_fVel[pIndx+0], m_fVel[pIndx+1], m_fVel[pIndx+2]) * 0.02
+											+ Vec3(m_fVel[pIndx+0], m_fVel[pIndx+1], m_fVel[pIndx+2]) * 0.01
 											+ preVec;
 
 			preVec = m_mk2Dvec3_PrfxPos(indxX, indxY);
@@ -562,7 +569,7 @@ void Surf_SM::UpdatePrefixSumApq()
 			double mass = 1.0;		//とりあえず1.0で固定
 
 			p = Vec3(m_fPos[pIndx+0], m_fPos[pIndx+1], m_fPos[pIndx+2])
-				+ Vec3(m_fVel[pIndx+0], m_fVel[pIndx+1], m_fVel[pIndx+2]) * 0.02;
+				+ Vec3(m_fVel[pIndx+0], m_fVel[pIndx+1], m_fVel[pIndx+2]) * 0.01;
 
 			q = m_vvec3OrgPos[pIndx/4];
 

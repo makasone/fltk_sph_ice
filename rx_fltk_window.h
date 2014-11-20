@@ -63,6 +63,19 @@ protected:
 	Fl_Check_Button *m_pCheckRefraction;
 	Fl_Check_Button *m_pCheckMesh;
 
+	//物性　Physical Property
+	Fl_Value_Slider *m_pSliderIntrPltn;
+
+	Fl_Check_Button *m_pCheckSpears;
+	Fl_Spinner* m_pSpinRadiusSpears;
+
+	Fl_Check_Button *m_pCheckWeight;
+
+	Fl_Check_Button *m_pCheckIteration;
+	Fl_Value_Slider *m_pSliderItr;
+
+	Fl_Check_Button *m_pCheckPath;
+
 	rxFlDndBox *m_pDndBox;		//!< D&D領域
 	Fl_Box *m_pBoxStatus;		//!< ステータスバー
 
@@ -109,9 +122,28 @@ public:
 	inline void OnSpinSimulation(Fl_Widget *widget);
 	static void OnSliderDraw_s(Fl_Widget *widget, void* x);
 	inline void OnSliderDraw(Fl_Widget *widget);
+
 	//追加
 	static void OnSliderParam_s(Fl_Widget *widget, void* x);
 	inline void OnSliderParam(Fl_Widget *widget);
+
+	static void OnCheckMode_Path_s(Fl_Widget *widget, void* x);
+	inline void OnCheckMode_Path(Fl_Widget *widget);
+
+	static void OnCheckMode_Spears_s(Fl_Widget *widget, void* x);
+	inline void OnCheckMode_Spears(Fl_Widget *widget);
+
+	static void OnSpinRadius_Spears_s(Fl_Widget *widget, void* x);
+	inline void OnSpinRadius_Spears(Fl_Widget *widget);
+
+	static void OnCheckMode_Weight_s(Fl_Widget *widget, void* x);
+	inline void OnCheckMode_Weight(Fl_Widget *widget);
+
+	static void OnCheckMode_Iteration_s(Fl_Widget *widget, void* x);
+	inline void OnCheckMode_Iteration(Fl_Widget *widget);
+
+	static void OnSliderItrNum_s(Fl_Widget *widget, void* x);
+	inline void OnSliderItrNum(Fl_Widget *widget);
 
 	static void OnCheckDraw_s(Fl_Widget *widget, void* x);
 	inline void OnCheckDraw(Fl_Widget *widget);

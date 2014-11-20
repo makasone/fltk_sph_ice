@@ -604,22 +604,13 @@ protected:
 	//追加：：粒子ベース：：クラスタ
 	void MakeCluster(int pIndx);
 	void MakeClusterFromNeight();
-	void MakeOneCluster();
-	void MakeClusterHigh();
 
 	void StepIceObj();
 	void StepIceStructure();
 	void StepHeatTransfer();
 
 	void StepClusterCPU(double dt);
-	void StepClusterIterationCPU(double dt);
 	void StepClusterGPU(double dt);
-	void StepClusterIterationGPU(double dt);
-
-	void StepClusterHigh(double dt);
-	void StepCalcParam(double dt);
-
-	void StepInterpolation(double dt);
 
 	//追加：：粒子ベース：：固体情報（クラスタ情報）
 	void MakeClusterInfo(int cIndx);

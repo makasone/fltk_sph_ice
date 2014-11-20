@@ -181,6 +181,7 @@ public:
 	void calExternalForcesIteration();
 
 	void CalcMass();
+	void CalcCm();
 
 	void integrate(double dt);
 	void integrateIteration();
@@ -214,6 +215,8 @@ public:
 
 	int GetLayer(int indx){	return m_ipLayeres[indx];	}
 	static int GetIteration(){	return s_iIterationNum;	}
+
+	unsigned GetIndxNum(){	return m_iIndxNum;	}
 
 	void Remove(int indx);
 	void Clear();

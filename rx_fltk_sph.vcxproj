@@ -238,8 +238,18 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="HeatTransfar.cpp" />
+    <ClCompile Include="Ice_CalcMethod_Iteration.cpp" />
+    <ClCompile Include="Ice_CalcMethod_Normal.cpp" />
+    <ClCompile Include="Ice_ClusterMove_FastPath.cpp" />
+    <ClCompile Include="Ice_ClusterMove_Normal.cpp" />
     <ClCompile Include="IceObject.cpp" />
     <ClCompile Include="IceStructure.cpp" />
+    <ClCompile Include="Ice_InterPolationJudge_Spears.cpp" />
+    <ClCompile Include="Ice_InterPolation_Normal.cpp" />
+    <ClCompile Include="Ice_InterPolationJudgeNormal.cpp" />
+    <ClCompile Include="Ice_InterPolation_Weight.cpp" />
+    <ClCompile Include="Ice_JudgeMove_Normal.cpp" />
+    <ClCompile Include="Ice_JudgeMove_Spears.cpp" />
     <ClCompile Include="Ice_SM.cpp" />
     <ClCompile Include="rx_fltk_glcanvas.cpp" />
     <ClCompile Include="rx_fltk_window.cpp" />
@@ -268,8 +278,23 @@
   <ItemGroup>
     <ClInclude Include="..\..\..\common\shared\inc\rx_timer.h" />
     <ClInclude Include="HeatTransfar.h" />
+    <ClInclude Include="Ice_CalcMethod.h" />
+    <ClInclude Include="Ice_CalcMethod_Iteration.h" />
+    <ClInclude Include="Ice_CalcMethod_Normal.h" />
+    <ClInclude Include="Ice_ClusterMove.h" />
+    <ClInclude Include="Ice_ClusterMove_FastPath.h" />
+    <ClInclude Include="Ice_ClusterMove_Normal.h" />
     <ClInclude Include="IceObject.h" />
     <ClInclude Include="IceStructure.h" />
+    <ClInclude Include="Ice_InterPolation.h" />
+    <ClInclude Include="Ice_InterPolationJudge.h" />
+    <ClInclude Include="Ice_InterPolationJudge_Normal.h" />
+    <ClInclude Include="Ice_InterPolationJudge_Spears.h" />
+    <ClInclude Include="Ice_InterPolation_Normal.h" />
+    <ClInclude Include="Ice_InterPolation_Weight.h" />
+    <ClInclude Include="Ice_JudgeMove.h" />
+    <ClInclude Include="Ice_JudgeMove_Normal.h" />
+    <ClInclude Include="Ice_JudgeMove_Spears.h" />
     <ClInclude Include="Ice_SM.h" />
     <ClInclude Include="mk_ArrayScript.h" />
     <ClInclude Include="QueryCounter.h" />
@@ -349,6 +374,7 @@
     <None Include="bin\sph_scene_8.cfg" />
     <None Include="bin\sph_scene_9.cfg" />
     <None Include="ClassDiagram1.cd" />
+    <None Include="ClassDiagram2.cd" />
     <None Include="Path_SM.cuh" />
     <None Include="rx_mc_kernel.cu">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>

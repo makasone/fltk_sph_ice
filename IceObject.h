@@ -11,8 +11,33 @@
 #include "IceStructure.h"
 #include "IceTetrahedra.h"
 #include "HeatTransfar.h"
+
+#include "Ice_CalcMethod.h"
+#include "Ice_CalcMethod_Normal.h"
+#include "Ice_CalcMethod_Iteration.h"
+
+#include "Ice_ClusterMove.h"
+#include "Ice_ClusterMove_Normal.h"
+#include "Ice_ClusterMove_FastPath.h"
+
+#include "Ice_JudgeMove.h"
+#include "Ice_JudgeMove_Normal.h"
+#include "Ice_JudgeMove_Spears.h"
+
+#include "Ice_InterPolation.h"
+#include "Ice_InterPolation_Normal.h"
+#include "Ice_InterPolation_Weight.h"
+
+#include "Ice_InterPolationJudge.h"
+#include "Ice_InterPolationJudge_Normal.h"
+#include "Ice_InterPolationJudge_Spears.h"
+
 #include "Surf_SM.h"
+
 #include "QueryCounter.h"
+
+#include <FL/Fl.H>
+#include <FL/Fl_Widget.H>
 
 #include <time.h>
 #include <cuda_runtime.h>
@@ -20,12 +45,11 @@
 
 using namespace std;
 
+//以下のマクロがrx_fltk_glcanvasに影響を及ぼしてはいけない
 //#define MK_USE_GPU
-//#define USE_PATH
 //#define USE_ITR
+//#define USE_PATH
 //#define USE_SELECTED
-
-#define SELECTED 2
 
 const int g_iterationNum = 1;
 
@@ -56,38 +80,83 @@ private:
 	IceStructure* m_iceStrct;
 
 	//固体運動計算クラス
-	vector<Ice_SM*> m_iceMove;
+	vector<Ice_SM*> m_iceSM;
 
 	//高速計算用クラス
-	//TODO::ポインタにしたら？
-	Surf_SM m_SurfSm;
+	Surf_SM* m_SurfSm;
+
+	//こんなにややこしくなるとは思わなかった
+	//計算手法
+	Ice_CalcMethod* m_iceCalcMethod;
+
+	//運動計算対象を判定するクラス
+	Ice_JudgeMove* m_iceJudeMove;
+
+	//運動計算方法を扱うクラス
+	Ice_ClusterMove* m_iceClsuterMove;
+
+	//最終統合結果に用いる対象を判定するクラス
+	Ice_InterPolationJudge* m_iceInterPolationJudge;
+
+	//最終統合結果を求めるクラス
+	Ice_InterPolation* m_iceInterPolation;
 
 	//熱処理
 	HeatTransfar* m_heatTransfer;
-
 	
-	static float* m_fInterPolationCoefficience;		//線形補間係数
+	//線形補間係数
+	static float* m_fInterPolationCoefficience;
 
 public:
 	IceObject(int pMaxNum, int cMaxNum, int tMaxNum, int prtNum, float* hp, float* hv, float* dp, float* dv, int layer, int maxParticleNum);
 	~IceObject();
 
+//Init
 	void InitIceObj(int pMaxNum, int cMaxNum, int tMaxNum);
 	void InitIceObjGPU();
 	void InitTetra();
 	void InitCluster(Vec3 boundarySpaceHigh, Vec3 boundarySpaceLow, float timeStep, int itr);
 	void InitStrct();
+	void InitMoveMethod();
+	void InitSelectCluster();
 	void InitPath();
 	void InitHeatTransfer(float effectiveRadius, float timeStep, float tempMax, float tempMin, float latentHeat, float cffcntHt, float cffcntTd);
 
 	static void InitInterPolation();
 	void InitGPU();
 
+//モード切替
+	//計算手法
+	void ChangeMode_CalcMethod_Normal();
+	void ChangeMode_CalcMethod_Iteration();
+
+	//運動計算時のクラスタ選択
+	void ChangeMode_JudgeMove_Normal();
+	void ChangeMode_JudgeMove_Spears();
+
+	//運動計算手法
+	void ChangeMode_ClusterMove_Normal();
+	void ChangeMode_ClusterMove_Path();
+
+	//補間時のクラスタ選択
+	void ChangeMode_IntrpJudge_Normal();
+	void ChangeMode_IntrpJudge_Spears();
+
+	//補間手法
+	void ChangeMode_InterPolation_Normal();
+	void ChangeMode_InterPolation_Weight();
+
+//アクセッサ
 	void SetSPHDevicePointer(float* pos, float* vel){	sd_sphPrtPos = pos; sd_sphPrtVel = vel;	}
 	void SetSPHHostPointer(float* pos, float* vel){		s_sphPrtPos = pos;	s_sphPrtVel = vel;	}
 	void SetSearchLayerNum(int layer){					sm_layerNum = layer;				}
 	void SetMaxParticleNum(int particleNum){			sm_maxParticleNum = particleNum;	}
 	void SetAirTemp(float temp){						m_heatTransfer->setAirTemp(temp);	}
+	void SetInterPolationCff(int indx, float intrpCff){	m_fInterPolationCoefficience[indx] = intrpCff;	}
+
+	static float* GetSPHHostPosPointer(){	return s_sphPrtPos;	}
+	static float* GetSPHHostVelPointer(){	return s_sphPrtVel;	}
+	static float GetInterPolationCff(int indx){	return m_fInterPolationCoefficience[indx];	}
 
 	void SetClusterMoveInfo(int pIndx);
 	void SetClusterStrctInfo(int cIndx, int *PtoCNum);
@@ -101,25 +170,31 @@ public:
 
 	float* GetTemps(){	return m_heatTransfer->getTemps();}
 
-	Ice_SM* GetMoveObj(int cIndx){	return m_iceMove[cIndx];	}
+	Ice_SM* GetMoveObj(int cIndx){	return m_iceSM[cIndx];	}
 
+//Step
 	void StepObjMoveCPU();									//運動計算
 	void StepObjMoveGPU();									//GPUによる運動計算
 
+	void StepObjMoveNormal();
+	void StepObjMoveSelected();
 	void StepObjMoveUsePath();								//高速化手法を用いた運動計算
+
+	void StepObjMoveGPUNormal();
 	void StepObjMoveGPUUsePath();
 
 	void StepObjMoveIteration();							//反復処理を用いた運動計算
 	void StepObjMoveIterationUsePath();						//高速化手法を用いた反復運動計算
 	void StepObjMoveIterationWeighted();					//重み付け＋反復処理
-
-	void StepObjMoveSelected();
+	void StepObjMoveIterationSelected();					//反復＋選択
 
 	void StepObjCalcWidhIteration();						//固体の運動計算，総和計算，補間処理　GPU処理　反復処理あり
 
-	void StepInterPolation();								//線形補間　いずれは処理が複雑になるのでクラスにしたい．
+	void StepInterPolationNormal();
 	void StepInterPolationForCluster();
 	void StepInterPolationForClusterWeighted();
+	void StepInterPolationSelectedForCluster();
+
 	void StepInterPolationSelected();
 	void StepWeightedInterPolation();
 	
@@ -145,8 +220,9 @@ public:
 
 	void UpdateUnSelectedCluster(int pIndx, const Vec3& pos, const Vec3& vel, const vector<Vec3>& prePos);
 
-
-
+	short unsigned GetMotionCalcClsuter(unsigned cIndx){	return m_iceStrct->GetMotionCalcCluster(cIndx);	}
+	void UpdateSelectCluster();
+	void ResetSelectCluster();
 
 	//デバッグ
 	void DebugTetraInfo();
@@ -154,6 +230,8 @@ public:
 	void DebugObjMoveUsePathWithGPU();
 	void DebugDeformationAmount();
 	void DebugDeformationAverage();
+	void DebugUpdateSelectCluster();
+	void DebugNowMoveMethod();
 
 	//テスト
 	void TestStepInterPolation();

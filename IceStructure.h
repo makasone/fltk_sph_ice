@@ -20,6 +20,7 @@
 
 #include <UtilityScript\mk_Vector2D.h>
 #include <UtilityScript\mk_Vector3D.h>
+#include "QueryCounter.h"
 
 #include <IceTetrahedra.h>
 
@@ -159,6 +160,11 @@ public:	//TODO: 全てpublicにしない
 	//判定
 	int  CheckNeighborTetra(int tIndx, int checkTIndx);
 
+	//選択的運動計算
+	void UpdateMotionCalcCluster(unsigned cIndx, short unsigned num);
+
+	short unsigned GetMotionCalcCluster(unsigned cIndx);
+
 	//デバッグ
 	void DebugPtoT(int pIndx);
 	void DebugPtoC(int pIndx);
@@ -166,6 +172,9 @@ public:	//TODO: 全てpublicにしない
 	void DebugTtoP(int tIndx);
 	void DebugNeighborTetra(int tIndx);
 	void DebugStepObjMelt(vector<unsigned>& pList, vector<unsigned>& cList);
+
+//テスト
+	void TestStepObjMelt(vector<unsigned>& pList, vector<unsigned>& cList, vector<unsigned>& tList, vector<unsigned>& cLayerList, vector<unsigned>& tLayerList);
 
 	//フラグ　未使用
 	void SetPFlag(int indx, bool state){	m_pbPFlag[indx] = state;	}
@@ -241,6 +250,9 @@ protected:
 	mk_Vector3D<int> m_mk3DiNeighborTetra;		//近傍四面体
 
 	int*   m_piNTNum;							//各近傍四面体の個数
+
+	short unsigned* m_psuSelectClusterIndx;		//運動計算する粒子のフラグ　運動計算するなら1，しないなら0
+												//本当はboolでいいが，今後のことも考えてshort unsignedにしておいた
 
 //--------------------------------------GPU__------------------------------------------------------------
 	//粒子→

@@ -54,7 +54,7 @@ rxShapeMatching::rxShapeMatching(int obj)
 	m_pMass = new float[MAXPARTICLE];
 	m_pFix = new bool[MAXPARTICLE];
 
-	m_iPIndxes = new int[MAXPARTICLE];
+	m_iPIndxes.resize(MAXPARTICLE);
 
 	Clear();
 }
@@ -106,7 +106,7 @@ void rxShapeMatching::Clear()
 		m_pMass[i] = 0.0;
 		m_pFix[i] = false;
 
-		m_iPIndxes[i] = -1;
+		m_iPIndxes[i] = MAXINT;
 	}
 }
 
@@ -131,6 +131,10 @@ void rxShapeMatching::AddVertex(const Vec3 &pos, double mass, int pIndx)
 	m_pMass[m_iNumVertices] = mass;
 
 	m_iPIndxes[m_iNumVertices] = pIndx;
+	//if(m_iPIndxes.size() >= 2)
+	//{
+	//	sort(m_iPIndxes.begin(), m_iPIndxes.end());	//É\Å[Ég
+	//}
 
 	m_iNumVertices++;
 

@@ -1118,17 +1118,12 @@ void rxFlGLWindow::Idle(void)
 	//
 	else if(m_bMode == MODE_ICE)
 	{
-		StepTimeEvent();			RXTIMER("StepTimeEvent");		//タイムイベント
+		//StepTimeEvent();			RXTIMER("StepTimeEvent");		//タイムイベント
 
-		//StepPS(m_fDt);				RXTIMER("StepPS");				//液体運動
+		StepPS(m_fDt);				RXTIMER("StepPS");				//液体運動
 		StepIceObj();												//固体運動
-		//StepHeatTransfer();			RXTIMER("StepHt");				//熱処理
-		StepIceStructure();											//相変化
-
-		//StepSolid_Melt(m_fDt);	RXTIMER("StepMelt");			//融解処理
-		//StepSolid_Freeze(m_fDt);	RXTIMER("StepFreeze");			//凝固処理
-		//StepCalcParam(m_fDt);										//温度による線形補間係数決定　中間状態あり
-		//StepClusterHigh(m_fDt);
+		StepHeatTransfer();			RXTIMER("StepHeatTransfer");	//熱処理
+		StepIceStructure();			RXTIMER("StepIceStructure");	//相変化
 	}
 
 	//
@@ -1714,28 +1709,17 @@ void rxFlGLWindow::OnMenuParticleColor(double val, string label)
 		{
 			cout << "                  i = " << i << " pIndx = " << m_iceObj->GetTtoP(m_iShowTetraIndx, i) << endl;
 		}
-
-		StepParticleColor();
 	}
-	//追加
+	//クラスタ
 	else if(label.find("Ice_Calc") != string::npos)
 	{
 		((RXSPH*)m_pPS)->DetectSurfaceParticles();
 		SetParticleColorType(rxParticleSystemBase::RX_ICE_CALC);
 		m_iColorType = rxParticleSystemBase::RX_ICE_CALC;
-		//
-		//　追加：クラスタの表示切り替え
-		//四面体ベース版
+
 		m_iShowClusterIndx++;
 
-		if( m_iShowClusterIndx > m_iClusteresNum )
-		{
-			m_iShowClusterIndx = 0;
-		}
-		else if( m_iShowClusterIndx < 0 )
-		{
-			m_iShowClusterIndx = 0;
-		}
+		if(m_iShowClusterIndx > m_iClusteresNum || m_iShowClusterIndx < 0){	m_iShowClusterIndx = 0;	}
 
 		cout << "ClusterCountUp :: m_iShowClusterIndx = " << m_iShowClusterIndx << "/" << m_iClusteresNum << endl;
 
@@ -1744,10 +1728,27 @@ void rxFlGLWindow::OnMenuParticleColor(double val, string label)
 			cout << "Cluster :: Indxes :: " << endl;
 			for( int i = 0; i < m_iceObj->GetMoveObj(m_iShowClusterIndx)->GetNumVertices(); i++ )
 			{
-				cout << "                  i = " << i << " pIndx = " << m_iceObj->GetMoveObj(m_iShowClusterIndx)->GetParticleIndx(i);
+				cout << "	i = " << i 
+					<< " pIndx = "<< m_iceObj->GetMoveObj(m_iShowClusterIndx)->GetParticleIndx(i)
+					<< " layer = " << m_iceObj->GetMoveObj(m_iShowClusterIndx)->GetLayer(i);
 				cout << endl;
 			}
 		}
+
+		////PtoCのデータ
+		//cout << "PtoC:" << endl;
+		//for(int i = 0; i < m_iceObj->GetPtoCIndx(m_iShowClusterIndx); i++)
+		//{
+		//	int cIndx = m_iceObj->GetPtoC(m_iShowClusterIndx, i, 0);
+		//	int oIndx = m_iceObj->GetPtoC(m_iShowClusterIndx, i, 1);
+
+		//	cout << "i = " << i << ", ";
+		//	cout << "cIndx = " << cIndx << ", ";
+		//	cout << "oIndx = " << oIndx << endl;
+		//}
+
+		//CtoPのデータ
+
 
 		StepParticleColor();
 	}
@@ -1773,12 +1774,25 @@ void rxFlGLWindow::OnMenuParticleColor(double val, string label)
 		((RXSPH*)m_pPS)->DetectSurfaceParticles();
 		SetParticleColorType(rxParticleSystemBase::RX_SURFACE);
 	}
-	//追加　高階層クラスタ
+	//追加　選択的運動計算
 	else if(label.find("SELECTED") != string::npos)
 	{
 		((RXSPH*)m_pPS)->DetectSurfaceParticles();
 		SetParticleColorType(rxParticleSystemBase::RX_ICE_SELECTED);
 		m_iColorType = rxParticleSystemBase::RX_ICE_SELECTED;
+
+		int selectNum = 0;
+
+		cout << "selectClusters:" << endl;
+		for(int cIndx = 0; cIndx < m_pPS->GetNumParticles(); cIndx++)
+		{
+			if(m_iceObj->GetMotionCalcClsuter(cIndx) == 0){	continue;	}
+			cout << "	cIndx = " << cIndx << " , " << m_iceObj->GetMotionCalcClsuter(cIndx) << endl;
+			selectNum++;
+		}
+
+		cout << "selectNum = " << selectNum << endl;
+
 		StepParticleColor();
 	}
 	else if(label.find("DEFORMATION") != string::npos)
@@ -2474,6 +2488,7 @@ void rxFlGLWindow::StepPS(double dt)
 
 		// シミュレーションステップを進める
 		m_pPS->Update((RXREAL)dt, m_iCurrentStep);
+		//m_pPS->UpdateWithoutPosAndVel((RXREAL)dt, m_iCurrentStep);
 
 		//追加：粒子数をチェックして，各情報を更新
 		UpdateInfo();
@@ -2632,7 +2647,6 @@ void rxFlGLWindow::InitIceObj(void)
 		m_iMaxClusterNum
 	);					
 
-	m_iceObj->InitTetra();										//四面体の初期化
 	m_iceObj->InitCluster(
 		sph_env.boundary_ext,
 		-sph_env.boundary_ext,
@@ -2653,15 +2667,8 @@ void rxFlGLWindow::InitIceObj(void)
 		sph_env.cffcntTd
 	);
 
-#ifdef USE_PATH
-	m_iceObj->InitPath();										//高速な運動計算のためのパスを準備
-#endif
-
-	IceObject::InitInterPolation();								//線形補間の初期化
-
-#ifdef MK_USE_GPU
-	m_iceObj->InitGPU();										//構造の情報が完成したらGPUを初期化
-#endif
+	//運動計算部分の初期化
+	m_iceObj->InitMoveMethod();
 
 	m_iClusteresNum = m_iceObj->GetClusterNum();
 	m_iShowClusterIndx = m_iClusteresNum;
@@ -2691,9 +2698,9 @@ void rxFlGLWindow::StepTimeEvent(void)
 	//}
 
 	////特定の番号の粒子が融解
-	//if(g_iTimeCount == 100)
+	//if(g_iTimeCount == 50)
 	//{
-	//	for(int i = 0; i < 2500; i++)
+	//	for(int i = 0; i < 1; i++)
 	//	{
 	//		int pIndx = i;
 	//		m_iceObj->MeltParticle(pIndx);
@@ -2704,19 +2711,16 @@ void rxFlGLWindow::StepTimeEvent(void)
 	//if(200 <= g_iTimeCount && g_iTimeCount <= 300)
 	//{		
 	//	//特定領域の粒子を融解　真ん中から真っ二つ
-	//	int SIDE = 17;
+	//	int SIDE = pow(m_iIcePrtNum, 1.0/3.0) + 0.5;	//立方体の１辺の頂点数
+	//	int rine = 2;
 
-	//	for(int i = SIDE*SIDE*(SIDE/2); i < SIDE*SIDE*(SIDE/2+1); i++)	//一列
-	//	//for(int i = SIDE*SIDE*(SIDE/2 -1); i < SIDE*SIDE*(SIDE/2+2); i++)	//三列
+	//	int first = SIDE*SIDE*(SIDE/2 - (rine-1) );
+	//	int end = SIDE*SIDE*(SIDE/2 + rine);
+
+	//	for(int i = first; i < end; i++)	//rine列
 	//	{
-	//		int pIndx = i;
-	//		m_iceObj->MeltParticle(pIndx);
+	//		m_iceObj->MeltParticle(i);
 	//	}
-	//}
-
-	//if(g_iTimeCount == 1)
-	//{
-	//	StepPS(m_fDt);
 	//}
 }
 
@@ -2937,61 +2941,13 @@ void rxFlGLWindow::MakeClusterFromNeight()
 	//}
 }
 
-/*
- *	一つのクラスタでの計算テスト
- * IceObject.cppの追加に合わせて修正
- */
-void rxFlGLWindow::MakeOneCluster()
-{	cout << __FUNCTION__ << endl;
-
-	//RXREAL *p = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
-	//rxSPHEnviroment sph_env = m_Scene.GetSphEnv();								// Shape Matchingの設定　パラメータ読み込み
-
-	////クラスタ初期化
-	//m_sm_cluster.push_back(new Ice_SM(m_iClusteresNum));
-	//m_sm_cluster[m_iClusteresNum]->SetSimulationSpace(-sph_env.boundary_ext, sph_env.boundary_ext);
-	//m_sm_cluster[m_iClusteresNum]->SetTimeStep(sph_env.smTimeStep);
-	//m_sm_cluster[m_iClusteresNum]->SetCollisionFunc(0);
-	//m_sm_cluster[m_iClusteresNum]->SetStiffness(1.0, 0.0);
-
-	////すべての粒子を１つのクラスタに追加
-	//for(int id_np = 0; id_np < m_iIcePrtNum; id_np++)
-	//{
-	//	int np_pIndx = id_np;
-	//	int pNum = m_sm_cluster[m_iClusteresNum]->GetNumVertices();
-
-	//	m_sm_cluster[m_iClusteresNum]->AddVertex( Vec3(p[np_pIndx*4+0], p[np_pIndx*4+1], p[np_pIndx*4+2] ), 1.0, np_pIndx);
-	//	m_sm_cluster[m_iClusteresNum]->SetAlphas(pNum, 1.0);
-	//	m_sm_cluster[m_iClusteresNum]->SetBetas (pNum, 0.0);
-	//	m_sm_cluster[m_iClusteresNum]->SetLayer (pNum, 0);
-	//}
-
-	//m_iClusteresNum++;
-}
-
 //相変化オブジェクトの運動計算
 void rxFlGLWindow::StepIceObj()
 {
 #if defined(MK_USE_GPU)		//GPU使用
-	#if defined(USE_ITR)	/*反復有　未完成*/
-		//StepClusterIterationGPU(m_fDt);	RXTIMER("StepClusterIterationGPU");	//反復処理を用いたクラスタの運動計算
-	
-	#else					/*反復無*/
-		StepClusterGPU(m_fDt);				RXTIMER("StepClusterGPU");			//クラスタの計算
-	
-	#endif
-
+	StepClusterGPU(m_fDt);				RXTIMER("StepClusterGPU");
 #else						//CPUのみ
-	#if defined(USE_ITR)	/*反復有*/
-		StepClusterIterationCPU(m_fDt);		RXTIMER("StepClusterCPUIteration");	//反復処理を用いたクラスタの運動計算
-	
-	#else					/*反復無*/
-		StepClusterCPU(m_fDt);				RXTIMER("StepClusterCPU");			//クラスタの運動計算
-	
-	#endif
-
-		//CPU版で共通の処理
-		StepInterpolation(m_fDt);			RXTIMER("StepInterpolation");		//液体と固体の運動を線形補間
+	StepClusterCPU(m_fDt);				RXTIMER("StepClusterCPU");			//クラスタの運動計算
 #endif
 }
 
@@ -3006,7 +2962,7 @@ void rxFlGLWindow::StepHeatTransfer()
 	int* surfaceParticles = (int *)( ((RXSPH*)m_pPS)->GetArraySurf() );		//表面粒子
 	vector<vector<rxNeigh>>& neights = ((RXSPH*)m_pPS)->GetNeights();
 
-	float floor = -m_Scene.GetSphEnv().boundary_ext[2];		//TODO::なんかうまくいってない
+	float floor = -m_Scene.GetSphEnv().boundary_ext[2];
 	float radius = ((RXSPH*)m_pPS)->GetEffectiveRadius();
 
 	m_iceObj->StepHeatTransfer(surfaceParticles, neights, floor, radius, p, d);
@@ -3019,42 +2975,6 @@ void rxFlGLWindow::StepIceStructure()
 	m_iceObj->StepIceStructure();
 }
 
-
-/*!
- * ShapeMatching法のタイムステップを進める
- * @param[in] dt タイムステップ幅
- */
-void rxFlGLWindow::StepCalcParam(double dt)
-{
-	if(m_bPause) return;
-
-	//熱処理により変動した温度を,各パラメータに適用
-//	for( int i = 0; i < m_pPS->GetNumParticles(); i++ )
-//	{
-//		if( m_fIntrps.size() <= (unsigned)i )							continue;			//存在しない場合は飛ばす
-//		if( m_ht->getPhase(i) == 2 || m_ht->getPhase(i) == -2 )			continue;			//中間状態出ない場合は戻る
-//
-//		for( int j = 0; j < m_ice->GetPtoCIndx_Connect(i); j++ )
-//		{
-//			int* coSet = m_ice->GetPtoC_Connect(i, j);
-//			int cIndx = coSet[0];
-//			int oIndx = coSet[1];
-//			if(cIndx == -1 || oIndx == -1) continue;
-//			
-//			//温度は０～５００度　２５０で氷
-////			m_sm_connects[cIndx]-SetAlphas( oIndx, 1.0 - (m_ht->getTemps()[i] / m_ht->getTempMax()) );		//alpha（剛性）　温度版
-//			m_sm_connects[cIndx]->SetAlphas( oIndx, 1.0 - (m_ht->getHeats()[i]/m_ht->getLatentHeat()) );	//alpha（剛性）　熱量版
-//
-//			//値域の制限
-//			if( m_sm_connects[cIndx]->GetAlphas(oIndx) > 1.0 )
-//				m_sm_connects[cIndx]->SetAlphas( oIndx, 1.0 );
-//
-//			if( m_sm_connects[cIndx]->GetAlphas(oIndx) < 0.0 ) 
-//				m_sm_connects[cIndx]->SetAlphas( oIndx, 0.0 );
-//		}
-//	}
-}
-
 /*!
  * ShapeMatching法のタイムステップを進める　CPU
  * @param[in] dt タイムステップ幅
@@ -3063,39 +2983,17 @@ void rxFlGLWindow::StepClusterCPU(double dt)
 {//	cout << __FUNCTION__ << endl;
 
 	//デバイスのデータをホストへコピー
-	m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
-	m_pPS->GetArrayVBO(rxParticleSystemBase::RX_VELOCITY);
+	RXREAL *p = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
+	RXREAL *v = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_VELOCITY);
+	
+	m_iceObj->SetSPHHostPointer(p, v);
 
-#ifdef USE_PATH
-	m_iceObj->StepObjMoveUsePath();		//高速化手法を用いた
-#else
+	//固体の運動計算
+	m_iceObj->StepObjMoveCPU();				
 
-	#ifdef USE_SELECTED
-		m_iceObj->StepObjMoveSelected();		//選択的
-	#else
-		m_iceObj->StepObjMoveCPU();				//いつものSM法
-	#endif
-
-#endif
-
-}
-
-/*!
- * ShapeMatching法のタイムステップを進める　反復処理
- * @param[in] dt タイムステップ幅
- */
-void rxFlGLWindow::StepClusterIterationCPU(double dt)
-{
-	//GPUのデータをCPUにコピー
-	m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
-	m_pPS->GetArrayVBO(rxParticleSystemBase::RX_VELOCITY);
-
-#ifdef USE_PATH
-	m_iceObj->StepObjMoveIterationUsePath();	//高速化手法を用いた場合
-#else
-	m_iceObj->StepObjMoveIteration();			//高速化手法を用いない場合
-	//m_iceObj->StepObjMoveIterationWeighted();	//重み付け＋反復
-#endif
+	//SPHのデータの更新　位置・速度
+	m_pPS->SetArrayVBO(rxParticleSystemBase::RX_POSITION, p, 0, m_pPS->GetNumParticles());
+	m_pPS->SetArrayVBO(rxParticleSystemBase::RX_VELOCITY, v, 0, m_pPS->GetNumParticles());
 }
 
 /*!
@@ -3115,166 +3013,11 @@ void rxFlGLWindow::StepClusterGPU(double dt)
 	//マップしたポインタを渡す
 	m_iceObj->SetSPHDevicePointer(dvbo_pos, ((RXSPH*)m_pPS)->GetDevicePointer_Vel());
 
-#ifdef USE_PATH
-
-	m_iceObj->StepObjMoveGPUUsePath();	//RXTIMER("StepObjMoveGPUUsePath");	//
-
-#else
-
-	m_iceObj->StepObjMoveGPU();			RXTIMER("StepObjMoveGPU");			//クラスタの運動計算
-
-#endif
-
-	m_iceObj->StepInterPolation();		RXTIMER("StepInterpolation");		//総和計算，線形補間
+	//運動計算
+	m_iceObj->StepObjMoveGPU();
 
 	//位置情報をアンマップ
 	cudaGraphicsUnmapResources(1, &d_resource_pos, 0);
-}
-
-/*!
- * ShapeMatching法のタイムステップを進める　反復処理　GPU
- * @param[in] dt タイムステップ幅
- */
-void rxFlGLWindow::StepClusterIterationGPU(double dt)
-{
-//GPUで並列処理
-	//位置情報はVBOを使っているので，マップしないといけない
-	//頂点バッファオブジェクトをマップ
-	float* dvbo_pos = ((RXSPH*)m_pPS)->GetDevicePointer_Pos();
-	cudaGraphicsResource* d_resource_pos = ((RXSPH*)m_pPS)->GetDevicePointer_PosVBO();
-
-	cudaGraphicsMapResources(1, &d_resource_pos, 0);
-	cudaGraphicsResourceGetMappedPointer((void**)&dvbo_pos, NULL, d_resource_pos);
-	
-	//GPUを用いたクラスタの運動計算
-	Ice_SM::SetDevicePosPointer(dvbo_pos);	//マップしたポインタを渡す
-	m_iceObj->StepObjCalcWidhIteration();
-
-	//位置情報をアンマップ
-	cudaGraphicsUnmapResources(1, &d_resource_pos, 0);
-}
-
-/*!
- * ShapeMatching法のタイムステップを進める　階層構造
- * @param[in] dt タイムステップ幅
- */
-void rxFlGLWindow::StepClusterHigh(double dt)
-{
-	RXREAL *p = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
-	RXREAL *v = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_VELOCITY);
-
-/*
-	//上位階層の運動
-	for(int i = 0; i < HIGHNUM; i++)
-	{
-		m_sm_clusterHigh[i]->Update();
-	}
-
-	//上位階層の重心移動距離を階層の粒子にフィードバック
-	//for(int i = 0; i < HIGHNUM; i++)
-	//{
-	//	//cout << "i = " << i << " Disvec = " << m_sm_clusterHigh[i]->GetDisVec() << endl;
-	//	for(int j = 0, n = m_sm_clusterHigh[i]->GetNumVertices(); j < n; j++)
-	//	{
-	//		int jpIndx = m_sm_clusterHigh[i]->GetParticleIndx(j) * 4;
-	//		Vec3 jVec = m_sm_clusterHigh[i]->GetDisVec();
-	//		p[jpIndx+0] += jVec[0];
-	//		p[jpIndx+1] += jVec[1];
-	//		p[jpIndx+2] += jVec[2];
-	//	}
-	//}
-
-	vector<int> counter;
-	counter.resize(ICENUM);
-	for (std::vector<int>::iterator it=counter.begin(); it!=counter.end(); ++it)
-	{
-		*it = 1;
-	}
-
-	//counter.assign(ICENUM);
-
-	for(int i = 0; i < HIGHNUM; i++)
-	{
-		//cout << "i = " << i << " Disvec = " << m_sm_clusterHigh[i]->GetDisVec() << endl;
-		for(int j = 0, n = m_sm_clusterHigh[i]->GetNumVertices(); j < n; j++)
-		{
-			int jpIndx = m_sm_clusterHigh[i]->GetParticleIndx(j) * 4;
-
-			Vec3 jPos = m_sm_clusterHigh[i]->GetVertexPos(j);
-			Vec3 jVel = m_sm_clusterHigh[i]->GetVertexVel(j);
-
-			p[jpIndx+0] += jPos[0];
-			p[jpIndx+1] += jPos[1];
-			p[jpIndx+2] += jPos[2];
-
-			v[jpIndx+0] += jVel[0];
-			v[jpIndx+1] += jVel[1];
-			v[jpIndx+2] += jVel[2];
-
-			counter[jpIndx/4]++;
-		}
-	}
-
-	for(int i = 0; i < ICENUM; i++)
-	{
-		if(counter[i] == 0){	cout << "i = " << i << " continue;" << endl;	continue;	}
-
-		p[i*4+0] /= counter[i];
-		p[i*4+1] /= counter[i];
-		p[i*4+2] /= counter[i];
-
-		v[i*4+0] /= counter[i];
-		v[i*4+1] /= counter[i];
-		v[i*4+2] /= counter[i];
-	}
-*/
-
-	//m_sm_clusterHigh[0]->Update();
-
-	////上位階層の重心移動距離を階層の粒子にフィードバック
-	//for(int i = 0; i < 1; i++)
-	//{
-	//	//cout << "i = " << i << " Disvec = " << m_sm_clusterHigh[i]->GetDisVec() << endl;
-	//	for(int j = 0, n = m_sm_clusterHigh[i]->GetNumVertices(); j < n; j++)
-	//	{
-	//		int jpIndx = m_sm_clusterHigh[i]->GetParticleIndx(j) * 4;
-	//		Vec3 jVec = m_sm_clusterHigh[i]->GetDisVec();
-	//		p[jpIndx+0] += jVec[0];
-	//		p[jpIndx+1] += jVec[1];
-	//		p[jpIndx+2] += jVec[2];
-	//	}
-	//}
-
-
-	//SPHのデータの更新　位置・速度
-	m_pPS->SetArrayVBO(rxParticleSystemBase::RX_POSITION, p, 0, m_pPS->GetNumParticles());
-	m_pPS->SetArrayVBO(rxParticleSystemBase::RX_VELOCITY, v, 0, m_pPS->GetNumParticles());
-}
-
-/*
- * 液体運動と固体運動の線形補間と反映
- */
-void rxFlGLWindow::StepInterpolation(double dt)
-{
-	if(m_bPause){	return;}
-	
-	RXREAL *p = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);
-	RXREAL *v = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_VELOCITY);
-	
-	m_iceObj->SetSPHHostPointer(p, v);
-
-#ifdef USE_SELECTED
-	m_iceObj->StepInterPolationSelected();
-#else
-	m_iceObj->StepInterPolation();				//総和計算，線形補間
-#endif
-
-	//m_iceObj->StepWeightedInterPolation();
-
-
-	//SPHのデータの更新　位置・速度
-	m_pPS->SetArrayVBO(rxParticleSystemBase::RX_POSITION, p, 0, m_pPS->GetNumParticles());
-	m_pPS->SetArrayVBO(rxParticleSystemBase::RX_VELOCITY, v, 0, m_pPS->GetNumParticles());
 }
 
 //------------------------------------------------------------------------------------------------------------
@@ -3284,6 +3027,7 @@ void rxFlGLWindow::StepInterpolation(double dt)
  * クラスタに含まれている情報の登録
  * @param[in] tNum クラスタ番号
  */
+//バグだらけのコードだった
 void rxFlGLWindow::MakeClusterInfo(int cIndx)
 {	//cout << __FUNCTION__ << " start cIndx = " << cIndx << endl;
 	//カウント
@@ -4053,9 +3797,12 @@ void rxFlGLWindow::StepParticleColor()
 			//クラスタ全体を表示
 			for(int i = 0; i < m_iClusteresNum; i++)
 			{
-				for( int j = 0; j < m_iceObj->GetMoveObj(i)->GetNumVertices(); j++ )
+				for( int j = 0; j < m_iceObj->GetMoveObj(i)->GetIndxNum(); j++ )
 				{
 					int jpIndx = m_iceObj->GetMoveObj(i)->GetParticleIndx(j);
+
+					if(jpIndx == MAXINT){	continue;	}
+
 					tempColor[jpIndx] = 700.0f;
 				}
 			}
@@ -4063,9 +3810,12 @@ void rxFlGLWindow::StepParticleColor()
 		else
 		{	
 			//１つのクラスタのみを表示
-			for( int j = 0; j < m_iceObj->GetMoveObj(m_iShowClusterIndx)->GetNumVertices(); j++ )
+			for( int j = 0; j < m_iceObj->GetMoveObj(m_iShowClusterIndx)->GetIndxNum(); j++ )
 			{
 				int jpIndx = m_iceObj->GetMoveObj(m_iShowClusterIndx)->GetParticleIndx(j);
+
+				if(jpIndx == MAXINT){	continue;	}
+
 
 				//クラスタと対になる粒子の色は変える
 				if(m_iShowClusterIndx == jpIndx)
@@ -4095,7 +3845,7 @@ void rxFlGLWindow::StepParticleColor()
 		for( int i = 0; i < m_pPS->GetNumParticles(); i++ )
 		{
 			//適当に，奇数番だけを運動計算してみる
-			if(i%SELECTED == 1)
+			if(m_iceObj->GetMotionCalcClsuter(i) != 0)
 			{
 				tempColor[i] = 1000.0f;
 			}

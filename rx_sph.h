@@ -604,6 +604,7 @@ public:
 
 	// シミュレーションステップ
 	virtual bool Update(RXREAL dt, int step = 0);
+	virtual bool UpdateWithoutPosAndVel(RXREAL dt, int step = 0);
 
 	// シーンの設定
 	virtual void SetPolygonObstacle(const vector<Vec3> &vrts, const vector<Vec3> &nrms, const vector< vector<int> > &tris, Vec3 vel);

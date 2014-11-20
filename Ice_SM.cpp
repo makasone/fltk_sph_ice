@@ -296,20 +296,7 @@ void Ice_SM::AddVertex(const Vec3 &pos, double mass, int pIndx)
 	//m_iVolumeConservation.push_back(0);
 
 	//重心の更新
-	double massSum = 0.0;	// 総質量
-	m_vec3OrgCm = Vec3(0.0);
-
-	// 重心座標の計算
-	for(int i = 0; i < m_iIndxNum;++i)
-	{
-		if( CheckHole(i) ){	continue;	}
-
-		double m = m_pMass[i];
-		//if(m_pFix[i]) m *= 300.0;	// 固定点の質量を大きくする
-		massSum += m;
-		m_vec3OrgCm += Vec3(m_pOrgPos[i*SM_DIM+0], m_pOrgPos[i*SM_DIM+1], m_pOrgPos[i*SM_DIM+2]) * m;
-	}
-	m_vec3OrgCm /= massSum;
+	CalcCm();
 
 	//変形行列Aqqの更新
 	Vec3 p, q;
@@ -354,14 +341,12 @@ void Ice_SM::Remove(int indx)
 	if(m_iNumVertices <= 0) return;
 	m_iNumVertices--;
 
-	m_iPIndxes[indx] = -1;
+	m_iPIndxes[indx] = MAXINT;
 
 	for(int i = 0; i < SM_DIM; i++)
 	{
 		m_pOrgPos[indx*SM_DIM+i] = 0.0;
 		m_pCurPos[indx*SM_DIM+i] = 0.0;
-		//m_pNewPos[indx*SM_DIM+i] = 0.0;
-		//m_pGoalPos[indx*SM_DIM+i] = 0.0;
 		m_pVel[indx*SM_DIM+i] = 0.0;
 	}
 
@@ -415,19 +400,36 @@ bool Ice_SM::CheckIndx(int pIndx)
 
 int	Ice_SM::SearchIndx(int pIndx)
 {
-	//vector<int>::iterator check = find( m_iPIndxes.begin(), m_iPIndxes.end(), pIndx);
-	//if( check == m_iPIndxes.end() )	return -1;
-	//return m_iPIndxes.size() - (m_iPIndxes.end() - check);
+	////vector findバージョン　めちゃくちゃ重い
+	//vector<int>::iterator begin = m_iPIndxes.begin();
+	//vector<int>::iterator end = m_iPIndxes.end();
+	//vector<int>::iterator check = find(begin, end, pIndx);
 
+	//if(check == end)	return MAXINT;
+	//return m_iPIndxes.size() - (end - check);
+
+	////vector binary_searchバージョン
+	//ソートできないのでだめ
+	//vector<int>::iterator begin = m_iPIndxes.begin();
+	//vector<int>::iterator end = m_iPIndxes.end();
+
+	//if(!binary_search(begin, end, pIndx)) return MAXINT;
+	//return *( std::lower_bound(begin, end, pIndx) );
+
+	//配列バージョン
 	for(int i = 0; i < m_iIndxNum; i++)
 	{
-		if(m_iPIndxes[i] == pIndx)
-		{
-			return i;
-		}
+		if(m_iPIndxes[i] == pIndx){	return i;	}
 	}
 
-	return -1;
+	return MAXINT;
+
+	////配列＋algorizm 以下の方法ではできない
+	//int* last = m_iPIndxes + (int)m_iIndxNum;
+	//int* result = find(m_iPIndxes, last, pIndx);
+
+	//if(last == result) return MAXINT;
+	//return *result;
 }
 
 /*
@@ -435,7 +437,7 @@ int	Ice_SM::SearchIndx(int pIndx)
  */
 bool Ice_SM::CheckHole(int oIndx)
 {
-	return (m_iPIndxes[oIndx] == -1);
+	return (m_iPIndxes[oIndx] == MAXINT);
 }
 
 /*!
@@ -452,7 +454,7 @@ void Ice_SM::ShapeMatchingUsePath()
 
 	// 重心座標の計算
 	for(int i = 0; i < m_iIndxNum; ++i){
-		//if( CheckHole(i) ){	continue;	}
+		if( CheckHole(i) ){	continue;	}
 		//if(m_pFix[i]){	mass += m_pMass[i]*300;	}	// 固定点の質量を大きくする
 		mass += m_pMass[i];
 	}
@@ -462,13 +464,13 @@ void Ice_SM::ShapeMatchingUsePath()
 
 	//Apqの行列式を求め，反転するかを判定
 	//不安定な場合が多いので×
-	//if( Apq.Determinant() < 0.0 && m_iNumVertices >= 4)
-	//{
+	if( m_mtrx3Apq.Determinant() < 0.0 && m_iNumVertices >= 4)
+	{
 		//cout << "before det < 0" << endl;
 		//１　符号を反転
-		//Apq(0,2) = -Apq(0,2);
-		//Apq(1,2) = -Apq(1,2);
-		//Apq(2,2) = -Apq(2,2);
+		m_mtrx3Apq(0,2) = -m_mtrx3Apq(0,2);
+		m_mtrx3Apq(1,2) = -m_mtrx3Apq(1,2);
+		m_mtrx3Apq(2,2) = -m_mtrx3Apq(2,2);
 
 		//２　a2とa3を交換
 		//double tmp;
@@ -483,7 +485,7 @@ void Ice_SM::ShapeMatchingUsePath()
 		//tmp = Apq(2,2);
 		//Apq(2,2) = Apq(2,1);
 		//Apq(2,1) = tmp;
-	//}
+	}
 
 	rxMatrix3 R, S;
 	//PolarDecomposition(m_mtrx3Apq, R, S, m_mtrxBeforeU);
@@ -504,16 +506,40 @@ void Ice_SM::ShapeMatchingUsePath()
 		//	}
 		//}
 
+		//// 目標座標を計算し，現在の頂点座標を移動
+		//for(int i = 0; i <  m_iIndxNum; ++i)
+		//{
+		//	if( CheckHole(i) ){	continue;	}
+		//	if(m_pFix[i]) continue;
+
+		//	// 回転行列Rの代わりの行列RL=βA+(1-β)Rを計算
+		//	int pIndx = m_iPIndxes[i] * SM_DIM;
+		//	int cIndx = i*SM_DIM;
+
+		//	for(int j = 0; j < SM_DIM; j++)
+		//	{
+		//		q[j] = m_pOrgPos[cIndx+j]-m_vec3OrgCm[j];
+		//	}
+
+		//	Vec3 gp(R*q+cm);
+
+		//	for(int j = 0; j < SM_DIM; j++)
+		//	{
+		//		m_pCurPos[cIndx+j] += (gp[j]-m_pCurPos[cIndx+j]) * m_fpAlphas[i];
+		//	}
+		//}
+
+		m_fDefAmount = 0.0;
+
 		// 目標座標を計算し，現在の頂点座標を移動
-		for(int i = 0; i <  m_iIndxNum; ++i)
+		for(int i = 0; i < m_iIndxNum; ++i)
 		{
 			if( CheckHole(i) ){	continue;	}
 			if(m_pFix[i]) continue;
 
-			// 回転行列Rの代わりの行列RL=βA+(1-β)Rを計算
-			int pIndx = m_iPIndxes[i] * SM_DIM;
 			int cIndx = i*SM_DIM;
 
+			// 回転行列Rの代わりの行列RL=βA+(1-β)Rを計算
 			for(int j = 0; j < SM_DIM; j++)
 			{
 				q[j] = m_pOrgPos[cIndx+j]-m_vec3OrgCm[j];
@@ -523,37 +549,11 @@ void Ice_SM::ShapeMatchingUsePath()
 
 			for(int j = 0; j < SM_DIM; j++)
 			{
-				//m_pCurPos[cIndx+j] += (gp[j]-s_pfSldPos[pIndx+j])  * m_fpAlphas[i];
-				m_pCurPos[cIndx+j] += (gp[j]-m_pCurPos[cIndx+j]) * m_fpAlphas[i];
+				float defAmount = (gp[j]-m_pCurPos[cIndx+j]) * m_fpAlphas[i];
+				m_pCurPos[cIndx+j] += defAmount;
+				m_fDefAmount += abs(defAmount);
 			}
 		}
-
-		//m_fDefAmount = 0.0;
-
-		//// 目標座標を計算し，現在の頂点座標を移動
-		//for(int i = 0; i < m_iIndxNum; ++i)
-		//{
-		//	if( CheckHole(i) ){	continue;	}
-
-		//	if(m_pFix[i]) continue;
-
-		//	int cIndx = i*SM_DIM;
-
-		//	// 回転行列Rの代わりの行列RL=βA+(1-β)Rを計算
-		//	for(int j = 0; j < SM_DIM; j++)
-		//	{
-		//		q[j] = m_pOrgPos[cIndx+j]-cm_org[j];
-		//	}
-
-		//	Vec3 gp(R*q+cm);
-
-		//	for(int j = 0; j < SM_DIM; j++)
-		//	{
-		//		float defAmount = (gp[j]-m_pCurPos[cIndx+j]) * m_fpAlphas[i];
-		//		m_pCurPos[cIndx+j] += defAmount;
-		//		m_fDefAmount += abs(defAmount);
-		//	}
-		//}
 	}
 
 	//境界条件　これがないと現在位置が境界を無視するので，粒子がすり抜ける
@@ -593,7 +593,8 @@ void Ice_SM::calExternalForces()
 	double res = 0.9;	// 反発係数
 	for(int i = 0; i < m_iIndxNum; ++i)
 	{
-		//if( CheckHole(i) ){	continue;	}
+		if( CheckHole(i) ){	continue;	}
+		
 		////if(m_pFix[i]) continue;
 		//Vec3 &p = m_pCurPos[i];
 
@@ -643,6 +644,7 @@ void Ice_SM::ShapeMatchingSolid()
 	for(int i = 0; i < m_iIndxNum; ++i)
 	{
 		if( CheckHole(i) ){	continue;	}
+
 		double m = m_pMass[i];
 		if(m_pFix[i]) m *= 300.0;	// 固定点の質量を大きくする
 
@@ -697,28 +699,28 @@ void Ice_SM::ShapeMatchingSolid()
 
 	////Apqの行列式を求め，反転するかを判定
 	////不安定な場合が多いので×
-	//if( Apq.Determinant() < 0.0 && m_iNumVertices >= 4)
-	//{
-	//	//cout << "before det < 0" << endl;
-	//	//１　符号を反転
-	//	Apq(0,2) = -Apq(0,2);
-	//	Apq(1,2) = -Apq(1,2);
-	//	Apq(2,2) = -Apq(2,2);
+	if( Apq.Determinant() < 0.0 && m_iNumVertices >= 4)
+	{
+		//cout << "before det < 0" << endl;
+		//１　符号を反転
+		Apq(0,2) = -Apq(0,2);
+		Apq(1,2) = -Apq(1,2);
+		Apq(2,2) = -Apq(2,2);
 
-	//	//２　a2とa3を交換
-	//	//double tmp;
-	//	//tmp = Apq(0,2);
-	//	//Apq(0,2) = Apq(0,1);
-	//	//Apq(0,1) = tmp;
+		//２　a2とa3を交換
+		//double tmp;
+		//tmp = Apq(0,2);
+		//Apq(0,2) = Apq(0,1);
+		//Apq(0,1) = tmp;
 
-	//	//tmp = Apq(1,2);
-	//	//Apq(1,2) = Apq(1,1);
-	//	//Apq(1,1) = tmp;
+		//tmp = Apq(1,2);
+		//Apq(1,2) = Apq(1,1);
+		//Apq(1,1) = tmp;
 
-	//	//tmp = Apq(2,2);
-	//	//Apq(2,2) = Apq(2,1);
-	//	//Apq(2,1) = tmp;
-	//}
+		//tmp = Apq(2,2);
+		//Apq(2,2) = Apq(2,1);
+		//Apq(2,1) = tmp;
+	}
 
 	//PolarDecomposition(Apq, R, S, m_mtrxBeforeU);
 	PolarDecomposition(Apq, R, S);
@@ -910,6 +912,7 @@ void Ice_SM::integrate(double dt)
 	for(int i = 0; i < m_iIndxNum; ++i)
 	{
 		if( CheckHole(i) ){	continue;	}
+
 		int pIndx = m_iPIndxes[i]*4;
 
 		for(int j = 0; j < SM_DIM; j++)
@@ -1073,30 +1076,30 @@ void Ice_SM::ShapeMatchingIteration()
 		//Aqq(2,2) += m*q[2]*q[2];
 	}
 
-	////Apqの行列式を求め，反転するかを判定
-	////不安定な場合が多いので×
-	//if( Apq.Determinant() < 0.0 && m_iNumVertices >= 4)
-	//{
-	//	//cout << "before det < 0" << endl;
-	//	//１　符号を反転
-	//	Apq(0,2) = -Apq(0,2);
-	//	Apq(1,2) = -Apq(1,2);
-	//	Apq(2,2) = -Apq(2,2);
+	//Apqの行列式を求め，反転するかを判定
+	//不安定な場合が多いので×
+	if( Apq.Determinant() < 0.0 && m_iNumVertices >= 4)
+	{
+		//cout << "before det < 0" << endl;
+		//１　符号を反転
+		Apq(0,2) = -Apq(0,2);
+		Apq(1,2) = -Apq(1,2);
+		Apq(2,2) = -Apq(2,2);
 
-	//	////２　a2とa3を交換
-	//	//double tmp;
-	//	//tmp = Apq(0,2);
-	//	//Apq(0,2) = Apq(0,1);
-	//	//Apq(0,1) = tmp;
+		////２　a2とa3を交換
+		//double tmp;
+		//tmp = Apq(0,2);
+		//Apq(0,2) = Apq(0,1);
+		//Apq(0,1) = tmp;
 
-	//	//tmp = Apq(1,2);
-	//	//Apq(1,2) = Apq(1,1);
-	//	//Apq(1,1) = tmp;
+		//tmp = Apq(1,2);
+		//Apq(1,2) = Apq(1,1);
+		//Apq(1,1) = tmp;
 
-	//	//tmp = Apq(2,2);
-	//	//Apq(2,2) = Apq(2,1);
-	//	//Apq(2,1) = tmp;
-	//}
+		//tmp = Apq(2,2);
+		//Apq(2,2) = Apq(2,1);
+		//Apq(2,1) = tmp;
+	}
 
 	//PolarDecomposition(Apq, R, S, m_mtrxBeforeU);
 	PolarDecomposition(Apq, R, S);
@@ -1219,6 +1222,28 @@ void Ice_SM::CalcMass()
 	}
 }
 
+//現在の重心を計算
+void Ice_SM::CalcCm()
+{
+	//重心の更新
+	double massSum = 0.0;	// 総質量
+	m_vec3OrgCm = Vec3(0.0);
+
+	// 重心座標の計算
+	for(int i = 0; i < m_iIndxNum;++i)
+	{
+		if( CheckHole(i) ){	continue;	}
+
+		double m = m_pMass[i];
+		int pIndx = i*SM_DIM;
+
+		massSum += m;
+		m_vec3OrgCm += Vec3(m_pOrgPos[pIndx+0], m_pOrgPos[pIndx+1], m_pOrgPos[pIndx+2]) * m;
+	}
+
+	m_vec3OrgCm /= massSum;
+}
+
 /*!
  *　CPUで運動計算
  */
@@ -1279,7 +1304,7 @@ void Ice_SM::CopyDeviceToInstance(int num)
 
 	for(int j = 0; j < MAXPARTICLE; j++)
 	{
-		if(GetParticleIndx(j) == -1){	continue;	}
+		if(GetParticleIndx(j) == MAXINT){	continue;	}
 
 		//位置，速度
 		Vec3 cPos = Vec3(cPoses[j*SM_DIM + 0], cPoses[j*SM_DIM + 1], cPoses[j*SM_DIM + 2]);

@@ -58,9 +58,9 @@ private:
 	mk_Vector2D<rxMatrix3>	m_mk2Dmat3_PrfxApq;		//パスごとの，変形行列のためのprefixSum　（完全な変形行列Apqではないよ　詳しくは論文を参照）
 	
 	mk_Vector2D<int>		m_mk2DiPTHtoPRT;		//パス→粒子　不規則配列になる
-	mk_Vector2D<short int>		m_mk2DiPRTtoPTH;		//粒子→パス　0:パス番号，1:パス内番号　粒子は１つのパスにしか属さない
+	mk_Vector2D<short int>	m_mk2DiPRTtoPTH;		//粒子→パス　0:パス番号，1:パス内番号　粒子は１つのパスにしか属さない
 
-	mk_Vector3D<short int>		m_mk3DiPTHandPrfxSet;	//各クラスタにおける，パスとprefixSumの番地セット[0]：始点　[1]：終点　prefixSum番地のみでいい　path番号は粒子から経由して取得できる
+	mk_Vector3D<short int>	m_mk3DiPTHandPrfxSet;	//各クラスタにおける，パスとprefixSumの番地セット[0]：始点　[1]：終点　prefixSum番地のみでいい　path番号は粒子から経由して取得できる
 
 	vector<Vec3> m_vvec3OrgPos;						//粒子の初期位置
 	vector<Vec3> m_vvec3OrgCm;						//クラスタの初期重心
@@ -95,11 +95,14 @@ private:
 //---------------------------------------------__GPU---------------------------------------------------------
 
 public:
-	void InitPath(const float* pos, const float* vel, const vector<Ice_SM*> iceSM, IceStructure* strct, int pthSize, int prtNum);	//パス作成
+	Surf_SM(const float* pos, const float* vel, const vector<Ice_SM*>& iceSM, IceStructure* strct, int pthSize, int prtNum);	//パス作成
+	~Surf_SM();
+
+	void InitPath(const float* pos, const float* vel, const vector<Ice_SM*>& iceSM, IceStructure* strct, int pthSize, int prtNum);	//パス作成
 	void InitPathGPU();
 	
 	void InitPathPrfxIndxSet(const vector<Ice_SM*> iceSM, IceStructure* strct);				//どのパスのどの部分が必要なのか，をクラスタごとに計算
-	void InitOrgPos(int prtNum);
+	void InitOrgPos(int prtNum, const vector<Ice_SM*>& iceSM);
 	void InitOrgCm();
 
 	void UpdatePrefixSum();
