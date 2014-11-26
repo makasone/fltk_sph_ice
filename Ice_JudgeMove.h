@@ -7,6 +7,7 @@ class Ice_JudgeMove
 {
 public:
 	virtual bool JudgeMove(unsigned indx) = 0;
+	virtual bool JudgeMoveDebug(unsigned indx) = 0;
 };
 
 #endif

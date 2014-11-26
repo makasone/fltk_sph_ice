@@ -297,6 +297,7 @@ void Ice_SM::AddVertex(const Vec3 &pos, double mass, int pIndx)
 
 	//重心の更新
 	CalcCm();
+	m_vec3PreCm = m_vec3OrgCm;
 
 	//変形行列Aqqの更新
 	Vec3 p, q;
@@ -440,6 +441,18 @@ bool Ice_SM::CheckHole(int oIndx)
 	return (m_iPIndxes[oIndx] == MAXINT);
 }
 
+void Ice_SM::ResetFinalParamPointer(unsigned clusterNum)
+{
+	for(unsigned cIndx = 0; cIndx < clusterNum; cIndx++)
+	{
+		for(unsigned dim = 0; dim < SM_DIM; dim++)
+		{
+			s_pfSldPos[cIndx*SM_DIM+dim] = 0.0f;
+			s_pfSldVel[cIndx*SM_DIM+dim] = 0.0f;
+		}
+	}
+}
+
 /*!
  * Shape Matching法
  *  - 目標位置を計算して，m_vNewPosをその位置に近づける
@@ -572,6 +585,7 @@ void Ice_SM::calExternalForces()
 {
 	double dt = m_dDt;
 
+	//最終位置・速度をクラスタの各粒子に反映
 	// 重力の影響を付加，速度を反映
 	for(int i = 0; i < m_iIndxNum; ++i)
 	{
@@ -658,6 +672,7 @@ void Ice_SM::ShapeMatchingSolid()
 	}
 
 	cm /= mass;
+	m_vec3NowCm = cm;
 	cm_org = m_vec3OrgCm;
 
 	// Apq = Σmpq^T
@@ -741,7 +756,6 @@ void Ice_SM::ShapeMatchingSolid()
 		//}
 
 		m_fDefAmount = 0.0f;
-		//vector<float> defAmountes(m_iIndxNum, 0.0f);
 
 		// 目標座標を計算し，現在の頂点座標を移動
 		for(int i = 0; i < m_iIndxNum; ++i)
@@ -765,44 +779,9 @@ void Ice_SM::ShapeMatchingSolid()
 				float defAmount = (gp[j]-m_pCurPos[cIndx+j]) * m_fpAlphas[i];
 				m_pCurPos[cIndx+j] += defAmount;
 
-				//defAmountes[i] += abs(defAmount);
 				m_fDefAmount += abs(defAmount);
 			}
 		}
-
-		//if(m_fDefAmount > 0.1f)
-		//{
-		//	//２乗
-		//	float defAmounteSum = 0.0f;
-		//	for(int i = 0; i < m_iIndxNum; i++)
-		//	{
-		//		defAmountes[i] *= defAmountes[i];
-		//		defAmounteSum += defAmountes[i];
-		//	}
-
-		//	float defAve = 1 / (float)m_iIndxNum;
-		//
-		//	//変形量の大きさで質量を変動させる
-		//	for(int i = 0; i < m_iIndxNum; ++i)
-		//	{	
-		//		m_pMass[i] = 1.0f + (defAmountes[i]/defAmounteSum - defAve);
-		//	}
-		//}
-		//else
-		//{
-		//	for(int i = 0; i < m_iIndxNum; ++i)
-		//	{
-		//		m_pMass[i] = 1.0f;
-		//	}
-		//}
-	}
-
-	//前フレームの位置ベクトルを更新
-	for(int i = 0; i < m_iIndxNum; ++i)
-	{
-		m_pPrePos[i*SM_DIM+0] = m_pCurPos[i*SM_DIM+0];
-		m_pPrePos[i*SM_DIM+1] = m_pCurPos[i*SM_DIM+1];
-		m_pPrePos[i*SM_DIM+2] = m_pCurPos[i*SM_DIM+2];
 	}
 }
 
@@ -823,7 +802,6 @@ void Ice_SM::ShapeMatchingSelected(int selected)
 
 		double m = m_pMass[i];
 		if(m_pFix[i]) m *= 300.0;	// 固定点の質量を大きくする
-		//if(m_iPIndxes[i] % selected != 1){	continue;	}	//テスト　これをやるとぐるぐる回り出す
 
 		int cIndx = i*SM_DIM;
 
@@ -836,6 +814,7 @@ void Ice_SM::ShapeMatchingSelected(int selected)
 	}
 
 	cm /= mass;
+	m_vec3NowCm = cm;
 	cm_org = m_vec3OrgCm;
 
 	// Apq = Σmpq^T
@@ -843,7 +822,6 @@ void Ice_SM::ShapeMatchingSelected(int selected)
 	for(int i = 0; i < m_iIndxNum; ++i)
 	{
 		if( CheckHole(i) ){	continue;	}
-		//if(m_iPIndxes[i] % selected != 1){	continue;	}	//テスト　あるとちょっとやわらかくなる？
 
 		int cIndx = i*SM_DIM;
 
@@ -921,6 +899,15 @@ void Ice_SM::integrate(double dt)
 			m_pVel[cIndx] = (m_pCurPos[cIndx] - s_pfPrtPos[pIndx+j]) * dt1 + m_v3Gravity[j] * dt * 0.1f;	//TODO::0.1fかけるとうまくいって見える
 		}
 	}
+
+	//前フレームの位置ベクトルを更新
+	for(int i = 0; i < m_iIndxNum; ++i)
+	{
+		UpdatePrePos(i);
+	}
+
+	//前フレームの重心ベクトルを更新
+	m_vec3PreCm = m_vec3NowCm;
 }
 
 void Ice_SM::CalcDisplaceMentVectorCm()
@@ -1036,6 +1023,7 @@ void Ice_SM::ShapeMatchingIteration()
 	}
 
 	cm /= mass;
+	m_vec3NowCm = cm;
 	cm_org = m_vec3OrgCm;
 
 	// Apq = Σmpq^T
@@ -1178,6 +1166,15 @@ void Ice_SM::integrateIteration()
 			m_pVel[cIndx] = (m_pCurPos[cIndx] - s_pfPrtPos[pIndx+j]) * dt1 + m_v3Gravity[j] * m_dDt * 0.1f;	//TODO::パラメータ0.1fを使わなくてもいいように
 		}
 	}
+
+	//前フレームの位置ベクトルを更新
+	for(int i = 0; i < m_iIndxNum; ++i)
+	{
+		UpdatePrePos(i);
+	}
+
+	//前フレームの重心ベクトルを更新
+	m_vec3PreCm = m_vec3NowCm;
 }
 
 //前ステップと現ステップの位置から質量を決定
@@ -1242,6 +1239,23 @@ void Ice_SM::CalcCm()
 	}
 
 	m_vec3OrgCm /= massSum;
+}
+
+void Ice_SM::UpdatePrePos(int pIndx)
+{
+	pIndx = pIndx*SM_DIM;
+
+	m_pPrePos[pIndx+0] = m_pCurPos[pIndx+0];
+	m_pPrePos[pIndx+1] = m_pCurPos[pIndx+1];
+	m_pPrePos[pIndx+2] = m_pCurPos[pIndx+2];
+}
+
+void Ice_SM::SetPrePos(int pIndx, const Vec3& nowPos)
+{
+	pIndx = pIndx*SM_DIM;
+	m_pPrePos[pIndx+0] = nowPos[0];
+	m_pPrePos[pIndx+1] = nowPos[1];
+	m_pPrePos[pIndx+2] = nowPos[2];
 }
 
 /*!

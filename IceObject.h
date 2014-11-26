@@ -24,17 +24,20 @@
 #include "Ice_JudgeMove_Normal.h"
 #include "Ice_JudgeMove_Spears.h"
 
-#include "Ice_InterPolation.h"
-#include "Ice_InterPolation_Normal.h"
-#include "Ice_InterPolation_Weight.h"
+#include "Ice_Convolution.h"
+#include "Ice_Convolution_Normal.h"
+#include "Ice_Convolution_Weight.h"
 
-#include "Ice_InterPolationJudge.h"
-#include "Ice_InterPolationJudge_Normal.h"
-#include "Ice_InterPolationJudge_Spears.h"
+#include "Ice_ConvoJudge.h"
+#include "Ice_ConvoJudge_Normal.h"
+#include "Ice_ConvoJudge_Spears.h"
 
 #include "Surf_SM.h"
 
+#include <UtilityScript\mk_Vector2D.h>
+#include <UtilityScript\mk_Vector3D.h>
 #include "QueryCounter.h"
+#include "gnuplot.h"
 
 #include <FL/Fl.H>
 #include <FL/Fl_Widget.H>
@@ -42,14 +45,20 @@
 #include <time.h>
 #include <cuda_runtime.h>
 #include <cuda_gl_interop.h>
+#include <cmath>
+#include <vector>
+#include <algorithm>
+
+#include <ShellAPI.h>
 
 using namespace std;
 
-//以下のマクロがrx_fltk_glcanvasに影響を及ぼしてはいけない
 //#define MK_USE_GPU
-//#define USE_ITR
-//#define USE_PATH
-//#define USE_SELECTED
+//#define USE_NEIGHT
+
+#define GNUPLOT_PATH "D:\gnuplot\bin\pgnuplot.exe" // pgnuplot.exeのある場所
+#define RESULT_DATA "result/data/"
+#define RESULT_IMAGE "result/images/"
 
 const int g_iterationNum = 1;
 
@@ -76,6 +85,11 @@ private:
 	
 	static int sm_maxParticleNum;					//最大粒子数
 
+	static float sm_selectRadius;					//運動計算クラスタを選択する際の半径　ここにおいていいのか？
+	
+	//運動計算の関数ポインタ
+	void (IceObject::*m_fpStepObjMove)();
+
 	//構造管理クラス
 	IceStructure* m_iceStrct;
 
@@ -85,7 +99,7 @@ private:
 	//高速計算用クラス
 	Surf_SM* m_SurfSm;
 
-	//こんなにややこしくなるとは思わなかった
+//こんなにややこしくなるとは思わなかった
 	//計算手法
 	Ice_CalcMethod* m_iceCalcMethod;
 
@@ -96,16 +110,19 @@ private:
 	Ice_ClusterMove* m_iceClsuterMove;
 
 	//最終統合結果に用いる対象を判定するクラス
-	Ice_InterPolationJudge* m_iceInterPolationJudge;
+	Ice_ConvoJudge* m_iceConvoJudge;
 
 	//最終統合結果を求めるクラス
-	Ice_InterPolation* m_iceInterPolation;
+	Ice_Convolution* m_iceConvolution;
 
 	//熱処理
 	HeatTransfar* m_heatTransfer;
 	
 	//線形補間係数
 	static float* m_fInterPolationCoefficience;
+
+//デバッグ
+	//DebugIceObject m_iceDebug;
 
 public:
 	IceObject(int pMaxNum, int cMaxNum, int tMaxNum, int prtNum, float* hp, float* hv, float* dp, float* dv, int layer, int maxParticleNum);
@@ -115,7 +132,7 @@ public:
 	void InitIceObj(int pMaxNum, int cMaxNum, int tMaxNum);
 	void InitIceObjGPU();
 	void InitTetra();
-	void InitCluster(Vec3 boundarySpaceHigh, Vec3 boundarySpaceLow, float timeStep, int itr);
+	void InitCluster(Vec3 boundarySpaceHigh, Vec3 boundarySpaceLow, float timeStep, int itr, const vector<vector<rxNeigh>>& neights);
 	void InitStrct();
 	void InitMoveMethod();
 	void InitSelectCluster();
@@ -126,6 +143,10 @@ public:
 	void InitGPU();
 
 //モード切替
+	//データ取得
+	void ChangeMode_Debug();
+	void ChangeMode_Normal();
+
 	//計算手法
 	void ChangeMode_CalcMethod_Normal();
 	void ChangeMode_CalcMethod_Iteration();
@@ -143,8 +164,8 @@ public:
 	void ChangeMode_IntrpJudge_Spears();
 
 	//補間手法
-	void ChangeMode_InterPolation_Normal();
-	void ChangeMode_InterPolation_Weight();
+	void ChangeMode_Convolution_Normal();
+	void ChangeMode_Convolution_Weight();
 
 //アクセッサ
 	void SetSPHDevicePointer(float* pos, float* vel){	sd_sphPrtPos = pos; sd_sphPrtVel = vel;	}
@@ -159,12 +180,16 @@ public:
 	static float GetInterPolationCff(int indx){	return m_fInterPolationCoefficience[indx];	}
 
 	void SetClusterMoveInfo(int pIndx);
+	void SetClusterMoveInfoFromNeight(int pIndx, const vector<vector<rxNeigh>>& neights);
 	void SetClusterStrctInfo(int cIndx, int *PtoCNum);
+
+	static void SetSelectRadius(float radius){	sm_selectRadius = radius;	}
 
 	static int GetParticleNum(){	return sm_particleNum;		}
 	static int GetClusterNum(){		return sm_clusterNum;		}
 	static int GetTetrahedraNum(){	return sm_tetraNum;			}
 	static int GetLayerNum(){		return sm_layerNum;			}
+	static float GetSelectRadius(){	return sm_selectRadius;		}
 
 	static int GetMaxClusterNum(){	return sm_maxParticleNum;	}
 
@@ -172,32 +197,26 @@ public:
 
 	Ice_SM* GetMoveObj(int cIndx){	return m_iceSM[cIndx];	}
 
-//Step
-	void StepObjMoveCPU();									//運動計算
-	void StepObjMoveGPU();									//GPUによる運動計算
+	Ice_Convolution* GetConvoObj(){	return m_iceConvolution;	}
 
-	void StepObjMoveNormal();
-	void StepObjMoveSelected();
-	void StepObjMoveUsePath();								//高速化手法を用いた運動計算
+//Step
+	//運動計算
+	void StepObjMoveCPU();									//運動計算
+	void StepObjMoveCPUNormal();
+	void StepObjMoveCPUDebug();
+
+	void StepObjMoveGPU();									//GPUによる運動計算
 
 	void StepObjMoveGPUNormal();
 	void StepObjMoveGPUUsePath();
 
-	void StepObjMoveIteration();							//反復処理を用いた運動計算
-	void StepObjMoveIterationUsePath();						//高速化手法を用いた反復運動計算
-	void StepObjMoveIterationWeighted();					//重み付け＋反復処理
-	void StepObjMoveIterationSelected();					//反復＋選択
-
 	void StepObjCalcWidhIteration();						//固体の運動計算，総和計算，補間処理　GPU処理　反復処理あり
-
+	
+	void StepInterPolation();
 	void StepInterPolationNormal();
 	void StepInterPolationForCluster();
-	void StepInterPolationForClusterWeighted();
-	void StepInterPolationSelectedForCluster();
-
-	void StepInterPolationSelected();
-	void StepWeightedInterPolation();
 	
+	//相変化
 	void StepHeatTransfer(const int* surfParticles, const vector<vector<rxNeigh>>& neights, float floor, float effRadius, const float* pos, const float* dens);		//熱処理
 	void StepIceStructure();								//相変化処理
 	void StepMelting();										//融解
@@ -218,13 +237,15 @@ public:
 
 	void ReConstructCluster(vector<unsigned>& particleList, vector<unsigned>& clusterList);
 
-	void UpdateUnSelectedCluster(int pIndx, const Vec3& pos, const Vec3& vel, const vector<Vec3>& prePos);
+	void UpdateUnSelectedClusterDefAmount();
 
 	short unsigned GetMotionCalcClsuter(unsigned cIndx){	return m_iceStrct->GetMotionCalcCluster(cIndx);	}
-	void UpdateSelectCluster();
+
+	void CashNeighborList(const vector<unsigned>& prtList, vector<unsigned>& neighborList);
+	void UpdateSelectCluster(const vector<unsigned>& prtList, vector<unsigned>& neighborList);
 	void ResetSelectCluster();
 
-	//デバッグ
+//デバッグ
 	void DebugTetraInfo();
 	void DebugClusterInfo();
 	void DebugObjMoveUsePathWithGPU();
@@ -232,8 +253,11 @@ public:
 	void DebugDeformationAverage();
 	void DebugUpdateSelectCluster();
 	void DebugNowMoveMethod();
+	void DebugMakeGraph();
 
-	//テスト
+	void DebugClearDirectry(string path);
+
+//テスト
 	void TestStepInterPolation();
 	void TestUpdateSMFromPath();
 

@@ -49,17 +49,17 @@
     <Filter Include="IceObject\JudgeCluster Files">
       <UniqueIdentifier>{0f61e53c-1853-4e06-b211-87dc6ab5aad2}</UniqueIdentifier>
     </Filter>
-    <Filter Include="IceObject\InterPolation">
-      <UniqueIdentifier>{63c8e320-9074-4e77-b6e9-21dfe00b9fa9}</UniqueIdentifier>
-    </Filter>
     <Filter Include="IceObject\ClusterMove Files">
       <UniqueIdentifier>{56e187c0-c53f-453d-a74e-e2681f8da957}</UniqueIdentifier>
     </Filter>
-    <Filter Include="IceObject\IntrpJudge Files">
-      <UniqueIdentifier>{36f2339b-d844-4f9d-ab47-2f6a32668fab}</UniqueIdentifier>
-    </Filter>
     <Filter Include="IceObject\CalcMethod Files">
       <UniqueIdentifier>{267dec19-baae-466e-b5a0-778e2d82dde5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="IceObject\Convolution">
+      <UniqueIdentifier>{51fb0195-5cf8-493e-a84e-e79fb93c3d80}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="IceObject\ConvoJudge">
+      <UniqueIdentifier>{b6411311-9345-42e9-a8a8-fdf4a42995f6}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -156,23 +156,23 @@
     <ClCompile Include="Ice_JudgeMove_Normal.cpp">
       <Filter>IceObject\JudgeCluster Files</Filter>
     </ClCompile>
-    <ClCompile Include="Ice_InterPolationJudgeNormal.cpp">
-      <Filter>IceObject\IntrpJudge Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Ice_InterPolation_Normal.cpp">
-      <Filter>IceObject\InterPolation</Filter>
-    </ClCompile>
-    <ClCompile Include="Ice_InterPolation_Weight.cpp">
-      <Filter>IceObject\InterPolation</Filter>
-    </ClCompile>
-    <ClCompile Include="Ice_InterPolationJudge_Spears.cpp">
-      <Filter>IceObject\IntrpJudge Files</Filter>
-    </ClCompile>
     <ClCompile Include="Ice_CalcMethod_Normal.cpp">
       <Filter>IceObject\CalcMethod Files</Filter>
     </ClCompile>
     <ClCompile Include="Ice_CalcMethod_Iteration.cpp">
       <Filter>IceObject\CalcMethod Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Ice_Convolution_Normal.cpp">
+      <Filter>IceObject\Convolution</Filter>
+    </ClCompile>
+    <ClCompile Include="Ice_Convolution_Weight.cpp">
+      <Filter>IceObject\Convolution</Filter>
+    </ClCompile>
+    <ClCompile Include="Ice_ConvoJudge_Normal.cpp">
+      <Filter>IceObject\ConvoJudge</Filter>
+    </ClCompile>
+    <ClCompile Include="Ice_ConvoJudge_Spears.cpp">
+      <Filter>IceObject\ConvoJudge</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -305,24 +305,6 @@
     <ClInclude Include="Ice_JudgeMove_Normal.h">
       <Filter>IceObject\JudgeCluster Files</Filter>
     </ClInclude>
-    <ClInclude Include="Ice_InterPolationJudge.h">
-      <Filter>IceObject\IntrpJudge Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Ice_InterPolationJudge_Normal.h">
-      <Filter>IceObject\IntrpJudge Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Ice_InterPolation.h">
-      <Filter>IceObject\InterPolation</Filter>
-    </ClInclude>
-    <ClInclude Include="Ice_InterPolation_Normal.h">
-      <Filter>IceObject\InterPolation</Filter>
-    </ClInclude>
-    <ClInclude Include="Ice_InterPolationJudge_Spears.h">
-      <Filter>IceObject\IntrpJudge Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Ice_InterPolation_Weight.h">
-      <Filter>IceObject\InterPolation</Filter>
-    </ClInclude>
     <ClInclude Include="Ice_CalcMethod.h">
       <Filter>IceObject\CalcMethod Files</Filter>
     </ClInclude>
@@ -331,6 +313,27 @@
     </ClInclude>
     <ClInclude Include="Ice_CalcMethod_Iteration.h">
       <Filter>IceObject\CalcMethod Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Ice_Convolution.h">
+      <Filter>IceObject\Convolution</Filter>
+    </ClInclude>
+    <ClInclude Include="Ice_Convolution_Normal.h">
+      <Filter>IceObject\Convolution</Filter>
+    </ClInclude>
+    <ClInclude Include="Ice_Convolution_Weight.h">
+      <Filter>IceObject\Convolution</Filter>
+    </ClInclude>
+    <ClInclude Include="Ice_ConvoJudge.h">
+      <Filter>IceObject\ConvoJudge</Filter>
+    </ClInclude>
+    <ClInclude Include="Ice_ConvoJudge_Normal.h">
+      <Filter>IceObject\ConvoJudge</Filter>
+    </ClInclude>
+    <ClInclude Include="Ice_ConvoJudge_Spears.h">
+      <Filter>IceObject\ConvoJudge</Filter>
+    </ClInclude>
+    <ClInclude Include="gnuplot.h">
+      <Filter>GUI Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

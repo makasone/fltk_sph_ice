@@ -623,10 +623,8 @@ protected:
 
 	void SetClusterInfo(const vector<int>& pList, const vector<int>& cList, const vector<int>& lList);
 	void SetTetraInfo(const vector<int>& pList, const vector<int>& cList, const vector<int>& lList);
-	void SetFreezeTetraInfo(vector<int>& pList);
 	void SetFreezeClusterInfo(const vector<int>& pList);
 
-	void CheckDeleteCluster(void);
 	void CheckDeleteTetra(vector<int>& tList, vector<int>& lList);
 	void CheckSameTetra(int tIndx, const vector<int>& searchList, vector<int>& deleteList);
 	void CheckIncludeTetra(int tIndx, const vector<int>& searchList, vector<int>& deleteList);

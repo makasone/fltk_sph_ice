@@ -1787,7 +1787,7 @@ void rxFlGLWindow::OnMenuParticleColor(double val, string label)
 		for(int cIndx = 0; cIndx < m_pPS->GetNumParticles(); cIndx++)
 		{
 			if(m_iceObj->GetMotionCalcClsuter(cIndx) == 0){	continue;	}
-			cout << "	cIndx = " << cIndx << " , " << m_iceObj->GetMotionCalcClsuter(cIndx) << endl;
+			//cout << "	cIndx = " << cIndx << " , " << m_iceObj->GetMotionCalcClsuter(cIndx) << endl;
 			selectNum++;
 		}
 
@@ -2636,6 +2636,15 @@ void rxFlGLWindow::InitIceObj(void)
 	RXREAL *dp = ((RXSPH*)m_pPS)->GetDevicePointer_Pos();
 	RXREAL *dv = ((RXSPH*)m_pPS)->GetDevicePointer_Vel();
 
+	((RXSPH*)m_pPS)->DetectSurfaceParticles();								//表面粒子検出
+	int* surfaceParticles = (int *)( ((RXSPH*)m_pPS)->GetArraySurf() );		//表面粒子
+
+	float radius = ((RXSPH*)m_pPS)->GetEffectiveRadius();
+	((RXSPH*)m_pPS)->SetEffectiveRadius(radius * 1.2f);						//1.2で分離するギリギリ
+	StepPS(m_fDt);															//一度タイムステップを勧めないと，近傍粒子が取得されないみたい
+	((RXSPH*)m_pPS)->SetEffectiveRadius(radius);
+	vector<vector<rxNeigh>>& neights = ((RXSPH*)m_pPS)->GetNeights();
+
 	//ソリッドモデル
 	m_iceObj = new IceObject(
 		m_iIcePrtNum+1000,
@@ -2651,7 +2660,8 @@ void rxFlGLWindow::InitIceObj(void)
 		sph_env.boundary_ext,
 		-sph_env.boundary_ext,
 		sph_env.smTimeStep,
-		m_iIceItr
+		m_iIceItr,
+		neights
 	);															//sm法の初期化
 
 	m_iceObj->InitStrct();										//粒子とクラスタの関係情報を初期化
@@ -2707,21 +2717,21 @@ void rxFlGLWindow::StepTimeEvent(void)
 	//	}
 	//}
 
-	////粒子が中心の列から融解
-	//if(200 <= g_iTimeCount && g_iTimeCount <= 300)
-	//{		
-	//	//特定領域の粒子を融解　真ん中から真っ二つ
-	//	int SIDE = pow(m_iIcePrtNum, 1.0/3.0) + 0.5;	//立方体の１辺の頂点数
-	//	int rine = 2;
+	//粒子が中心の列から融解
+	if(200 <= g_iTimeCount && g_iTimeCount <= 300)
+	{		
+		//特定領域の粒子を融解　真ん中から真っ二つ
+		int SIDE = pow(m_iIcePrtNum, 1.0/3.0) + 0.5;	//立方体の１辺の頂点数
+		int rine = 1;
 
-	//	int first = SIDE*SIDE*(SIDE/2 - (rine-1) );
-	//	int end = SIDE*SIDE*(SIDE/2 + rine);
+		int first = SIDE*SIDE*(SIDE/2 - (rine-1) );
+		int end = SIDE*SIDE*(SIDE/2 + rine);
 
-	//	for(int i = first; i < end; i++)	//rine列
-	//	{
-	//		m_iceObj->MeltParticle(i);
-	//	}
-	//}
+		for(int i = first; i < end; i++)	//rine列
+		{
+			m_iceObj->MeltParticle(i);
+		}
+	}
 }
 
 /*!
@@ -3422,35 +3432,6 @@ void rxFlGLWindow::SetTetraInfo(const vector<int>& pList, const vector<int>& tLi
 			m_ice->SetNeighborTetraFromLayer(itIndx, m_iLayer, ilayer);	//ここが非常に重い
 		}
 	}//end #pragma omp parallel
-}
-
-/*!
- * 同一，包含関係にあるクラスタを削除
- */
-void rxFlGLWindow::CheckDeleteCluster()
-{
-}
-
-/*!
- * 凝固粒子に関する情報の作成　四面体
- */
-void rxFlGLWindow::SetFreezeTetraInfo(vector<int>& pList)
-{	//cout << __FUNCTION__ << " start" << endl;
-	vector<int> tList;
-
-	MakeFreezeTetrahedra(pList, tList);								//四面体の作成　固体粒子との凝固
-	//TODO::以下は２つは未実装
-	AddFreezeTetrahedra(pList, tList);								//四面体へ追加　所属粒子数が３個以下の四面体への追加
-	MakeFreezeTetrahedra_OnlyFreezeParticle(pList, tList);			//四面体の作成　凝固粒子のみでの凝固
-
-	for(unsigned i = 0; i < tList.size(); i++)
-	{
-		m_ice->SetNeighborTetra(tList[i], m_iLayer);				//近傍四面体情報の設定
-		//デバッグ
-		//m_ice->DebugNeighborTetra(tList[i]);
-	}
-
-	//cout << __FUNCTION__ << " end" << endl;
 }
 
 /*!

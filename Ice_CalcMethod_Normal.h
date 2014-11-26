@@ -18,6 +18,7 @@ public:
 	void SetObjMove(Ice_ClusterMove* clusterMove);
 
 	void StepObjMove();
+	void StepObjMoveDebug();
 
 private:
 	//運動計算方法を扱うクラス

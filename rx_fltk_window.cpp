@@ -16,6 +16,9 @@
 
 #include "rx_sph.h"
 
+#include <stdio.h>
+#include <math.h>
+
 //-----------------------------------------------------------------------------
 // 変数
 //-----------------------------------------------------------------------------
@@ -360,7 +363,7 @@ rxFlWindow::rxFlWindow(int w_, int h_, const char* title)
 		//追加：：物性のパラメータを制御
 		xs += ws+5;
 		ys = h()-(hs_stat+ver_margin+hs_para)+5;
-		ws = 320;
+		ws = 420;
 
 		sg = new Fl_Group(xs, ys, ws, hs, "Physical Property");
 		{
@@ -391,6 +394,16 @@ rxFlWindow::rxFlWindow(int w_, int h_, const char* title)
 			m_pCheckWeight->align(Fl_Align(FL_ALIGN_LEFT));
 			m_pCheckWeight->clear_visible_focus();
 
+				//カーネル関数の次数
+				m_pSpinRadiusSpears = new Fl_Spinner(xs+dx+80, ys+25, 70, 20, "Degree ");
+				m_pSpinRadiusSpears->type(FL_FLOAT_INPUT);
+				m_pSpinRadiusSpears->callback(OnSpinDegree_Weight_s, this);
+				m_pSpinRadiusSpears->minimum(1.0);
+				m_pSpinRadiusSpears->maximum(4.0);
+				m_pSpinRadiusSpears->step(0.2);
+				m_pSpinRadiusSpears->value(1.0);
+				m_pSpinRadiusSpears->clear_visible_focus();
+
 			//疎な運動計算
 			m_pCheckSpears = new Fl_Check_Button(xs+dx, ys+45, 25, 25, "Spears ");
 			m_pCheckSpears->down_box(FL_DOWN_BOX);
@@ -399,13 +412,13 @@ rxFlWindow::rxFlWindow(int w_, int h_, const char* title)
 			m_pCheckSpears->clear_visible_focus();
 
 				//影響半径 Poission Disk Sampling
-				m_pSpinRadiusSpears = new Fl_Spinner(xs+dx+80, ys+45, 30, 20, "Radius ");
-				m_pSpinRadiusSpears->type(FL_INT_INPUT);
+				m_pSpinRadiusSpears = new Fl_Spinner(xs+dx+80, ys+45, 70, 20, "Radius ");
+				m_pSpinRadiusSpears->type(FL_FLOAT_INPUT);
 				m_pSpinRadiusSpears->callback(OnSpinRadius_Spears_s, this);
-				m_pSpinRadiusSpears->minimum(1);
-				m_pSpinRadiusSpears->maximum(2);
-				m_pSpinRadiusSpears->step(1);
-				m_pSpinRadiusSpears->value(1);
+				m_pSpinRadiusSpears->minimum(0.3);
+				m_pSpinRadiusSpears->maximum(2.5);
+				m_pSpinRadiusSpears->step(0.1);
+				m_pSpinRadiusSpears->value(0.3);
 				m_pSpinRadiusSpears->clear_visible_focus();
 
 			//運動計算の反復
@@ -420,7 +433,7 @@ rxFlWindow::rxFlWindow(int w_, int h_, const char* title)
 				m_pSliderItr->type(1);
 				m_pSliderItr->callback(OnSliderItrNum_s, this);
 				m_pSliderItr->minimum(1);
-				m_pSliderItr->maximum(30);
+				m_pSliderItr->maximum(50);
 				m_pSliderItr->step(1);
 				m_pSliderItr->value(1);
 				m_pSliderItr->align(Fl_Align(FL_ALIGN_LEFT));
@@ -432,6 +445,26 @@ rxFlWindow::rxFlWindow(int w_, int h_, const char* title)
 			m_pCheckPath->callback(OnCheckMode_Path_s, this);
 			m_pCheckPath->align(Fl_Align(FL_ALIGN_LEFT));
 			m_pCheckPath->clear_visible_focus();
+
+			int xs2 = 325;
+
+			//デバッグボタン
+			m_pCheckDebug = new Fl_Check_Button(xs+xs2+50, ys, 25, 25, "Debug ");
+			m_pCheckDebug->down_box(FL_DOWN_BOX);
+			m_pCheckDebug->callback(OnCheckMode_Debug_s, this);
+			m_pCheckDebug->align(Fl_Align(FL_ALIGN_LEFT));
+			m_pCheckDebug->clear_visible_focus();
+
+			//グラフ作成ボタン
+			Fl_Boxtype boxtype = FL_FLAT_BOX;
+			Fl_Button *button;
+
+			button = new Fl_Button(xs+xs2, ys+25, 80, 25, "DefGraph");
+			button->callback(OnButtonDebugDeformation_s, this);
+			button->down_box(boxtype);
+			button->clear_visible_focus();
+
+
 
 			sg->resizable(NULL);
 			sg->end();
@@ -809,7 +842,7 @@ void rxFlWindow::OnCheckMode_Spears(Fl_Widget *widget)
 	}
 }
 
-//影響半径　layer
+//影響半径
 void rxFlWindow::OnSpinRadius_Spears_s(Fl_Widget *widget, void* x)
 {
 	((rxFlWindow*)x)->OnSpinRadius_Spears(widget);
@@ -817,11 +850,12 @@ void rxFlWindow::OnSpinRadius_Spears_s(Fl_Widget *widget, void* x)
 void rxFlWindow::OnSpinRadius_Spears(Fl_Widget *widget)
 {
 	Fl_Spinner* check = (Fl_Spinner*)widget;
-	double radius = check->value();
+	double radius = check->value() / 100.0;
 
 	cout << __FUNCTION__ << " radius = " << radius << endl;
 
-
+	m_pGLCanvas->m_iceObj->SetSelectRadius(radius);
+	m_pGLCanvas->m_iceObj->InitSelectCluster();
 }
 
 //重み付き平均
@@ -838,12 +872,35 @@ void rxFlWindow::OnCheckMode_Weight(Fl_Widget *widget)
 
 	if(flag)
 	{
-		m_pGLCanvas->m_iceObj->ChangeMode_InterPolation_Weight();
+		m_pGLCanvas->m_iceObj->ChangeMode_Convolution_Weight();
 	}
 	else
 	{	
-		m_pGLCanvas->m_iceObj->ChangeMode_InterPolation_Normal();
+		m_pGLCanvas->m_iceObj->ChangeMode_Convolution_Normal();
 	}
+}
+
+void rxFlWindow::OnSpinDegree_Weight_s(Fl_Widget *widget, void* x)
+{
+	((rxFlWindow*)x)->OnSpinDegree_Weight(widget);
+}
+
+void rxFlWindow::OnSpinDegree_Weight(Fl_Widget *widget)
+{
+	Fl_Spinner* check = (Fl_Spinner*)widget;
+	double degree = check->value();
+
+	const char* convoWeightName = typeid(Ice_Convolution_Weight).name();
+	const char* convoNowName = typeid(*(m_pGLCanvas->m_iceObj->GetConvoObj())).name();
+
+	//現在がWeightモードかの確認　strcmpは文字列が一致すると0になる
+	if(strcmp(convoWeightName, convoNowName) != 0) return ;
+	cout << __FUNCTION__ << " degree = " << degree << endl;
+	cout << convoWeightName << endl;
+	cout << convoNowName << endl;
+
+	Ice_Convolution_Weight* convoObj = (Ice_Convolution_Weight*)(m_pGLCanvas->m_iceObj->GetConvoObj());
+	convoObj->SetKernelDegree(degree);
 }
 
 //反復処理
@@ -882,6 +939,41 @@ void rxFlWindow::OnSliderItrNum(Fl_Widget *widget)
 	Ice_SM::SetIterationNum(val);
 }
 
+void rxFlWindow::OnCheckMode_Debug_s(Fl_Widget *widget, void* x)
+{
+	((rxFlWindow*)x)->OnCheckMode_Debug(widget);
+}
+
+void rxFlWindow::OnCheckMode_Debug(Fl_Widget *widget)
+{	cout << __FUNCTION__ << endl;
+
+	Fl_Check_Button* check = (Fl_Check_Button*)widget;
+	bool flag = check->value();
+
+	cout << __FUNCTION__ << "flag = " << flag << endl;
+
+	if(flag)
+	{
+		m_pGLCanvas->m_iceObj->ChangeMode_Debug();		
+	}
+	else
+	{	
+		m_pGLCanvas->m_iceObj->ChangeMode_Normal();
+	}
+}
+
+//変形量データのグラフ作成
+void rxFlWindow::OnButtonDebugDeformation_s(Fl_Widget *widget, void* x)
+{
+	((rxFlWindow*)x)->OnButtonDebugDeformation(widget);
+}
+
+void rxFlWindow::OnButtonDebugDeformation(Fl_Widget *widget)
+{
+	cout << __FUNCTION__ << endl;
+
+	m_pGLCanvas->m_iceObj->DebugMakeGraph();
+}
 
 /*!
  * Fl_Check_Buttonのコールバック関数 - Draw

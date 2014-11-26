@@ -84,6 +84,7 @@ protected:
 
 	Vec3 m_vec3OrgCm;							//初期のクラスタの重心
 	Vec3 m_vec3NowCm;							//現在のクラスタの重心
+	Vec3 m_vec3PreCm;							//前フレームのクラスタの重心
 	//vector<Vec3> m_vvec3OrgQ;					//初期の位置-重心
 
 	Vec3 m_vec3DisCm;							//重心位置の変位
@@ -159,11 +160,14 @@ public:
 
 	void InitGPU_Instance();
 	static void InitFinalParamPointer(int vrtxNum);
+	static void ResetFinalParamPointer(unsigned clusterNum);
 
 	void AddVertex(const Vec3 &pos, double mass, int pIndx);
 	
 	void UpdateCPU();
 	void UpdateUsePathCPU();
+
+	void UpdatePrePos(int pIndx);
 
 	static void UpdateGPU();
 	static void UpdateUsePathGPU();
@@ -193,8 +197,10 @@ public:
 
 	static void SetIterationNum(int itr){	s_iIterationNum = itr;	}
 
-	void SetNowCm(Vec3& nowCm){	m_vec3NowCm = nowCm;	}
+	void SetNowCm(Vec3 nowCm){	m_vec3NowCm = nowCm;	}
+	void SetPreCm(Vec3 preCm){	m_vec3PreCm = preCm;	}
 	void SetApq(rxMatrix3& Apq){	m_mtrx3Apq = Apq;	}
+	void SetPrePos(int pIndx, const Vec3& nowPos);
 
 	void SetDefAmount(float amount){	m_fDefAmount = amount;	}
 	void SetDefPriority(float priority){	m_fDefPriority = priority;	}
@@ -207,6 +213,8 @@ public:
 
 	Vec3 GetCm(void){		return m_vec3NowCm;	}
 	Vec3 GetOrgCm(void){	return m_vec3OrgCm;	}
+	Vec3 GetPreCm(void){	return m_vec3PreCm;	}
+	Vec3 GetPrePos(int pIndx){	return Vec3(m_pPrePos[pIndx*SM_DIM+0],m_pPrePos[pIndx*SM_DIM+1],m_pPrePos[pIndx*SM_DIM+2]);	}
 
 	rxMatrix3 GetApq(void){	return m_mtrx3Apq;	}
 

@@ -20,3 +20,8 @@ void CalcNormal::StepObjMove()
 {
 	m_iceMove->StepObjMove();		//‚»‚Ì‚Ü‚ÜŒÄ‚Ô‚¾‚¯
 }
+
+void CalcNormal::StepObjMoveDebug()
+{
+	m_iceMove->StepObjMoveDebug();	//‰^“®ŒvZ
+}

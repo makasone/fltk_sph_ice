@@ -28,7 +28,7 @@ void MoveNormal::StepObjMove()
 	{	
 		if(m_iceJudge->JudgeMove(i) == false){	continue;	}
 
-		m_iceSM[i]->UpdateCPU();				//運動計算
+		m_iceSM[i]->UpdateCPU();
 	}
 }
 
@@ -39,6 +39,17 @@ void MoveNormal::StepObjMoveItr()
 	{	
 		if(m_iceJudge->JudgeMove(i) == false){	continue;	}
 
-		m_iceSM[i]->ShapeMatchingIteration();		//現在の粒子位置を用いてSM法
+		m_iceSM[i]->ShapeMatchingIteration();
+	}	
+}
+
+void MoveNormal::StepObjMoveDebug()
+{
+	#pragma omp parallel for
+	for(int i = 0; i < IceObject::GetParticleNum(); ++i)
+	{	
+		if(m_iceJudge->JudgeMoveDebug(i) == false){	continue;	}
+
+		m_iceSM[i]->UpdateCPU();
 	}	
 }

@@ -11,6 +11,7 @@ public:
 	virtual void SetObjMove(Ice_ClusterMove* clusterMove) = 0;
 
 	virtual void StepObjMove() = 0;
+	virtual void StepObjMoveDebug() = 0;
 };
 
 #endif

@@ -244,10 +244,10 @@
     <ClCompile Include="Ice_ClusterMove_Normal.cpp" />
     <ClCompile Include="IceObject.cpp" />
     <ClCompile Include="IceStructure.cpp" />
-    <ClCompile Include="Ice_InterPolationJudge_Spears.cpp" />
-    <ClCompile Include="Ice_InterPolation_Normal.cpp" />
-    <ClCompile Include="Ice_InterPolationJudgeNormal.cpp" />
-    <ClCompile Include="Ice_InterPolation_Weight.cpp" />
+    <ClCompile Include="Ice_ConvoJudge_Normal.cpp" />
+    <ClCompile Include="Ice_ConvoJudge_Spears.cpp" />
+    <ClCompile Include="Ice_Convolution_Normal.cpp" />
+    <ClCompile Include="Ice_Convolution_Weight.cpp" />
     <ClCompile Include="Ice_JudgeMove_Normal.cpp" />
     <ClCompile Include="Ice_JudgeMove_Spears.cpp" />
     <ClCompile Include="Ice_SM.cpp" />
@@ -277,6 +277,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\common\shared\inc\rx_timer.h" />
+    <ClInclude Include="gnuplot.h" />
     <ClInclude Include="HeatTransfar.h" />
     <ClInclude Include="Ice_CalcMethod.h" />
     <ClInclude Include="Ice_CalcMethod_Iteration.h" />
@@ -286,12 +287,12 @@
     <ClInclude Include="Ice_ClusterMove_Normal.h" />
     <ClInclude Include="IceObject.h" />
     <ClInclude Include="IceStructure.h" />
-    <ClInclude Include="Ice_InterPolation.h" />
-    <ClInclude Include="Ice_InterPolationJudge.h" />
-    <ClInclude Include="Ice_InterPolationJudge_Normal.h" />
-    <ClInclude Include="Ice_InterPolationJudge_Spears.h" />
-    <ClInclude Include="Ice_InterPolation_Normal.h" />
-    <ClInclude Include="Ice_InterPolation_Weight.h" />
+    <ClInclude Include="Ice_ConvoJudge.h" />
+    <ClInclude Include="Ice_ConvoJudge_Normal.h" />
+    <ClInclude Include="Ice_ConvoJudge_Spears.h" />
+    <ClInclude Include="Ice_Convolution.h" />
+    <ClInclude Include="Ice_Convolution_Normal.h" />
+    <ClInclude Include="Ice_Convolution_Weight.h" />
     <ClInclude Include="Ice_JudgeMove.h" />
     <ClInclude Include="Ice_JudgeMove_Normal.h" />
     <ClInclude Include="Ice_JudgeMove_Spears.h" />

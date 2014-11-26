@@ -19,3 +19,10 @@ bool JudgeSpears::JudgeMove(unsigned indx)
 
 	return true;
 }
+
+bool JudgeSpears::JudgeMoveDebug(unsigned indx)
+{
+	if(m_iceSM[indx]->GetNumVertices() == 0){			return false;	}
+
+	return true;
+}

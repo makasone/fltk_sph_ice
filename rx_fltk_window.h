@@ -70,11 +70,15 @@ protected:
 	Fl_Spinner* m_pSpinRadiusSpears;
 
 	Fl_Check_Button *m_pCheckWeight;
+	Fl_Spinner* m_pSpinWeight;
 
 	Fl_Check_Button *m_pCheckIteration;
 	Fl_Value_Slider *m_pSliderItr;
 
 	Fl_Check_Button *m_pCheckPath;
+
+	//デバッグモード
+	Fl_Check_Button *m_pCheckDebug;
 
 	rxFlDndBox *m_pDndBox;		//!< D&D領域
 	Fl_Box *m_pBoxStatus;		//!< ステータスバー
@@ -123,6 +127,9 @@ public:
 	static void OnSliderDraw_s(Fl_Widget *widget, void* x);
 	inline void OnSliderDraw(Fl_Widget *widget);
 
+	static void OnCheckDraw_s(Fl_Widget *widget, void* x);
+	inline void OnCheckDraw(Fl_Widget *widget);
+
 	//追加
 	static void OnSliderParam_s(Fl_Widget *widget, void* x);
 	inline void OnSliderParam(Fl_Widget *widget);
@@ -139,15 +146,20 @@ public:
 	static void OnCheckMode_Weight_s(Fl_Widget *widget, void* x);
 	inline void OnCheckMode_Weight(Fl_Widget *widget);
 
+	static void OnSpinDegree_Weight_s(Fl_Widget *widget, void* x);
+	inline void OnSpinDegree_Weight(Fl_Widget *widget);
+
 	static void OnCheckMode_Iteration_s(Fl_Widget *widget, void* x);
 	inline void OnCheckMode_Iteration(Fl_Widget *widget);
 
 	static void OnSliderItrNum_s(Fl_Widget *widget, void* x);
 	inline void OnSliderItrNum(Fl_Widget *widget);
 
-	static void OnCheckDraw_s(Fl_Widget *widget, void* x);
-	inline void OnCheckDraw(Fl_Widget *widget);
+	static void OnButtonDebugDeformation_s(Fl_Widget *widget, void* x);
+	inline void OnButtonDebugDeformation(Fl_Widget *widget);
 
+	static void OnCheckMode_Debug_s(Fl_Widget *widget, void* x);
+	inline void OnCheckMode_Debug(Fl_Widget *widget);
 
 	// メニューの更新
 	void UpdateMenuState(void);

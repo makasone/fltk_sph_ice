@@ -17,3 +17,10 @@ bool JudgeNormal::JudgeMove(unsigned indx)
 
 	return true;
 }
+
+bool JudgeNormal::JudgeMoveDebug(unsigned indx)
+{
+	if(m_iceSM[indx]->GetNumVertices() == 0) return false;
+
+	return true;
+}

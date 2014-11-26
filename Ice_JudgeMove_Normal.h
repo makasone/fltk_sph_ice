@@ -18,6 +18,7 @@ public:
 	~Ice_JudgeMove_Normal();
 
 	bool JudgeMove(unsigned indx);
+	bool JudgeMoveDebug(unsigned indx);
 
 private:
 	vector<Ice_SM*> m_iceSM;

@@ -7,7 +7,7 @@
 
 #include "Ice_ClusterMove.h"
 #include "Ice_JudgeMove.h"
-#include "Ice_InterPolation.h"
+#include "Ice_Convolution.h"
 
 #include "IceObject.h"
 #include "Ice_SM.h"
@@ -17,14 +17,14 @@ using namespace std;
 class Ice_CalcMethod_Iteration : public Ice_CalcMethod
 {
 public:
-	Ice_CalcMethod_Iteration(const vector<Ice_SM*>& iceSM, Ice_ClusterMove* clusterMove, Ice_InterPolation* intrp);
+	Ice_CalcMethod_Iteration(const vector<Ice_SM*>& iceSM, Ice_ClusterMove* clusterMove, Ice_Convolution* convo);
 	~Ice_CalcMethod_Iteration();
 	
 	void SetObjMove(Ice_ClusterMove* clusterMove);
-	void SetIntrp(Ice_InterPolation* intrp);
+	void SetConvolution(Ice_Convolution* convo);
 
 	void StepObjMove();
-	void InterPolationForCluster();
+	void StepObjMoveDebug();
 
 private:
 	vector<Ice_SM*> m_iceSM;
@@ -33,7 +33,7 @@ private:
 	Ice_ClusterMove* m_iceMove;
 
 	//ç≈èIìùçáåãâ ÇãÅÇﬂÇÈÉNÉâÉX
-	Ice_InterPolation* m_iceInterPolation;
+	Ice_Convolution* m_iceConvo;
 };
 
 #endif
