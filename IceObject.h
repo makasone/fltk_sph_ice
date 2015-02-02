@@ -15,6 +15,8 @@
 #include "Ice_CalcMethod.h"
 #include "Ice_CalcMethod_Normal.h"
 #include "Ice_CalcMethod_Iteration.h"
+#include "Ice_CalcMethod_Itr_Stiffness.h"
+#include "Ice_CalcMethod_Itr_Expand.h"
 
 #include "Ice_ClusterMove.h"
 #include "Ice_ClusterMove_Normal.h"
@@ -27,6 +29,7 @@
 #include "Ice_Convolution.h"
 #include "Ice_Convolution_Normal.h"
 #include "Ice_Convolution_Weight.h"
+#include "Ice_Convolution_Anisotropic.h"
 
 #include "Ice_ConvoJudge.h"
 #include "Ice_ConvoJudge_Normal.h"
@@ -52,13 +55,17 @@
 #include <ShellAPI.h>
 
 using namespace std;
+using namespace gnuplot;
 
 //#define MK_USE_GPU
-//#define USE_NEIGHT
+#define USE_NEIGHT
 
 #define GNUPLOT_PATH "D:\gnuplot\bin\pgnuplot.exe" // pgnuplot.exeのある場所
-#define RESULT_DATA "result/data/"
-#define RESULT_IMAGE "result/images/"
+#define RESULT_DATA_PATH "result/data/"
+#define RESULT_IMAGE_PATH "result/images/"
+//TODO::各ファイル名が直書きなのはちょっと問題
+
+#define FUNCTION_NAME cout << __FUNCTION__ << endl;
 
 const int g_iterationNum = 1;
 
@@ -86,7 +93,7 @@ private:
 	static int sm_maxParticleNum;					//最大粒子数
 
 	static float sm_selectRadius;					//運動計算クラスタを選択する際の半径　ここにおいていいのか？
-	
+
 	//運動計算の関数ポインタ
 	void (IceObject::*m_fpStepObjMove)();
 
@@ -122,6 +129,8 @@ private:
 	static float* m_fInterPolationCoefficience;
 
 //デバッグ
+	//初期座標
+	vector<Vec3> m_VecInitPos;
 	//DebugIceObject m_iceDebug;
 
 public:
@@ -149,13 +158,15 @@ public:
 
 	//計算手法
 	void ChangeMode_CalcMethod_Normal();
-	void ChangeMode_CalcMethod_Iteration();
+	void ChangeMode_CalcMethod_Itr_Num();
+	void ChangeMode_CalcMethod_Itr_Stiff();
+	void ChangeMode_CalcMethod_Itr_Expand();
 
 	//運動計算時のクラスタ選択
 	void ChangeMode_JudgeMove_Normal();
 	void ChangeMode_JudgeMove_Spears();
 
-	//運動計算手法
+	//クラスタのデータ構造
 	void ChangeMode_ClusterMove_Normal();
 	void ChangeMode_ClusterMove_Path();
 
@@ -166,6 +177,7 @@ public:
 	//補間手法
 	void ChangeMode_Convolution_Normal();
 	void ChangeMode_Convolution_Weight();
+	void ChangeMode_Convolution_Anisotropic();
 
 //アクセッサ
 	void SetSPHDevicePointer(float* pos, float* vel){	sd_sphPrtPos = pos; sd_sphPrtVel = vel;	}
@@ -225,13 +237,6 @@ public:
 	void SearchMeltParticle(vector<unsigned>& pList);
 	void SearchFreezeParticle(vector<unsigned>& pList);
 
-	void CalcAverageCPU(int pIndx, Vec3& pos, Vec3& vel);
-	void CalcAverageSelected(int pIndx, Vec3& pos, Vec3& vel);
-	void CalcWeightedVector(int pIndx, Vec3& pos, Vec3& vel);
-
-	void LinerInterPolationCPU(int pIndx, const Vec3& pos, const Vec3& vel);
-	void LinerInterPolationForClusterCPU(const int pIndx, const Vec3& pos, const Vec3& vel);
-
 	void WarmParticle(int pIndx, float temp, float heat){	m_heatTransfer->WarmParticle(pIndx, temp, heat);	}
 	void MeltParticle(int pIndx){	m_heatTransfer->MeltParticle(pIndx);	}
 
@@ -245,23 +250,43 @@ public:
 	void UpdateSelectCluster(const vector<unsigned>& prtList, vector<unsigned>& neighborList);
 	void ResetSelectCluster();
 
+	//質量修正
+	void UpdateParticleMass_Normal();		//全て1.0fに
+	void UpdateParticleMass_Average();		//粒子が含まれるクラスタ数で平均
+	void UpdateParticleMass_Direction();	//ijiriらの手法　各クラスタに方向ベクトルを持たせ，異方性を持たせる
+
+	string MakeDirNameTimeStamp();
+	void MakeDirectory(string path);
+
+	void SaveInitPos();
+	void ResetPosAndVel();
+
 //デバッグ
 	void DebugTetraInfo();
 	void DebugClusterInfo();
 	void DebugObjMoveUsePathWithGPU();
+	void DebugUpdateSelectCluster();
+	string DebugNowMoveMethod();
+	void DebugClearDirectry(string path);
+
+	//データ
+	void DebugMakeData();
 	void DebugDeformationAmount();
 	void DebugDeformationAverage();
-	void DebugUpdateSelectCluster();
-	void DebugNowMoveMethod();
-	void DebugMakeGraph();
 
-	void DebugClearDirectry(string path);
+	//グラフ
+	void DebugMakeGraph();
+	void DebugMakeGraph_DefClusterNum(string dirName);
+	void DebugMakeGraph_DefAmountAverage(string dirName);
+	void DebugMakeGraph_IterationNum(string dirName);
 
 //テスト
 	void TestStepInterPolation();
 	void TestUpdateSMFromPath();
+	void TestFixUpperPos();
+	void TestFixSidePos();
 
-
+	void TestSimulationFromFile(string fileName);
 
 
 

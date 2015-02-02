@@ -43,6 +43,7 @@ void MoveNormal::StepObjMoveItr()
 	}	
 }
 
+//デバッグ
 void MoveNormal::StepObjMoveDebug()
 {
 	#pragma omp parallel for
@@ -51,5 +52,16 @@ void MoveNormal::StepObjMoveDebug()
 		if(m_iceJudge->JudgeMoveDebug(i) == false){	continue;	}
 
 		m_iceSM[i]->UpdateCPU();
+	}	
+}
+
+void MoveNormal::StepObjMoveItrDebug()
+{
+	#pragma omp parallel for
+	for(int i = 0; i < IceObject::GetParticleNum(); ++i)
+	{	
+		if(m_iceJudge->JudgeMoveDebug(i) == false){	continue;	}
+
+		m_iceSM[i]->ShapeMatchingIteration();
 	}	
 }

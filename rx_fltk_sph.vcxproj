@@ -239,13 +239,18 @@
   <ItemGroup>
     <ClCompile Include="HeatTransfar.cpp" />
     <ClCompile Include="Ice_CalcMethod_Iteration.cpp" />
+    <ClCompile Include="Ice_CalcMethod_Itr_Expand.cpp" />
+    <ClCompile Include="Ice_CalcMethod_Itr_Stiffness.cpp" />
     <ClCompile Include="Ice_CalcMethod_Normal.cpp" />
+    <ClCompile Include="Ice_CalcStiffData_StdDevision.cpp" />
+    <ClCompile Include="Ice_CalcStiffData_Summation.cpp" />
     <ClCompile Include="Ice_ClusterMove_FastPath.cpp" />
     <ClCompile Include="Ice_ClusterMove_Normal.cpp" />
     <ClCompile Include="IceObject.cpp" />
     <ClCompile Include="IceStructure.cpp" />
     <ClCompile Include="Ice_ConvoJudge_Normal.cpp" />
     <ClCompile Include="Ice_ConvoJudge_Spears.cpp" />
+    <ClCompile Include="Ice_Convolution_Anisotropic.cpp" />
     <ClCompile Include="Ice_Convolution_Normal.cpp" />
     <ClCompile Include="Ice_Convolution_Weight.cpp" />
     <ClCompile Include="Ice_JudgeMove_Normal.cpp" />
@@ -281,7 +286,12 @@
     <ClInclude Include="HeatTransfar.h" />
     <ClInclude Include="Ice_CalcMethod.h" />
     <ClInclude Include="Ice_CalcMethod_Iteration.h" />
+    <ClInclude Include="Ice_CalcMethod_Itr_Expand.h" />
+    <ClInclude Include="Ice_CalcMethod_Itr_Stiffness.h" />
     <ClInclude Include="Ice_CalcMethod_Normal.h" />
+    <ClInclude Include="Ice_CalcStiffData.h" />
+    <ClInclude Include="Ice_CalcStiffData_StdDevision.h" />
+    <ClInclude Include="Ice_CalcStiffData_Summation.h" />
     <ClInclude Include="Ice_ClusterMove.h" />
     <ClInclude Include="Ice_ClusterMove_FastPath.h" />
     <ClInclude Include="Ice_ClusterMove_Normal.h" />
@@ -291,6 +301,7 @@
     <ClInclude Include="Ice_ConvoJudge_Normal.h" />
     <ClInclude Include="Ice_ConvoJudge_Spears.h" />
     <ClInclude Include="Ice_Convolution.h" />
+    <ClInclude Include="Ice_Convolution_Anisotropic.h" />
     <ClInclude Include="Ice_Convolution_Normal.h" />
     <ClInclude Include="Ice_Convolution_Weight.h" />
     <ClInclude Include="Ice_JudgeMove.h" />

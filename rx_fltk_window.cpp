@@ -231,6 +231,7 @@ rxFlWindow::rxFlWindow(int w_, int h_, const char* title)
 
 		// Clearボタン
 		button = new Fl_Button(xs, ys+2*(hs+5), ws, hs, "Clear");
+		button->callback(OnButtonClear_s, this);
 		button->down_box(boxtype);
 		button->clear_visible_focus();
 
@@ -239,83 +240,10 @@ rxFlWindow::rxFlWindow(int w_, int h_, const char* title)
 		//
 		xs += ws+7;
 		ys = h()-(hs_stat+ver_margin+hs_para)+5;
-		ws = 390;
+		ws = 300;
 		hs = hs_para-6;
 
-		Fl_Group* sg = new Fl_Group(xs, ys, ws, hs, "Turbulence");
-		{
-			sg->box(FL_DOWN_BOX);
-			sg->labelsize(12);
-			sg->align(FL_ALIGN_TOP | FL_ALIGN_INSIDE);
-
-			int dx = 70;
-			ys += 30;
-
-			m_pSpinCoefEt = new Fl_Spinner(xs+dx, ys, 87, 25, "Ecoef ");
-			m_pSpinCoefEt->type(1);
-			m_pSpinCoefEt->callback(OnSpinSimulation_s, this);
-			m_pSpinCoefEt->minimum(0);
-			m_pSpinCoefEt->maximum(0.005);
-			m_pSpinCoefEt->step(1e-005);
-			m_pSpinCoefEt->value(g_fCoefEt);
-			m_pSpinCoefEt->clear_visible_focus();
-
-			m_pSpinMaxEt = new Fl_Spinner(xs+dx, ys+30, 87, 25, "Emax ");
-			m_pSpinMaxEt->type(1);
-			m_pSpinMaxEt->callback(OnSpinSimulation_s, this);
-			m_pSpinMaxEt->minimum(0);
-			m_pSpinMaxEt->maximum(0.2);
-			m_pSpinMaxEt->step(0.0002);
-			m_pSpinMaxEt->value(g_fMaxEt);
-			m_pSpinMaxEt->clear_visible_focus();
-		
-			m_pSpinWaveletScale = new Fl_Spinner(xs+dx, ys+60, 87, 25, "Scale ");
-			m_pSpinWaveletScale->type(1);
-			m_pSpinWaveletScale->callback(OnSpinSimulation_s, this);
-			m_pSpinWaveletScale->minimum(0);
-			m_pSpinWaveletScale->maximum(10);
-			m_pSpinWaveletScale->step(0.1);
-			m_pSpinWaveletScale->value(g_fWaveletScale);
-			m_pSpinWaveletScale->clear_visible_focus();
-
-			dx = 280;
-
-			m_pSpinSpEt = new Fl_Spinner(xs+dx, ys, 87, 25, "SPS Scale ");
-			m_pSpinSpEt->type(1);
-			m_pSpinSpEt->callback(OnSpinSimulation_s, this);
-			m_pSpinSpEt->minimum(0);
-			m_pSpinSpEt->maximum(200);
-			m_pSpinSpEt->step(0.2);
-			m_pSpinSpEt->value(g_fCoefTurb);
-			m_pSpinSpEt->clear_visible_focus();
-		
-			m_pSpinSpEtMesh = new Fl_Spinner(xs+dx, ys+30, 87, 25, "SPS Mesh Scale ");
-			m_pSpinSpEtMesh->type(1);
-			m_pSpinSpEtMesh->callback(OnSpinSimulation_s, this);
-			m_pSpinSpEtMesh->minimum(0);
-			m_pSpinSpEtMesh->maximum(20);
-			m_pSpinSpEtMesh->step(0.02);
-			m_pSpinSpEtMesh->value(g_fCoefTurbForMesh);
-			m_pSpinSpEtMesh->clear_visible_focus();
-		
-			m_pSpinEtCri = new Fl_Spinner(xs+dx, ys+60, 87, 25, "SPS Ecri ");
-			m_pSpinEtCri->type(1);
-			m_pSpinEtCri->callback(OnSpinSimulation_s, this);
-			m_pSpinEtCri->minimum(0);
-			m_pSpinEtCri->maximum(1);
-			m_pSpinEtCri->step(0.001);
-			m_pSpinEtCri->value(g_fEtCri);
-			m_pSpinEtCri->clear_visible_focus();
-	
-			sg->resizable(NULL);
-			sg->end();
-		}
-
-		xs += ws+5;
-		ys = h()-(hs_stat+ver_margin+hs_para)+5;
-		ws = 280;
-
-		sg = new Fl_Group(xs, ys, ws, hs, "Draw");
+		Fl_Group* sg = new Fl_Group(xs, ys, ws, hs, "Draw");
 		{
 			sg->box(FL_DOWN_BOX);
 			sg->labelsize(12);
@@ -363,7 +291,7 @@ rxFlWindow::rxFlWindow(int w_, int h_, const char* title)
 		//追加：：物性のパラメータを制御
 		xs += ws+5;
 		ys = h()-(hs_stat+ver_margin+hs_para)+5;
-		ws = 420;
+		ws = 320;
 
 		sg = new Fl_Group(xs, ys, ws, hs, "Physical Property");
 		{
@@ -386,86 +314,6 @@ rxFlWindow::rxFlWindow(int w_, int h_, const char* title)
 			m_pSliderIntrPltn->align(Fl_Align(FL_ALIGN_LEFT));
 			m_pSliderIntrPltn->clear_visible_focus();
 
-			//モード選択
-			//重み付き平均
-			m_pCheckWeight = new Fl_Check_Button(xs+dx, ys+25, 25, 25, "Weight ");
-			m_pCheckWeight->down_box(FL_DOWN_BOX);
-			m_pCheckWeight->callback(OnCheckMode_Weight_s, this);
-			m_pCheckWeight->align(Fl_Align(FL_ALIGN_LEFT));
-			m_pCheckWeight->clear_visible_focus();
-
-				//カーネル関数の次数
-				m_pSpinRadiusSpears = new Fl_Spinner(xs+dx+80, ys+25, 70, 20, "Degree ");
-				m_pSpinRadiusSpears->type(FL_FLOAT_INPUT);
-				m_pSpinRadiusSpears->callback(OnSpinDegree_Weight_s, this);
-				m_pSpinRadiusSpears->minimum(1.0);
-				m_pSpinRadiusSpears->maximum(4.0);
-				m_pSpinRadiusSpears->step(0.2);
-				m_pSpinRadiusSpears->value(1.0);
-				m_pSpinRadiusSpears->clear_visible_focus();
-
-			//疎な運動計算
-			m_pCheckSpears = new Fl_Check_Button(xs+dx, ys+45, 25, 25, "Spears ");
-			m_pCheckSpears->down_box(FL_DOWN_BOX);
-			m_pCheckSpears->callback(OnCheckMode_Spears_s, this);
-			m_pCheckSpears->align(Fl_Align(FL_ALIGN_LEFT));
-			m_pCheckSpears->clear_visible_focus();
-
-				//影響半径 Poission Disk Sampling
-				m_pSpinRadiusSpears = new Fl_Spinner(xs+dx+80, ys+45, 70, 20, "Radius ");
-				m_pSpinRadiusSpears->type(FL_FLOAT_INPUT);
-				m_pSpinRadiusSpears->callback(OnSpinRadius_Spears_s, this);
-				m_pSpinRadiusSpears->minimum(0.3);
-				m_pSpinRadiusSpears->maximum(2.5);
-				m_pSpinRadiusSpears->step(0.1);
-				m_pSpinRadiusSpears->value(0.3);
-				m_pSpinRadiusSpears->clear_visible_focus();
-
-			//運動計算の反復
-			m_pCheckIteration = new Fl_Check_Button(xs+dx, ys+65, 25, 25, "Iteration ");
-			m_pCheckIteration->down_box(FL_DOWN_BOX);
-			m_pCheckIteration->callback(OnCheckMode_Iteration_s, this);
-			m_pCheckIteration->align(Fl_Align(FL_ALIGN_LEFT));
-			m_pCheckIteration->clear_visible_focus();
-
-				//反復回数
-				m_pSliderItr = new Fl_Value_Slider(xs+dx+75, ys+65, 90, 25, "ItrNum");
-				m_pSliderItr->type(1);
-				m_pSliderItr->callback(OnSliderItrNum_s, this);
-				m_pSliderItr->minimum(1);
-				m_pSliderItr->maximum(50);
-				m_pSliderItr->step(1);
-				m_pSliderItr->value(1);
-				m_pSliderItr->align(Fl_Align(FL_ALIGN_LEFT));
-				m_pSliderItr->clear_visible_focus();
-
-			//パス
-			m_pCheckPath = new Fl_Check_Button(xs+dx, ys+85, 25, 25, "Path ");
-			m_pCheckPath->down_box(FL_DOWN_BOX);
-			m_pCheckPath->callback(OnCheckMode_Path_s, this);
-			m_pCheckPath->align(Fl_Align(FL_ALIGN_LEFT));
-			m_pCheckPath->clear_visible_focus();
-
-			int xs2 = 325;
-
-			//デバッグボタン
-			m_pCheckDebug = new Fl_Check_Button(xs+xs2+50, ys, 25, 25, "Debug ");
-			m_pCheckDebug->down_box(FL_DOWN_BOX);
-			m_pCheckDebug->callback(OnCheckMode_Debug_s, this);
-			m_pCheckDebug->align(Fl_Align(FL_ALIGN_LEFT));
-			m_pCheckDebug->clear_visible_focus();
-
-			//グラフ作成ボタン
-			Fl_Boxtype boxtype = FL_FLAT_BOX;
-			Fl_Button *button;
-
-			button = new Fl_Button(xs+xs2, ys+25, 80, 25, "DefGraph");
-			button->callback(OnButtonDebugDeformation_s, this);
-			button->down_box(boxtype);
-			button->clear_visible_focus();
-
-
-
 			sg->resizable(NULL);
 			sg->end();
 		}
@@ -475,7 +323,7 @@ rxFlWindow::rxFlWindow(int w_, int h_, const char* title)
 		ys = h()-(hs_stat+ver_margin+hs_para)+5;
 		ws = 280;
 
-		sg = new Fl_Group(xs, ys, ws, hs, "TEMP");
+		sg = new Fl_Group(xs, ys, ws, hs, "Temparature");
 		{
 			sg->box(FL_DOWN_BOX);
 			sg->labelsize(12);
@@ -495,43 +343,213 @@ rxFlWindow::rxFlWindow(int w_, int h_, const char* title)
 			m_pSliderVScale->align(Fl_Align(FL_ALIGN_LEFT));
 			m_pSliderVScale->clear_visible_focus();
 
-			//熱拡散係数
+			//TODO::熱拡散係数
 
 
-			//伝熱係数
+			//TODO::伝熱係数
 
 			sg->resizable(NULL);
 			sg->end();
 		}
 
-//		//追加：：クラスタパラメータのGUI
-//		xs += ws+5;
-//		ys = h()-(hs_stat+ver_margin+hs_para)+5;
-//		ws = 280;
-//
-//		sg = new Fl_Group(xs, ys, ws, hs, "ICE");
-//		{
-//			sg->box(FL_DOWN_BOX);
-//			sg->labelsize(12);
-//			sg->align(FL_ALIGN_TOP | FL_ALIGN_INSIDE);
-//
-//			int dx = 125;
-//			ys += 30;
-//
-//			m_pSliderVScale = new Fl_Value_Slider(xs+dx, ys, 145, 25, "AirTemp");
-//			m_pSliderVScale->type(1);
-//			m_pSliderVScale->callback(OnSliderParam_s, this);
-//			m_pSliderVScale->minimum(-1000);
-//			m_pSliderVScale->maximum(1000);
-//			m_pSliderVScale->step(10);
-////			m_pSliderVScale->value(m_pGLCanvas->m_ht->getAirTemp());	//初期化前に参照してしまいエラー
-//			m_pSliderVScale->value(0);
-//			m_pSliderVScale->align(Fl_Align(FL_ALIGN_LEFT));
-//			m_pSliderVScale->clear_visible_focus();
-//
-//			sg->resizable(NULL);
-//			sg->end();
-//		}
+		//追加：：シミュレーションモード
+		xs += ws+5;
+		ys = h()-(hs_stat+ver_margin+hs_para)+5;
+		ws = 500;
+
+		sg = new Fl_Group(xs, ys, ws, hs, "Mode");
+		{
+			sg->box(FL_DOWN_BOX);
+			sg->labelsize(12);
+			sg->align(FL_ALIGN_TOP | FL_ALIGN_INSIDE);
+
+			ys += 15;
+
+		//各モード
+			//各クラスタからの位置決定
+			int weight_xs = xs+5;
+			Fl_Group *gr = new Fl_Group(weight_xs, ys, 200, 60);
+			{
+				gr->box(FL_THIN_UP_FRAME);
+				Fl_Round_Button *radio;
+
+				//ノーマル
+				radio = new Fl_Round_Button(weight_xs, ys, 20, 20, "Normal");
+				radio->type(102);
+				radio->down_box(FL_ROUND_DOWN_BOX);
+				radio->callback(OnRadioMode_Convolution_s, this);
+				radio->value(1);
+
+				//重み付き平均
+				radio = new Fl_Round_Button(weight_xs, ys+20, 20, 20, "Weight");
+				radio->type(102);
+				radio->down_box(FL_ROUND_DOWN_BOX);
+				radio->callback(OnRadioMode_Convolution_s, this);
+
+					//カーネル関数の次数
+					m_pSpinRadiusSpears = new Fl_Spinner(weight_xs+80, ys+20, 70, 20);
+					m_pSpinRadiusSpears->type(FL_FLOAT_INPUT);
+					m_pSpinRadiusSpears->callback(OnSpinDegree_Weight_s, this);
+					m_pSpinRadiusSpears->minimum(0.5);
+					m_pSpinRadiusSpears->maximum(4.0);
+					m_pSpinRadiusSpears->step(0.1);
+					m_pSpinRadiusSpears->value(1.0);
+					m_pSpinRadiusSpears->clear_visible_focus();
+
+				//異方性のある運動　方向ベクトルの指定
+				radio = new Fl_Round_Button(weight_xs, ys+40, 20, 20, "Anisotropic");
+				radio->type(102);
+				radio->down_box(FL_ROUND_DOWN_BOX);
+				radio->callback(OnRadioMode_Convolution_s, this);
+
+				gr->end();
+				gr->resizable(0);
+			}
+
+			//運動計算クラスタ選択
+			int spears_xs = xs+210;
+			gr = new Fl_Group(spears_xs, ys, 160, 60);
+			{
+				gr->box(FL_THIN_UP_FRAME);
+				Fl_Round_Button *radio;
+
+				//ノーマル
+				radio = new Fl_Round_Button(spears_xs, ys, 20, 20, "Normal");
+				radio->type(102);
+				radio->down_box(FL_ROUND_DOWN_BOX);
+				radio->callback(OnRadioMode_Spears_s, this);
+				radio->value(1);
+
+				//スパース
+				radio = new Fl_Round_Button(spears_xs, ys+20, 20, 20, "Spears");
+				radio->type(102);
+				radio->down_box(FL_ROUND_DOWN_BOX);
+				radio->callback(OnRadioMode_Spears_s, this);
+
+					//影響半径 Poission Disk Sampling
+					m_pSpinRadiusSpears = new Fl_Spinner(spears_xs+80, ys+20, 70, 20);
+					m_pSpinRadiusSpears->type(FL_FLOAT_INPUT);
+					m_pSpinRadiusSpears->callback(OnSpinRadius_Spears_s, this);
+					m_pSpinRadiusSpears->minimum(0.1);
+					m_pSpinRadiusSpears->maximum(2.5);
+					m_pSpinRadiusSpears->step(0.05);
+					m_pSpinRadiusSpears->value(0.1);
+					m_pSpinRadiusSpears->clear_visible_focus();
+
+				//その他
+				radio = new Fl_Round_Button(spears_xs, ys+40, 20, 20, "Other");
+				radio->type(102);
+				radio->down_box(FL_ROUND_DOWN_BOX);
+				radio->callback(OnRadioMode_Spears_s, this);
+
+				gr->end();
+				gr->resizable(0);
+			}
+
+			//運動計算の反復
+			int calc_xs = xs+5;
+			int calc_ys = ys+65;
+			gr = new Fl_Group(calc_xs, calc_ys, 380, 60);
+			{
+				gr->box(FL_THIN_UP_FRAME);
+				Fl_Round_Button *radio;
+
+				//ノーマル
+				radio = new Fl_Round_Button(calc_xs, calc_ys, 20, 20, "Normal");
+				radio->type(102);
+				radio->down_box(FL_ROUND_DOWN_BOX);
+				radio->callback(OnRadioMode_CalcMethod_s, this);
+				radio->value(1);
+
+				//反復　回数指定
+				radio = new Fl_Round_Button(calc_xs, calc_ys+20, 20, 20, "Itr_Num");
+				radio->type(102);
+				radio->down_box(FL_ROUND_DOWN_BOX);
+				radio->callback(OnRadioMode_CalcMethod_s, this);
+
+					//反復回数
+					m_pSliderItr = new Fl_Value_Slider(calc_xs+80, calc_ys+20, 110, 20);
+					m_pSliderItr->type(1);
+					m_pSliderItr->callback(OnSliderItrNum_s, this);
+					m_pSliderItr->minimum(1);
+					m_pSliderItr->maximum(50);
+					m_pSliderItr->step(1);
+					m_pSliderItr->value(1);
+					m_pSliderItr->align(Fl_Align(FL_ALIGN_LEFT));
+					m_pSliderItr->clear_visible_focus();
+
+				//反復　許容変形量指定
+				radio = new Fl_Round_Button(calc_xs, calc_ys+40, 20, 20, "Itr_Stiff");
+				radio->type(102);
+				radio->down_box(FL_ROUND_DOWN_BOX);
+				radio->callback(OnRadioMode_CalcMethod_s, this);
+
+					//許容変形量
+					m_pSpinStiff = new Fl_Spinner(calc_xs+80, calc_ys+40, 70, 20);
+					m_pSpinStiff->type(FL_FLOAT_INPUT);
+					m_pSpinStiff->callback(OnSpinStiff_s, this);
+					m_pSpinStiff->minimum(0.01);
+					m_pSpinStiff->maximum(100.0);
+					m_pSpinStiff->step(0.01);
+					m_pSpinStiff->value(20.0);
+					m_pSpinStiff->clear_visible_focus();
+
+				calc_xs += 205;
+
+				//反復　クラスタの粒子増加
+				radio = new Fl_Round_Button(calc_xs, calc_ys, 20, 20, "Itr_Expand");
+				radio->type(102);
+				radio->down_box(FL_ROUND_DOWN_BOX);
+				radio->callback(OnRadioMode_CalcMethod_s, this);
+
+				gr->end();
+				gr->resizable(0);
+			}
+
+			//パス
+			m_pCheckPath = new Fl_Check_Button(xs+450, ys+85, 25, 25, "Path ");
+			m_pCheckPath->down_box(FL_DOWN_BOX);
+			m_pCheckPath->callback(OnCheckMode_Path_s, this);
+			m_pCheckPath->align(Fl_Align(FL_ALIGN_LEFT));
+			m_pCheckPath->clear_visible_focus();
+
+			sg->resizable(NULL);
+			sg->end();
+		}
+
+		//追加：：デバッグ
+		xs += ws+5;
+		ys = h()-(hs_stat+ver_margin+hs_para)+5;
+		ws = 280;
+
+		sg = new Fl_Group(xs, ys, ws, hs, "Debug");
+		{
+			sg->box(FL_DOWN_BOX);
+			sg->labelsize(12);
+			sg->align(FL_ALIGN_TOP | FL_ALIGN_INSIDE);
+
+			int dx = 125;
+			ys += 30;
+
+			//デバッグボタン
+			m_pCheckDebug = new Fl_Check_Button(xs+dx, ys, 25, 25, "DebugMode");
+			m_pCheckDebug->down_box(FL_DOWN_BOX);
+			m_pCheckDebug->callback(OnCheckMode_Debug_s, this);
+			m_pCheckDebug->align(Fl_Align(FL_ALIGN_LEFT));
+			m_pCheckDebug->clear_visible_focus();
+
+			//グラフ作成ボタン
+			Fl_Boxtype boxtype = FL_FLAT_BOX;
+			Fl_Button *button;
+
+			button = new Fl_Button(xs+dx+50, ys, 80, 25, "MakeGraph");
+			button->callback(OnButtonDebugDeformation_s, this);
+			button->down_box(boxtype);
+			button->clear_visible_focus();
+
+			sg->resizable(NULL);
+			sg->end();
+		}
 
 		g->resizable(NULL);
 		g->end();
@@ -712,6 +730,16 @@ void rxFlWindow::OnButtonApply(Fl_Widget *widget)
 	m_pGLCanvas->m_fVScale = m_pSliderVScale->value();
 }
 
+void rxFlWindow::OnButtonClear_s(Fl_Widget *widget, void* x)
+{
+	((rxFlWindow*)x)->OnButtonClear(widget);
+}
+
+void rxFlWindow::OnButtonClear(Fl_Widget *widget)
+{
+	m_pGLCanvas->ResetSimulation();
+}
+
 /*!
  * Fl_Spinnerのコールバック関数 - Simulation
  * @param[in] widget ウィジットの親クラスオブジェクト
@@ -792,7 +820,7 @@ void rxFlWindow::OnSliderParam(Fl_Widget *widget)
 	//else if(label.find("Mesh Threshold") != string::npos){
 	//	m_pGLCanvas->m_fMeshThr = val;
 	//}
-	else if(label.find("InterPlation") != string::npos)
+	else if(label.find("SPH+SM InterPolation") != string::npos)
 	{
 		for(int i = 0; i < m_pGLCanvas->m_iIcePrtNum; i++)
 		{
@@ -819,26 +847,28 @@ void rxFlWindow::OnCheckMode_Path(Fl_Widget *widget)
 }
 
 //スパースな運動計算
-void rxFlWindow::OnCheckMode_Spears_s(Fl_Widget *widget, void* x)
+void rxFlWindow::OnRadioMode_Spears_s(Fl_Widget *widget, void* x)
 {
-	((rxFlWindow*)x)->OnCheckMode_Spears(widget);
+	((rxFlWindow*)x)->OnRadioMode_Spears(widget);
 }
-void rxFlWindow::OnCheckMode_Spears(Fl_Widget *widget)
+
+void rxFlWindow::OnRadioMode_Spears(Fl_Widget *widget)
 {
-	Fl_Check_Button* check = (Fl_Check_Button*)widget;
-	bool flag = check->value();
+	Fl_Round_Button* check = (Fl_Round_Button*)widget;
+	int type = check->value();
+	string label = check->label();
 
-	cout << __FUNCTION__ << "flag = " << flag << endl;
+	cout << __FUNCTION__ << "label  " << label << endl;
 
-	if(flag)
+	if(label == "Normal")
 	{
-		m_pGLCanvas->m_iceObj->ChangeMode_JudgeMove_Spears();
-		m_pGLCanvas->m_iceObj->ChangeMode_IntrpJudge_Spears();
-	}
-	else
-	{	
 		m_pGLCanvas->m_iceObj->ChangeMode_JudgeMove_Normal();
 		m_pGLCanvas->m_iceObj->ChangeMode_IntrpJudge_Normal();
+	}
+	else if(label == "Spears")
+	{	
+		m_pGLCanvas->m_iceObj->ChangeMode_JudgeMove_Spears();
+		m_pGLCanvas->m_iceObj->ChangeMode_IntrpJudge_Spears();
 	}
 }
 
@@ -850,7 +880,7 @@ void rxFlWindow::OnSpinRadius_Spears_s(Fl_Widget *widget, void* x)
 void rxFlWindow::OnSpinRadius_Spears(Fl_Widget *widget)
 {
 	Fl_Spinner* check = (Fl_Spinner*)widget;
-	double radius = check->value() / 100.0;
+	double radius = check->value();
 
 	cout << __FUNCTION__ << " radius = " << radius << endl;
 
@@ -859,27 +889,34 @@ void rxFlWindow::OnSpinRadius_Spears(Fl_Widget *widget)
 }
 
 //重み付き平均
-void rxFlWindow::OnCheckMode_Weight_s(Fl_Widget *widget, void* x)
+void rxFlWindow::OnRadioMode_Convolution_s(Fl_Widget *widget, void* x)
 {
-	((rxFlWindow*)x)->OnCheckMode_Weight(widget);
+	((rxFlWindow*)x)->OnRadioMode_Convolution(widget);
 }
-void rxFlWindow::OnCheckMode_Weight(Fl_Widget *widget)
+
+void rxFlWindow::OnRadioMode_Convolution(Fl_Widget *widget)
 {
-	Fl_Check_Button* check = (Fl_Check_Button*)widget;
-	bool flag = check->value();
+	Fl_Round_Button* check = (Fl_Round_Button*)widget;
+	int type = check->value();
+	string label = check->label();
 
-	cout << __FUNCTION__ << "flag = " << flag << endl;
+	cout << __FUNCTION__ << "label  " << label << endl;
 
-	if(flag)
+	if(label == "Normal")
 	{
-		m_pGLCanvas->m_iceObj->ChangeMode_Convolution_Weight();
-	}
-	else
-	{	
 		m_pGLCanvas->m_iceObj->ChangeMode_Convolution_Normal();
 	}
+	else if(label == "Weight")
+	{	
+		m_pGLCanvas->m_iceObj->ChangeMode_Convolution_Weight();		
+	}
+	else if(label == "Anisotropic")
+	{
+		m_pGLCanvas->m_iceObj->ChangeMode_Convolution_Anisotropic();	
+	}
 }
 
+//関数の次数
 void rxFlWindow::OnSpinDegree_Weight_s(Fl_Widget *widget, void* x)
 {
 	((rxFlWindow*)x)->OnSpinDegree_Weight(widget);
@@ -903,25 +940,34 @@ void rxFlWindow::OnSpinDegree_Weight(Fl_Widget *widget)
 	convoObj->SetKernelDegree(degree);
 }
 
-//反復処理
-void rxFlWindow::OnCheckMode_Iteration_s(Fl_Widget *widget, void* x)
+//反復処理モード
+void rxFlWindow::OnRadioMode_CalcMethod_s(Fl_Widget *widget, void* x)
 {
-	((rxFlWindow*)x)->OnCheckMode_Iteration(widget);
+	((rxFlWindow*)x)->OnRadioMode_CalcMethod(widget);
 }
-void rxFlWindow::OnCheckMode_Iteration(Fl_Widget *widget)
+void rxFlWindow::OnRadioMode_CalcMethod(Fl_Widget *widget)
 {
-	Fl_Check_Button* check = (Fl_Check_Button*)widget;
-	bool flag = check->value();
+	Fl_Round_Button* check = (Fl_Round_Button*)widget;
+	int type = check->value();
+	string label = check->label();
 
-	cout << __FUNCTION__ << "flag = " << flag << endl;
+	cout << __FUNCTION__ << "label  " << label << endl;
 
-	if(flag)
+	if(label == "Normal")
 	{
-		m_pGLCanvas->m_iceObj->ChangeMode_CalcMethod_Iteration();		
-	}
-	else
-	{	
 		m_pGLCanvas->m_iceObj->ChangeMode_CalcMethod_Normal();
+	}
+	else if(label == "Itr_Num")
+	{	
+		m_pGLCanvas->m_iceObj->ChangeMode_CalcMethod_Itr_Num();		
+	}
+	else if(label == "Itr_Stiff")
+	{
+		m_pGLCanvas->m_iceObj->ChangeMode_CalcMethod_Itr_Stiff();
+	}
+	else if(label == "Itr_Expand")
+	{
+		m_pGLCanvas->m_iceObj->ChangeMode_CalcMethod_Itr_Expand();
 	}
 }
 
@@ -939,6 +985,22 @@ void rxFlWindow::OnSliderItrNum(Fl_Widget *widget)
 	Ice_SM::SetIterationNum(val);
 }
 
+//許容変形量　硬さ
+void rxFlWindow::OnSpinStiff_s(Fl_Widget *widget, void* x)
+{
+	((rxFlWindow*)x)->OnSpinStiff(widget);
+}
+void rxFlWindow::OnSpinStiff(Fl_Widget *widget)
+{
+	Fl_Spinner* check = (Fl_Spinner*)widget;
+	double stiffness = check->value();
+
+	cout << __FUNCTION__ << " stiffness = " << stiffness << endl;
+
+	Ice_SM::SetItrStiffness(stiffness);
+}
+
+//デバッグモード
 void rxFlWindow::OnCheckMode_Debug_s(Fl_Widget *widget, void* x)
 {
 	((rxFlWindow*)x)->OnCheckMode_Debug(widget);

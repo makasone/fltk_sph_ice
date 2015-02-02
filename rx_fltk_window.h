@@ -77,6 +77,9 @@ protected:
 
 	Fl_Check_Button *m_pCheckPath;
 
+	Fl_Check_Button *m_pCheckStiff;
+	Fl_Spinner* m_pSpinStiff;
+
 	//デバッグモード
 	Fl_Check_Button *m_pCheckDebug;
 
@@ -121,6 +124,9 @@ public:
 	inline void OnButtonStart(void);
 	static void OnButtonApply_s(Fl_Widget *widget, void* x);
 	inline void OnButtonApply(Fl_Widget *widget);
+	static void OnButtonClear_s(Fl_Widget *widget, void* x);
+	inline void OnButtonClear(Fl_Widget *widget);
+
 
 	static void OnSpinSimulation_s(Fl_Widget *widget, void* x);
 	inline void OnSpinSimulation(Fl_Widget *widget);
@@ -137,26 +143,32 @@ public:
 	static void OnCheckMode_Path_s(Fl_Widget *widget, void* x);
 	inline void OnCheckMode_Path(Fl_Widget *widget);
 
-	static void OnCheckMode_Spears_s(Fl_Widget *widget, void* x);
-	inline void OnCheckMode_Spears(Fl_Widget *widget);
+	static void OnRadioMode_Spears_s(Fl_Widget *widget, void* x);
+	inline void OnRadioMode_Spears(Fl_Widget *widget);
 
 	static void OnSpinRadius_Spears_s(Fl_Widget *widget, void* x);
 	inline void OnSpinRadius_Spears(Fl_Widget *widget);
 
-	static void OnCheckMode_Weight_s(Fl_Widget *widget, void* x);
-	inline void OnCheckMode_Weight(Fl_Widget *widget);
+	static void OnRadioMode_Convolution_s(Fl_Widget *widget, void* x);
+	inline void OnRadioMode_Convolution(Fl_Widget *widget);
 
 	static void OnSpinDegree_Weight_s(Fl_Widget *widget, void* x);
 	inline void OnSpinDegree_Weight(Fl_Widget *widget);
 
-	static void OnCheckMode_Iteration_s(Fl_Widget *widget, void* x);
-	inline void OnCheckMode_Iteration(Fl_Widget *widget);
+	//static void OnSpinDegree_DirVec_s(Fl_Widget *widget, void* x);
+	//inline void OnSpinDegree_DirVec(Fl_Widget *widget);
+
+	static void OnRadioMode_CalcMethod_s(Fl_Widget *widget, void* x);
+	inline void OnRadioMode_CalcMethod(Fl_Widget *widget);
 
 	static void OnSliderItrNum_s(Fl_Widget *widget, void* x);
 	inline void OnSliderItrNum(Fl_Widget *widget);
 
 	static void OnButtonDebugDeformation_s(Fl_Widget *widget, void* x);
 	inline void OnButtonDebugDeformation(Fl_Widget *widget);
+
+	static void OnSpinStiff_s(Fl_Widget *widget, void* x);
+	inline void OnSpinStiff(Fl_Widget *widget);
 
 	static void OnCheckMode_Debug_s(Fl_Widget *widget, void* x);
 	inline void OnCheckMode_Debug(Fl_Widget *widget);

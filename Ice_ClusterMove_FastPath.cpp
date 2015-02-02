@@ -69,3 +69,19 @@ void MoveFastPath::StepObjMoveDebug()
 		m_iceSM[i]->UpdateUsePathCPU();						//運動計算
 	}
 }
+
+void MoveFastPath::StepObjMoveItrDebug()
+{
+	m_surfSM->UpdatePrefixSumItr();							//prefixSumの更新
+
+	//各クラスタのデータ更新
+	#pragma omp parallel for
+	for(int i = 0; i < IceObject::GetParticleNum(); ++i)
+	{	
+		if(m_iceJudge->JudgeMoveDebug(i) == false){	continue;	}
+
+		m_iceSM[i]->SetNowCm(m_surfSM->CalcCmSum(i));		//重心の更新
+		m_iceSM[i]->SetApq(m_surfSM->CalcApqSum(i));		//変形行列の更新
+		m_iceSM[i]->ShapeMatchingUsePath();					//現在の位置でSM法
+	}
+}

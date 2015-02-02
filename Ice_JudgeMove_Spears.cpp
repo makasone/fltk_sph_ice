@@ -22,6 +22,7 @@ bool JudgeSpears::JudgeMove(unsigned indx)
 
 bool JudgeSpears::JudgeMoveDebug(unsigned indx)
 {
+	//デバッグの時は全てのクラスタを運動計算する
 	if(m_iceSM[indx]->GetNumVertices() == 0){			return false;	}
 
 	return true;

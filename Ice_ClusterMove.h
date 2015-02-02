@@ -15,6 +15,7 @@ public:
 	virtual void StepObjMoveItr() = 0;
 
 	virtual void StepObjMoveDebug() = 0;
+	virtual void StepObjMoveItrDebug() = 0;
 };
 
 #endif

@@ -307,6 +307,10 @@ protected:
 	int m_iCurrentStep;				//!< 現在のステップ数
 	bool m_bPause;					//!< シミュレーションのポーズフラグ
 
+	//追加
+	vector<string> m_stSimuFiles;	//シミュレーションパラメータを保存したファイル群
+	int m_uSimulationNum;			//シミュレーション回数
+
 public:
 	//
 	// 追加　熱処理関連変数
@@ -385,9 +389,6 @@ public:
 
 	//落下開始フラグ
 	bool m_bFall;
-
-	//テストクラス
-	//mk_CGAL test;
 
 protected:
 	// シーン
@@ -550,6 +551,9 @@ public:
 	// FTGLフォント設定
 	int SetupFonts(const char* file);
 
+	//追加：シミュレーション
+	void ResetSimulation();
+	void ApplyNowData();
 
 public:
 	// メッシュ生成

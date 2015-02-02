@@ -24,6 +24,7 @@ public:
 	void StepObjMoveItr();
 
 	void StepObjMoveDebug();
+	void StepObjMoveItrDebug();
 
 private:
 	vector<Ice_SM*> m_iceSM;

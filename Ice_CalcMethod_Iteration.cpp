@@ -26,7 +26,7 @@ void CalcIteration::SetConvolution(Ice_Convolution* convo)
 void CalcIteration::StepObjMove()
 {
 	//èââÒ
-	m_iceMove->StepObjMove();		//ÇªÇÃÇ‹Ç‹åƒÇ‘ÇæÇØ
+	m_iceMove->StepObjMove();
 
 	//îΩïú
 	for(int itr = 1; itr < Ice_SM::GetIteration(); itr++)
@@ -47,20 +47,20 @@ void CalcIteration::StepObjMove()
 void CalcIteration::StepObjMoveDebug()
 {
 	//èââÒ
-	m_iceMove->StepObjMove();		//ÇªÇÃÇ‹Ç‹åƒÇ‘ÇæÇØ
+	m_iceMove->StepObjMoveDebug();
 
 	//îΩïú
 	for(int itr = 1; itr < Ice_SM::GetIteration(); itr++)
 	{
 		m_iceConvo->StepConvolution();
-		m_iceMove->StepObjMoveItr();
+		m_iceMove->StepObjMoveItrDebug();
 	}
 
 	//ë¨ìxéZèo
 	#pragma omp parallel for
 	for(int i = 0; i < IceObject::GetParticleNum(); ++i)
 	{	
-		if(m_iceMove->GetJudgeMove()->JudgeMove(i) == false){	continue;	}
+		if(m_iceMove->GetJudgeMove()->JudgeMoveDebug(i) == false){	continue;	}
 		m_iceSM[i]->integrateIteration();
 	}
 }

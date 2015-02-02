@@ -1015,7 +1015,7 @@ void rxFlGLWindow::Idle(void)
 {
 	make_current();
 
-	if(m_iCurrentStep%RX_DISPLAY_STEP == 0){
+	if(m_iCurrentStep%RX_DISPLAY_STEP == 0 && m_iCurrentStep != 0){
 		RXCOUT << "step " << m_iCurrentStep << endl;
 	}
 	// 出力用ステップ数
@@ -1118,9 +1118,9 @@ void rxFlGLWindow::Idle(void)
 	//
 	else if(m_bMode == MODE_ICE)
 	{
-		//StepTimeEvent();			RXTIMER("StepTimeEvent");		//タイムイベント
+		StepTimeEvent();			RXTIMER("StepTimeEvent");		//タイムイベント
 
-		StepPS(m_fDt);				RXTIMER("StepPS");				//液体運動
+		//StepPS(m_fDt);				RXTIMER("StepPS");				//液体運動
 		StepIceObj();												//固体運動
 		StepHeatTransfer();			RXTIMER("StepHeatTransfer");	//熱処理
 		StepIceStructure();			RXTIMER("StepIceStructure");	//相変化
@@ -1153,7 +1153,7 @@ void rxFlGLWindow::Idle(void)
 	g_TimerFPS.Stop();
 	if(m_iCurrentStep) ComputeFPS();
 
-	if(m_iCurrentStep%RX_DISPLAY_STEP == 0){
+	if(m_iCurrentStep%RX_DISPLAY_STEP == 0 && m_iCurrentStep != 0){
 		string tstr;
 		RXTIMER_STRING(tstr);
 		RXCOUT << "time : " << tstr << endl;
@@ -2128,7 +2128,7 @@ bool rxFlGLWindow::calMeshSPH_GPU(int nmax, double thr)
 	
 	m_iNumVrts = nvrts;
 	m_iNumTris = ntris;
-	if(m_iCurrentStep%RX_DISPLAY_STEP == 0){
+	if(m_iCurrentStep%RX_DISPLAY_STEP == 0 && m_iCurrentStep != 0){
 		RXCOUT << nvrts << " verts and " << ntris << " tri were created." << endl;
 	}
 
@@ -2161,7 +2161,7 @@ bool rxFlGLWindow::calMeshSPH_GPU(int nmax, double thr)
 
 	m_iNumVrts_solid = nvrts;
 	m_iNumTris_solid = ntris;
-	if(m_iCurrentStep%RX_DISPLAY_STEP == 0){
+	if(m_iCurrentStep%RX_DISPLAY_STEP == 0 && m_iCurrentStep != 0){
 		RXCOUT << "iceMesh " << nvrts << " verts and " << ntris << " tri were created (solid)." << endl;
 	}
 
@@ -2260,7 +2260,7 @@ bool rxFlGLWindow::calMeshSPH_SSM(int nmax, double thr)
 	AssignArrayBuffers(nv, 3, m_uVrtVBO, m_uNrmVBO, m_uTriVBO);
 	SetFBOFromArray(m_uVrtVBO, m_uNrmVBO, m_uTriVBO, m_Poly.vertices, m_Poly.normals, m_Poly.faces);
 
-	if(m_iCurrentStep%RX_DISPLAY_STEP == 0){
+	if(m_iCurrentStep%RX_DISPLAY_STEP == 0 && m_iCurrentStep != 0){
 		RXCOUT << m_iNumVrts << " verts and " << m_iNumTris << " tri were created." << endl;
 	}
 
@@ -2359,7 +2359,7 @@ bool rxFlGLWindow::calMeshSPH_SSM_GPU(int nmax, double thr)
 		m_pPS->UnmapParticle();
 	}
 
-	if(m_iCurrentStep%RX_DISPLAY_STEP == 0){
+	if(m_iCurrentStep%RX_DISPLAY_STEP == 0 && m_iCurrentStep != 0){
 		RXCOUT << m_iNumVrts << " verts and " << m_iNumTris << " tri were created." << endl;
 	}
 
@@ -2615,6 +2615,13 @@ void rxFlGLWindow::InitIceObj(void)
     cout << "OpenMP : On, threads =" << omp_get_max_threads() << endl;	//OpenMPによる簡易並列処理
 #endif
 
+	//シミュレーションテストのための準備
+	m_stSimuFiles.push_back("test1");
+	m_stSimuFiles.push_back("test2");
+	m_stSimuFiles.push_back("test3");
+
+	m_uSimulationNum = m_stSimuFiles.size();
+
 	//パラメータ設定
 	//TODO::ある粒子は液体，ある粒子は固体，とファイルから指定する　球は固体，立方体は液体，のように
 	m_iIcePrtNum = m_pPS->GetNumParticles();
@@ -2636,15 +2643,6 @@ void rxFlGLWindow::InitIceObj(void)
 	RXREAL *dp = ((RXSPH*)m_pPS)->GetDevicePointer_Pos();
 	RXREAL *dv = ((RXSPH*)m_pPS)->GetDevicePointer_Vel();
 
-	((RXSPH*)m_pPS)->DetectSurfaceParticles();								//表面粒子検出
-	int* surfaceParticles = (int *)( ((RXSPH*)m_pPS)->GetArraySurf() );		//表面粒子
-
-	float radius = ((RXSPH*)m_pPS)->GetEffectiveRadius();
-	((RXSPH*)m_pPS)->SetEffectiveRadius(radius * 1.2f);						//1.2で分離するギリギリ
-	StepPS(m_fDt);															//一度タイムステップを勧めないと，近傍粒子が取得されないみたい
-	((RXSPH*)m_pPS)->SetEffectiveRadius(radius);
-	vector<vector<rxNeigh>>& neights = ((RXSPH*)m_pPS)->GetNeights();
-
 	//ソリッドモデル
 	m_iceObj = new IceObject(
 		m_iIcePrtNum+1000,
@@ -2654,8 +2652,21 @@ void rxFlGLWindow::InitIceObj(void)
 		hp, hv, dp, dv,
 		m_iLayer,
 		m_iMaxClusterNum
-	);					
+	);
 
+	ApplyNowData();
+
+	//表面粒子
+	((RXSPH*)m_pPS)->DetectSurfaceParticles();								//表面粒子検出
+	int* surfaceParticles = (int *)( ((RXSPH*)m_pPS)->GetArraySurf() );		//表面粒子
+
+	//近傍粒子
+	float radius = ((RXSPH*)m_pPS)->GetEffectiveRadius();
+	((RXSPH*)m_pPS)->SetEffectiveRadius(radius * 1.0f);						//1.2で分離するギリギリ
+	StepPS(m_fDt);															//一度タイムステップを勧めないと，近傍粒子が取得されないみたい
+	((RXSPH*)m_pPS)->SetEffectiveRadius(radius);
+	vector<vector<rxNeigh>>& neights = ((RXSPH*)m_pPS)->GetNeights();
+	
 	m_iceObj->InitCluster(
 		sph_env.boundary_ext,
 		-sph_env.boundary_ext,
@@ -2682,6 +2693,8 @@ void rxFlGLWindow::InitIceObj(void)
 
 	m_iClusteresNum = m_iceObj->GetClusterNum();
 	m_iShowClusterIndx = m_iClusteresNum;
+
+	m_iceObj->SaveInitPos();	//初期位置の保存
 
 //デバッグ
 	//DumpParticleData();										//初期粒子情報をダンプ
@@ -2717,21 +2730,42 @@ void rxFlGLWindow::StepTimeEvent(void)
 	//	}
 	//}
 
-	//粒子が中心の列から融解
-	if(200 <= g_iTimeCount && g_iTimeCount <= 300)
-	{		
-		//特定領域の粒子を融解　真ん中から真っ二つ
-		int SIDE = pow(m_iIcePrtNum, 1.0/3.0) + 0.5;	//立方体の１辺の頂点数
-		int rine = 1;
+	////粒子が中心の列から融解
+	//if(200 <= g_iTimeCount && g_iTimeCount <= 300)
+	//{		
+	//	//特定領域の粒子を融解　真ん中から真っ二つ
+	//	int SIDE = pow(m_iIcePrtNum, 1.0/3.0) + 0.5;	//立方体の１辺の頂点数
+	//	int rine = 1;
 
-		int first = SIDE*SIDE*(SIDE/2 - (rine-1) );
-		int end = SIDE*SIDE*(SIDE/2 + rine);
+	//	int first = SIDE*SIDE*(SIDE/2 - (rine-1) );
+	//	int end = SIDE*SIDE*(SIDE/2 + rine);
 
-		for(int i = first; i < end; i++)	//rine列
-		{
-			m_iceObj->MeltParticle(i);
-		}
-	}
+	//	for(int i = first; i < end; i++)	//rine列
+	//	{
+	//		m_iceObj->MeltParticle(i);
+	//	}
+	//}
+
+	////あるフレーム以上になるとデータを作成して終了
+	//if(250 < g_iTimeCount)
+	//{
+	//	m_iceObj->DebugMakeGraph();
+	//	exit(1);
+	//}
+
+	////シミュレーションが終わると，次のファイル名を渡してシミュレーションさせる
+	//if(300 < g_iTimeCount)
+	//{
+	//	ResetSimulation();
+	//	g_iTimeCount = 0;
+	//	m_iCurrentStep = 0;
+	//	m_uSimulationNum--;
+	//	if(m_uSimulationNum <= 0){	exit(1);	} //全てのシミュレーションが終了
+
+	//	//次のシミュレーション開始
+	//	string nextSimulation = m_stSimuFiles[m_uSimulationNum];
+	//	m_iceObj->TestSimulationFromFile(nextSimulation);
+	//}
 }
 
 /*!
@@ -2998,8 +3032,14 @@ void rxFlGLWindow::StepClusterCPU(double dt)
 	
 	m_iceObj->SetSPHHostPointer(p, v);
 
+	//int* surfaceParticles = (int *)( ((RXSPH*)m_pPS)->GetArraySurf() );		//表面粒子
+
 	//固体の運動計算
 	m_iceObj->StepObjMoveCPU();				
+
+	//テスト
+	//m_iceObj->TestFixUpperPos();	//粒子を上部で固定
+	//m_iceObj->TestFixSidePos();	//粒子を側面で固定
 
 	//SPHのデータの更新　位置・速度
 	m_pPS->SetArrayVBO(rxParticleSystemBase::RX_POSITION, p, 0, m_pPS->GetNumParticles());
@@ -3028,6 +3068,22 @@ void rxFlGLWindow::StepClusterGPU(double dt)
 
 	//位置情報をアンマップ
 	cudaGraphicsUnmapResources(1, &d_resource_pos, 0);
+}
+
+void rxFlGLWindow::ResetSimulation()
+{
+	m_iceObj->ResetPosAndVel();
+	ApplyNowData();
+}
+
+void rxFlGLWindow::ApplyNowData()
+{
+	RXREAL *p = m_iceObj->GetSPHHostPosPointer();
+	RXREAL *v = m_iceObj->GetSPHHostVelPointer();
+
+	//SPHのデータの更新　位置・速度
+	m_pPS->SetArrayVBO(rxParticleSystemBase::RX_POSITION, p, 0, m_pPS->GetNumParticles());
+	m_pPS->SetArrayVBO(rxParticleSystemBase::RX_VELOCITY, v, 0, m_pPS->GetNumParticles());
 }
 
 //------------------------------------------------------------------------------------------------------------
@@ -3848,10 +3904,9 @@ void rxFlGLWindow::StepParticleColor()
 		for( int i = 0; i < m_pPS->GetNumParticles(); i++ )
 		{
 			tempColor[i] = m_iceObj->GetMoveObj(i)->GetDefAmount();
-			//tempColor[i] = m_iceObj->GetMoveObj(i)->GetDefPriority();
 		}
 
-		m_pPS->SetColorVBOFromArray( tempColor, 1, false, 1.5f );
+		m_pPS->SetColorVBOFromArray( tempColor, 1, false, 10.0f );
 
 		delete[] tempColor;
 	}

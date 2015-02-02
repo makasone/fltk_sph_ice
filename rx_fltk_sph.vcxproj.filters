@@ -61,6 +61,9 @@
     <Filter Include="IceObject\ConvoJudge">
       <UniqueIdentifier>{b6411311-9345-42e9-a8a8-fdf4a42995f6}</UniqueIdentifier>
     </Filter>
+    <Filter Include="IceObject\CalcStiffnessData">
+      <UniqueIdentifier>{895eab8e-2076-4004-8f8d-c1797b790863}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="rx_sph_solid.cpp">
@@ -173,6 +176,21 @@
     </ClCompile>
     <ClCompile Include="Ice_ConvoJudge_Spears.cpp">
       <Filter>IceObject\ConvoJudge</Filter>
+    </ClCompile>
+    <ClCompile Include="Ice_CalcMethod_Itr_Stiffness.cpp">
+      <Filter>IceObject\CalcMethod Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Ice_CalcStiffData_Summation.cpp">
+      <Filter>IceObject\CalcStiffnessData</Filter>
+    </ClCompile>
+    <ClCompile Include="Ice_CalcStiffData_StdDevision.cpp">
+      <Filter>IceObject\CalcStiffnessData</Filter>
+    </ClCompile>
+    <ClCompile Include="Ice_Convolution_Anisotropic.cpp">
+      <Filter>IceObject\Convolution</Filter>
+    </ClCompile>
+    <ClCompile Include="Ice_CalcMethod_Itr_Expand.cpp">
+      <Filter>IceObject\CalcMethod Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -334,6 +352,24 @@
     </ClInclude>
     <ClInclude Include="gnuplot.h">
       <Filter>GUI Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Ice_CalcMethod_Itr_Stiffness.h">
+      <Filter>IceObject\CalcMethod Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Ice_CalcStiffData.h">
+      <Filter>IceObject\CalcStiffnessData</Filter>
+    </ClInclude>
+    <ClInclude Include="Ice_CalcStiffData_Summation.h">
+      <Filter>IceObject\CalcStiffnessData</Filter>
+    </ClInclude>
+    <ClInclude Include="Ice_CalcStiffData_StdDevision.h">
+      <Filter>IceObject\CalcStiffnessData</Filter>
+    </ClInclude>
+    <ClInclude Include="Ice_Convolution_Anisotropic.h">
+      <Filter>IceObject\Convolution</Filter>
+    </ClInclude>
+    <ClInclude Include="Ice_CalcMethod_Itr_Expand.h">
+      <Filter>IceObject\CalcMethod Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

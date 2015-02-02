@@ -81,6 +81,7 @@ protected:
 	int* m_ipLayeres;
 
 	static int s_iIterationNum;					//反復回数
+	static float s_fItrStiffness;				//変形量の閾値
 
 	Vec3 m_vec3OrgCm;							//初期のクラスタの重心
 	Vec3 m_vec3NowCm;							//現在のクラスタの重心
@@ -185,7 +186,7 @@ public:
 	void calExternalForcesIteration();
 
 	void CalcMass();
-	void CalcCm();
+	void CalcOrgCm();
 
 	void integrate(double dt);
 	void integrateIteration();
@@ -196,6 +197,7 @@ public:
 	void SetLayer(int indx, int layer){	m_ipLayeres[indx] = layer;	}
 
 	static void SetIterationNum(int itr){	s_iIterationNum = itr;	}
+	static void SetItrStiffness(float stiff){	s_fItrStiffness = stiff;	}
 
 	void SetNowCm(Vec3 nowCm){	m_vec3NowCm = nowCm;	}
 	void SetPreCm(Vec3 preCm){	m_vec3PreCm = preCm;	}
@@ -222,7 +224,8 @@ public:
 	float GetDefPriority(){	return m_fDefPriority;	}
 
 	int GetLayer(int indx){	return m_ipLayeres[indx];	}
-	static int GetIteration(){	return s_iIterationNum;	}
+	static int GetIteration(){		return s_iIterationNum;	}
+	static float GetItrStiffness(){	return s_fItrStiffness;	}
 
 	unsigned GetIndxNum(){	return m_iIndxNum;	}
 

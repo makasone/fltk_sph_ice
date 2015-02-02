@@ -12,9 +12,11 @@ IceTetrahedra &IceTetrahedra::GetInstance() {
 void IceTetrahedra::InitTetra(float* pos, int vertexNum)
 {	cout << __FUNCTION__ << endl;
 
-	//Load_ELE_File(ELE_FILE);									//eleファイルを読み込み，リストを作成
-	Load_obj_File(OBJ_NAME);
-	MakeTetrahedraFromCube(pos, vertexNum);
+	//Load_ELE_File(ELE_FILE);					//うまくいかない　eleファイルを読み込みリスト作成
+	//Load_obj_File(OBJ_NAME, pos);				//objファイルを読み込みリスト作成
+	Load_NODE_File(NODE_FILE, pos);
+
+	//MakeTetrahedraFromCube(pos, vertexNum);
 }
 
 /*!
@@ -646,8 +648,10 @@ void IceTetrahedra::Load_NODE_File(const string name, float* p)
 			//cout << "d = " << d << "\t";
 			//cout << "e = " << e << endl;
 
-			int pIndx = (int(da)/*-1*/)*4;	//ファイルによっては-1することもある
-			double radius = 0.08;
+			if(int(da) > 6525)	break;
+			int pIndx = (int(da)-1)*4;	//ファイルによっては-1することもある
+			
+			double radius = 0.75f;
 			p[pIndx+0] = db * radius;
 			p[pIndx+1] = dc * radius;
 			p[pIndx+2] = dd * radius;
@@ -786,7 +790,7 @@ void IceTetrahedra::Save_NODE_File(const string name, float* pos, int vrtxNum)
 }
 
 //objファイルを読み込んで粒子位置を初期化
-void IceTetrahedra::Load_obj_File(const string objName)
+void IceTetrahedra::Load_obj_File(const string objName, float* pos)
 {	cout << __FUNCTION__ << endl;
 
 	//objファイル
@@ -799,19 +803,19 @@ void IceTetrahedra::Load_obj_File(const string objName)
 	int index_count = 0; 
 
 	vertex_count = (int)m_poly.vertices.size(); // 総頂点数
-	index_count = (int)m_poly.faces.size(); // 総ポリゴン数
+	index_count = (int)m_poly.faces.size();		// 総ポリゴン数
 
 	cout << "vertex = " << vertex_count << " index_count = " << index_count << endl;
 
 
 	//3Dモデルから粒子位置を初期化
-	//for(int i = 0; i < ICENUM; i++)
-	//{
-	//	for(int j = 0; j < 3; j++)
-	//	{
-	//		p[i*4+j] = m_poly.vertices[i][j] / 10.0;
-	//	}
-	//}
+	for(int i = 0; i < vertex_count; i++)
+	{
+		for(int j = 0; j < 3; j++)
+		{
+			pos[i*4+j] = m_poly.vertices[i][j] * 0.2f;
+		}
+	}
 
 	//tetgenで頂点追加＋四面体分割
 	//MakeTetrahedraFromObj();
@@ -823,6 +827,58 @@ void IceTetrahedra::Load_obj_File(const string objName)
 
 	////CGALを用いて3Dオブジェクト内部に点を追加＋四面体作成
 	////test.test();
+}
 
-	//m_pPS->SetArrayVBO(rxParticleSystemBase::RX_POSITION, p, 0, m_pPS->GetNumParticles());
+void IceTetrahedra::LoadTest_VoxelFile(const string name, float* pos)
+{	cout << __FUNCTION__ << endl;
+	
+	////ファイルを読み込み，頂点位置を
+	//ifstream ifs( name );
+	//string str;
+
+	////ファイルの存在確認
+	//if(ifs.fail()) 
+	//{
+	//	cerr << "File do not exist.\n";
+	//	exit(0);
+	//}
+
+	////変数の用意，初期化
+	//int ia=0, ib=0, ic=0, id=0;
+	//double da = 0.0, db = 0.0, dc = 0.0, dd = 0.0;
+	//bool line_1 = false;
+
+	////文字列の読み込み
+	//while( getline(ifs, str) )
+	//{
+	//	ia=0; ib=0; ic=0; id=0;
+	//	//無理やりだけどとりあえず
+	//	if( !line_1 )
+	//	{
+	//		line_1 = true;
+	//		sscanf(str.data(), "%d %d %d %d", &ia, &ib, &ic, &id);
+	//		
+	//		//cout << "ia = " << ia << "\t" << "ib = " << ib << "\t" << "ic = " << ic << endl;
+	//	}
+	//	else
+	//	{
+	//		if( str[0] == '#' )
+	//		{
+	//			continue;
+	//		}
+
+	//		sscanf(str.data(), "%lf %lf %lf %lf", &da, &db, &dc, &dd);
+	//		//cout << "a = " << a << "\t";
+	//		//cout << "b = " << b << "\t";
+	//		//cout << "c = " << c << "\t";
+	//		//cout << "d = " << d << "\t";
+	//		//cout << "e = " << e << endl;
+
+	//		int pIndx = (int(da)/*-1*/)*4;	//ファイルによっては-1することもある
+	//		double radius = 0.08;
+	//		p[pIndx+0] = db * radius;
+	//		p[pIndx+1] = dc * radius;
+	//		p[pIndx+2] = dd * radius;
+	//	}
+	//}
 }
