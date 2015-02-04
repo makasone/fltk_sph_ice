@@ -166,7 +166,6 @@ public:
 
 	static int* GetDeviceIndexesPointer(){	return d_PIndxes;	}
 	static int* GetDeviceIndexSetPointer(){	return d_IndxSet;	}
-	static int	GetVertexNum(){				return s_vertNum;	}
 
 	void InitGPU_Instance();
 	static void InitFinalParamPointer(int vrtxNum);
@@ -236,7 +235,7 @@ public:
 
 	unsigned GetIndxNum() const {	return m_iIndxNum;	}
 	
-	void AddAnotherClusterVertex(const Vec3& orgPos, const Vec3& curPos, const Vec3& vel, double mass, int pIndx, double alpha, double beta, int layer);
+	int AddAnotherClusterVertex(const Vec3& orgPos, const Vec3& curPos, const Vec3& vel, double mass, int pIndx, double alpha, double beta, int layer);
 
 	void AddVertex(const Vec3 &pos, double mass, int pIndx);
 	void AddVertex(const Vec3 &pos, const Vec3& vel, double mass, int pIndx);

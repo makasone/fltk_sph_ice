@@ -429,7 +429,7 @@ void Ice_SM::AddVertex(const Vec3 &pos, const Vec3& vel, double mass, int pIndx)
 	if(m_iNumVertices > m_iIndxNum){	m_iIndxNum = m_iNumVertices;	}
 }
 
-void Ice_SM::AddAnotherClusterVertex(const Vec3& orgPos, const Vec3& curPos, const Vec3& vel, double mass, int pIndx, double alpha, double beta, int layer)
+int Ice_SM::AddAnotherClusterVertex(const Vec3& orgPos, const Vec3& curPos, const Vec3& vel, double mass, int pIndx, double alpha, double beta, int layer)
 {
 	int indx = rxShapeMatching::AddVertex(orgPos, curPos, vel, mass, pIndx);
 
@@ -441,6 +441,8 @@ void Ice_SM::AddAnotherClusterVertex(const Vec3& orgPos, const Vec3& curPos, con
 
 	//最大添字番号の更新
 	if(m_iNumVertices > m_iIndxNum){	m_iIndxNum = m_iNumVertices;	}
+
+	return indx;
 }
 
 void Ice_SM::Remove(int indx)
@@ -474,6 +476,7 @@ void Ice_SM::Clear()
 	//m_iVolumeConservation	.clear();
 }
 
+//TODO: 限りなく適当な実装　なるべく使わない
 bool Ice_SM::CheckIndx(int pIndx)
 {//	cout << __FUNCTION__ << endl;
 
@@ -489,6 +492,7 @@ bool Ice_SM::CheckIndx(int pIndx)
 	return false;
 }
 
+//TODO: 限りなく適当な実装　なるべく使わない
 int	Ice_SM::SearchIndx(int pIndx)
 {
 	////vector findバージョン　めちゃくちゃ重い

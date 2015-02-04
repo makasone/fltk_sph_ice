@@ -252,6 +252,8 @@ void rxShapeMatching::AddVertex(const Vec3 &pos, const Vec3& vel, double mass, i
  */
 int rxShapeMatching::AddVertex(const Vec3& orgPos, const Vec3 &curPos, const Vec3& vel, double mass, int pIndx)
 {
+	//TODO: もう少し工夫して高速化できる
+	//i = 0でなくi = m_iIndxNumにして，最後まで行ったらはじめに戻す　見つからないなら永遠にループしないように判定
 	//開いている場所を探す
 	int freeIndx = MAXINT;
 	for(int i = 0; i < MAXPARTICLE; i++){
@@ -262,7 +264,7 @@ int rxShapeMatching::AddVertex(const Vec3& orgPos, const Vec3 &curPos, const Vec
 	}
 
 	if(freeIndx == MAXINT){
-		cerr << "Cant Add" << endl;
+		cerr << "Cant Add" << " " << m_iNumVertices << endl;
 		return -1;
 	}
 
