@@ -26,9 +26,13 @@ public:
 	void StepObjMove();
 	void StepObjMoveDebug();
 
-	void GetExpandeCluster(vector<Ice_SM*>& remakeObjes);
-	void ExpandeCluster(vector<Ice_SM*>& remakeObjes);
-	void ContractCluster(vector<Ice_SM*>& remakeObjes);
+	void CopyOriginalObject(vector<Ice_SM>& copyObj);
+	void DeleteCopyObject(vector<Ice_SM>& copyObj);
+	void ReplaceCluster(Ice_SM copyObj[125]);
+
+	void GetExpandeCluster();
+	void ExpandeCluster();
+	void ContractCluster();
 
 private:
 	vector<Ice_SM*> m_iceSM;

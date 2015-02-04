@@ -134,9 +134,18 @@ protected:
 		//allowFlip反転を許すかのフラグ
 
 public:
+	Ice_SM();
 	Ice_SM(int obj);
+	Ice_SM(const Ice_SM& copy);
+
 	~Ice_SM();
 	
+	//演算子のオーバーロード
+	Ice_SM& operator=(const Ice_SM& copy);
+
+	void ReleaseMemory();
+	void Copy(const Ice_SM& copy);
+
 	static void Ice_SM::InitGPU(const vector<Ice_SM*>& sm, float* d_pos, float* d_vel, int prtNum, int maxprtNum);
 
 	static void SetPrtPointerPosAndVel(const float* pos, const float* vel){	s_pfPrtPos = pos;	s_pfPrtVel = vel;	}
@@ -162,8 +171,6 @@ public:
 	void InitGPU_Instance();
 	static void InitFinalParamPointer(int vrtxNum);
 	static void ResetFinalParamPointer(unsigned clusterNum);
-
-	void AddVertex(const Vec3 &pos, double mass, int pIndx);
 	
 	void UpdateCPU();
 	void UpdateUsePathCPU();
@@ -210,25 +217,29 @@ public:
 	void SetLinerFalg(int indx, int flag){	m_iLinearDeformation[indx] = flag; }
 	void SetVolumeFlag(int indx, int flag){	m_iVolumeConservation[indx] = flag;}
 
-	float GetAlphas(int indx){	return m_fpAlphas[indx];	}
-	float GetBetas (int indx){	return m_fpBetas[indx];	}
+	float GetAlphas(int indx) const {	return m_fpAlphas[indx];	}
+	float GetBetas (int indx) const {	return m_fpBetas[indx];	}
 
 	Vec3 GetCm(void){		return m_vec3NowCm;	}
 	Vec3 GetOrgCm(void){	return m_vec3OrgCm;	}
 	Vec3 GetPreCm(void){	return m_vec3PreCm;	}
-	Vec3 GetPrePos(int pIndx){	return Vec3(m_pPrePos[pIndx*SM_DIM+0],m_pPrePos[pIndx*SM_DIM+1],m_pPrePos[pIndx*SM_DIM+2]);	}
+	Vec3 GetPrePos(int pIndx) const {	return Vec3(m_pPrePos[pIndx*SM_DIM+0],m_pPrePos[pIndx*SM_DIM+1],m_pPrePos[pIndx*SM_DIM+2]);	}
 
-	rxMatrix3 GetApq(void){	return m_mtrx3Apq;	}
+	rxMatrix3 GetApq() const {	return m_mtrx3Apq;	}
 
-	float GetDefAmount(){	return m_fDefAmount;	}
+	float GetDefAmount() const {	return m_fDefAmount;	}
 	float GetDefPriority(){	return m_fDefPriority;	}
 
-	int GetLayer(int indx){	return m_ipLayeres[indx];	}
+	int GetLayer(int indx) const {	return m_ipLayeres[indx];	}
 	static int GetIteration(){		return s_iIterationNum;	}
 	static float GetItrStiffness(){	return s_fItrStiffness;	}
 
-	unsigned GetIndxNum(){	return m_iIndxNum;	}
+	unsigned GetIndxNum() const {	return m_iIndxNum;	}
+	
+	void AddAnotherClusterVertex(const Vec3& orgPos, const Vec3& curPos, const Vec3& vel, double mass, int pIndx, double alpha, double beta, int layer);
 
+	void AddVertex(const Vec3 &pos, double mass, int pIndx);
+	void AddVertex(const Vec3 &pos, const Vec3& vel, double mass, int pIndx);
 	void Remove(int indx);
 	void Clear();
 

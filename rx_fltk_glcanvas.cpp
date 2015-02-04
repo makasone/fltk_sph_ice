@@ -1726,10 +1726,15 @@ void rxFlGLWindow::OnMenuParticleColor(double val, string label)
 		if(m_iShowClusterIndx != m_iClusteresNum && m_iShowClusterIndx >= 0)
 		{
 			cout << "Cluster :: Indxes :: " << endl;
-			for( int i = 0; i < m_iceObj->GetMoveObj(m_iShowClusterIndx)->GetNumVertices(); i++ )
+			for( int i = 0; i < m_iceObj->GetMoveObj(m_iShowClusterIndx)->GetIndxNum(); i++ )
 			{
+				int pIndx = m_iceObj->GetMoveObj(m_iShowClusterIndx)->GetParticleIndx(i);
+				if(pIndx == MAXINT){
+					continue;
+				}
+
 				cout << "	i = " << i 
-					<< " pIndx = "<< m_iceObj->GetMoveObj(m_iShowClusterIndx)->GetParticleIndx(i)
+					<< " pIndx = "<< pIndx
 					<< " layer = " << m_iceObj->GetMoveObj(m_iShowClusterIndx)->GetLayer(i);
 				cout << endl;
 			}
@@ -2615,12 +2620,12 @@ void rxFlGLWindow::InitIceObj(void)
     cout << "OpenMP : On, threads =" << omp_get_max_threads() << endl;	//OpenMPによる簡易並列処理
 #endif
 
-	//シミュレーションテストのための準備
-	m_stSimuFiles.push_back("test1");
-	m_stSimuFiles.push_back("test2");
-	m_stSimuFiles.push_back("test3");
+	////シミュレーションテストのための準備
+	//m_stSimuFiles.push_back("test1");
+	//m_stSimuFiles.push_back("test2");
+	//m_stSimuFiles.push_back("test3");
 
-	m_uSimulationNum = m_stSimuFiles.size();
+	//m_uSimulationNum = m_stSimuFiles.size();
 
 	//パラメータ設定
 	//TODO::ある粒子は液体，ある粒子は固体，とファイルから指定する　球は固体，立方体は液体，のように
@@ -2666,14 +2671,15 @@ void rxFlGLWindow::InitIceObj(void)
 	StepPS(m_fDt);															//一度タイムステップを勧めないと，近傍粒子が取得されないみたい
 	((RXSPH*)m_pPS)->SetEffectiveRadius(radius);
 	vector<vector<rxNeigh>>& neights = ((RXSPH*)m_pPS)->GetNeights();
-	
+
+	//sm法の初期化
 	m_iceObj->InitCluster(
 		sph_env.boundary_ext,
 		-sph_env.boundary_ext,
 		sph_env.smTimeStep,
 		m_iIceItr,
 		neights
-	);															//sm法の初期化
+	);
 
 	m_iceObj->InitStrct();										//粒子とクラスタの関係情報を初期化
 
@@ -3834,7 +3840,7 @@ void rxFlGLWindow::StepParticleColor()
 			//クラスタ全体を表示
 			for(int i = 0; i < m_iClusteresNum; i++)
 			{
-				for( int j = 0; j < m_iceObj->GetMoveObj(i)->GetIndxNum(); j++ )
+				for(unsigned j = 0; j < m_iceObj->GetMoveObj(i)->GetIndxNum(); j++ )
 				{
 					int jpIndx = m_iceObj->GetMoveObj(i)->GetParticleIndx(j);
 
@@ -3847,7 +3853,7 @@ void rxFlGLWindow::StepParticleColor()
 		else
 		{	
 			//１つのクラスタのみを表示
-			for( int j = 0; j < m_iceObj->GetMoveObj(m_iShowClusterIndx)->GetIndxNum(); j++ )
+			for(unsigned j = 0; j < m_iceObj->GetMoveObj(m_iShowClusterIndx)->GetIndxNum(); j++ )
 			{
 				int jpIndx = m_iceObj->GetMoveObj(m_iShowClusterIndx)->GetParticleIndx(j);
 

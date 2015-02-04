@@ -14,9 +14,9 @@ void IceTetrahedra::InitTetra(float* pos, int vertexNum)
 
 	//Load_ELE_File(ELE_FILE);					//うまくいかない　eleファイルを読み込みリスト作成
 	//Load_obj_File(OBJ_NAME, pos);				//objファイルを読み込みリスト作成
-	Load_NODE_File(NODE_FILE, pos);
+	//Load_NODE_File(NODE_FILE, pos);			//バニーモデルを用いる場合に使う
 
-	//MakeTetrahedraFromCube(pos, vertexNum);
+	MakeTetrahedraFromCube(pos, vertexNum);
 }
 
 /*!

@@ -20,6 +20,19 @@
 /*!
  * デフォルトコンストラクタ
  */
+rxShapeMatching::rxShapeMatching()
+{
+	m_pOrgPos = 0;
+	m_pCurPos = 0;
+	//m_pNewPos = new float[MAXPARTICLE*SM_DIM];
+	//m_pGoalPos = new float[MAXPARTICLE*SM_DIM];
+	
+	m_pVel = 0;
+
+	m_pMass = 0;
+	m_pFix = 0;
+}
+
 rxShapeMatching::rxShapeMatching(int obj)
 {
 	//パラメータの初期化
@@ -54,9 +67,18 @@ rxShapeMatching::rxShapeMatching(int obj)
 	m_pMass = new float[MAXPARTICLE];
 	m_pFix = new bool[MAXPARTICLE];
 
-	m_iPIndxes.resize(MAXPARTICLE);
+	m_iPIndxes.resize(MAXPARTICLE, MAXINT);
 
 	Clear();
+}
+
+/*!
+ * コピーコンストラクタ
+ */
+rxShapeMatching::rxShapeMatching(const rxShapeMatching& copy)
+{
+	cout << __FUNCTION__ << endl;
+	Copy(copy);
 }
 
 /*!
@@ -64,7 +86,21 @@ rxShapeMatching::rxShapeMatching(int obj)
  */
 rxShapeMatching::~rxShapeMatching()
 {
+	ReleaseMemory();
 }
+
+//代入演算子でコピー
+rxShapeMatching& rxShapeMatching::operator=(const rxShapeMatching& copy)
+{
+	if(this != &copy){
+		ReleaseMemory();
+
+		Copy(copy);
+	}
+
+	return *this;
+}
+
 
 /*!
  * 頂点位置の初期化
@@ -110,6 +146,86 @@ void rxShapeMatching::Clear()
 	}
 }
 
+//メモリの開放
+void rxShapeMatching::ReleaseMemory()
+{
+	if(m_pOrgPos != 0){
+		delete[] m_pOrgPos;
+		m_pOrgPos = 0;
+	}
+
+	if(m_pCurPos != 0){
+		delete[] m_pCurPos;
+		m_pCurPos = 0;
+	}
+
+	if(m_pVel != 0){
+		delete[] m_pVel;
+		m_pVel = 0;
+	}
+
+	if(m_pMass != 0){
+		delete[] m_pMass;
+		m_pMass = 0;
+	}
+
+	if(m_pFix != 0){
+		delete[] m_pFix;
+		m_pFix = 0;
+	}
+}
+
+//データコピー
+void rxShapeMatching::Copy(const rxShapeMatching& copy)
+{
+	//パラメータの初期化
+	m_iObjectNo = copy.objNo();
+	m_dDt = copy.dt();
+	m_v3Gravity = copy.gravity();
+
+	m_v3Min = copy.areaMin();
+	m_v3Max = copy.areaMax();
+
+	m_dAlpha = copy.alpha();
+	m_dBeta = copy.beta();
+	
+	m_bLinearDeformation = copy.isLiner();
+	m_bVolumeConservation = copy.isVolumeConserve();
+
+	m_fpCollision = 0;
+
+	//メモリ確保
+	//クラスタが保存できる最大粒子数をMAXPARTICLEで定義する．
+	//高速化を行う場合はコメントアウト
+	m_pOrgPos = new float[MAXPARTICLE*SM_DIM];
+	m_pCurPos = new float[MAXPARTICLE*SM_DIM];
+	//m_pNewPos = new float[MAXPARTICLE*SM_DIM];
+	//m_pGoalPos = new float[MAXPARTICLE*SM_DIM];
+	
+	m_pVel = new float[MAXPARTICLE*SM_DIM];
+
+	m_pMass = new float[MAXPARTICLE];
+	m_pFix = new bool[MAXPARTICLE];
+
+	m_iPIndxes.resize(MAXPARTICLE);
+
+	Clear();
+
+	//各情報をコピーして初期化
+	for(int i = 0; i < MAXPARTICLE; i++){
+		for(int j = 0; j < SM_DIM; j++){
+			m_pOrgPos[i*SM_DIM+j] = copy.GetOrgPos(i)[j];
+			m_pCurPos[i*SM_DIM+j] = copy.GetVertexPos(i)[j];
+
+			m_pVel[i*SM_DIM+j] = copy.GetVertexVel(i)[j];
+		}
+
+		m_pMass[i] = copy.GetMass(i);
+		m_pFix[i] = copy.IsFixed(i);
+
+		m_iPIndxes[i] = copy.GetParticleIndx(i);
+	}
+}
 
 /*!
  * 頂点を追加
@@ -118,19 +234,49 @@ void rxShapeMatching::Clear()
  */
 void rxShapeMatching::AddVertex(const Vec3 &pos, double mass, int pIndx)
 {
-	for(int i = 0; i < SM_DIM; i++)
-	{
-		m_pOrgPos[m_iNumVertices*SM_DIM+i] = pos[i];
-		m_pCurPos[m_iNumVertices*SM_DIM+i] = pos[i];
-		//m_pNewPos[m_iNumVertices*SM_DIM+i] = pos[i];
-		//m_pGoalPos[m_iNumVertices*SM_DIM+i] = pos[i];
-		m_pVel[m_iNumVertices*SM_DIM+i] = 0.0;
+	AddVertex(pos, Vec3(0.0), mass, pIndx);
+}
+
+/*!
+ * 頂点を追加
+ */
+void rxShapeMatching::AddVertex(const Vec3 &pos, const Vec3& vel, double mass, int pIndx)
+{
+	AddVertex(pos, pos, vel, mass, pIndx);
+}
+
+/*!
+ * 頂点を追加
+ * @param[in] pos 頂点位置
+ * @param[out] mass 頂点質量
+ */
+int rxShapeMatching::AddVertex(const Vec3& orgPos, const Vec3 &curPos, const Vec3& vel, double mass, int pIndx)
+{
+	//開いている場所を探す
+	int freeIndx = MAXINT;
+	for(int i = 0; i < MAXPARTICLE; i++){
+		if(m_iPIndxes[i] == MAXINT){
+			freeIndx = i;
+			break;
+		}
+	}
+
+	if(freeIndx == MAXINT){
+		cerr << "Cant Add" << endl;
+		return -1;
+	}
+
+	for(int i = 0; i < SM_DIM; i++){
+		m_pOrgPos[freeIndx*SM_DIM+i] = orgPos[i];
+		m_pCurPos[freeIndx*SM_DIM+i] = curPos[i];
+
+		m_pVel[freeIndx*SM_DIM+i] = vel[i];
 	}
 
 	//m_pFixは特にすること無し
-	m_pMass[m_iNumVertices] = mass;
+	m_pMass[freeIndx] = mass;
 
-	m_iPIndxes[m_iNumVertices] = pIndx;
+	m_iPIndxes[freeIndx] = pIndx;
 	//if(m_iPIndxes.size() >= 2)
 	//{
 	//	sort(m_iPIndxes.begin(), m_iPIndxes.end());	//ソート
@@ -138,7 +284,26 @@ void rxShapeMatching::AddVertex(const Vec3 &pos, double mass, int pIndx)
 
 	m_iNumVertices++;
 
-	//initialize();	//これ必要？
+	return freeIndx;
+}
+
+//頂点削除
+void rxShapeMatching::Remove(int indx)
+{
+	if(m_iNumVertices <= 0) return;
+	m_iNumVertices--;
+
+	m_iPIndxes[indx] = MAXINT;
+
+	for(int i = 0; i < SM_DIM; i++)
+	{
+		m_pOrgPos[indx*SM_DIM+i] = 0.0;
+		m_pCurPos[indx*SM_DIM+i] = 0.0;
+		m_pVel[indx*SM_DIM+i] = 0.0;
+	}
+
+	m_pMass[indx] = 0.0;
+	m_pFix[indx] = false;
 }
 
 /*!

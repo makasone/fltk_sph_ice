@@ -59,6 +59,8 @@ protected:
 	float* m_pMass;					//!< 頂点質量(変形時の重み)
 	float* m_pVel;					//!< 頂点速度
 
+	//Vec3 m_vec3OrgCm;				//マッチング形状の重心
+
 	//int* m_iPIndxes;				//!< クラスタに所属する粒子の番号
 	vector<int> m_iPIndxes;
 
@@ -87,11 +89,22 @@ protected:
 
 public:
 	//! コンストラクタとデストラクタ
+	rxShapeMatching();
 	rxShapeMatching(int obj);
+	rxShapeMatching(const rxShapeMatching& copy);
+
 	~rxShapeMatching();
 
+	//演算子のオーバーロード
+	rxShapeMatching& operator=(const rxShapeMatching& copy);
+
+	void Copy(const rxShapeMatching& copy);
+	void ReleaseMemory();
 	void Clear();
 	void AddVertex(const Vec3 &pos, double mass, int pIndx);
+	void AddVertex(const Vec3 &pos, const Vec3& vel, double mass, int pIndx);
+	int AddVertex(const Vec3& orgPos, const Vec3 &pos, const Vec3& vel, double mass, int pIndx);
+	void Remove(int pIndx);
 
 	void Update();
 
@@ -142,20 +155,30 @@ public:
 
 	void SetCollisionFunc(CollisionFunc func){ m_fpCollision = func; }
 
+	int objNo() const {	return m_iObjectNo;	}
+	double dt() const { return m_dDt;		}
+	Vec3 gravity() const {	return m_v3Gravity;	}
+	Vec3 areaMin() const {	return m_v3Min;	}
+	Vec3 areaMax() const {	return m_v3Max;	}
+	double alpha() const {	return m_dAlpha;	}
+	double beta() const {	return m_dBeta;	}
+	bool isLiner() const {	return m_bLinearDeformation;	}
+	bool isVolumeConserve() const { return m_bVolumeConservation;	}
+
 	int GetNumVertices() const { return m_iNumVertices; }
 
-	const Vec3 GetVertexPos(int i){ return Vec3(m_pCurPos[i*SM_DIM+0], m_pCurPos[i*SM_DIM+1], m_pCurPos[i*SM_DIM+2]); }
-	const Vec3 GetNewPos(int i){ return Vec3(m_pNewPos[i*SM_DIM+0], m_pNewPos[i*SM_DIM+1], m_pNewPos[i*SM_DIM+2]); }
-	const Vec3 GetOrgPos(int i){ return Vec3(m_pOrgPos[i*SM_DIM+0], m_pOrgPos[i*SM_DIM+1], m_pOrgPos[i*SM_DIM+2]); }
-	const Vec3 GetGoalPos(int i) { return Vec3(m_pGoalPos[i*SM_DIM+0], m_pGoalPos[i*SM_DIM+1], m_pGoalPos[i*SM_DIM+2]); }
-	const Vec3 GetVertexVel(int i){ return Vec3(m_pVel[i*SM_DIM+0], m_pVel[i*SM_DIM+1], m_pVel[i*SM_DIM+2]); }
-	double GetMass(int i){ return m_pMass[i]; }
+	Vec3 GetVertexPos(int i) const { return Vec3(m_pCurPos[i*SM_DIM+0], m_pCurPos[i*SM_DIM+1], m_pCurPos[i*SM_DIM+2]); }
+	Vec3 GetNewPos(int i) const { return Vec3(m_pNewPos[i*SM_DIM+0], m_pNewPos[i*SM_DIM+1], m_pNewPos[i*SM_DIM+2]); }
+	Vec3 GetOrgPos(int i) const { return Vec3(m_pOrgPos[i*SM_DIM+0], m_pOrgPos[i*SM_DIM+1], m_pOrgPos[i*SM_DIM+2]); }
+	Vec3 GetGoalPos(int i) const { return Vec3(m_pGoalPos[i*SM_DIM+0], m_pGoalPos[i*SM_DIM+1], m_pGoalPos[i*SM_DIM+2]); }
+	Vec3 GetVertexVel(int i) const { return Vec3(m_pVel[i*SM_DIM+0], m_pVel[i*SM_DIM+1], m_pVel[i*SM_DIM+2]); }
+	double GetMass(int i) const { return m_pMass[i]; }
 
-	int GetParticleIndx(int indx){ return m_iPIndxes[indx]; }
+	int GetParticleIndx(int indx) const { return m_iPIndxes[indx]; }
 
 	void FixVertex(int i, const Vec3 &pos);
 	void UnFixVertex(int i);
-	bool IsFixed(int i) { return m_pFix[i]; }
+	bool IsFixed(int i) const { return m_pFix[i]; }
 
 protected:
 	//! 頂点位置の初期化

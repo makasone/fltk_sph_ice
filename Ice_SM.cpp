@@ -42,6 +42,16 @@ int Ice_SM::s_vertSum;					//全クラスタに含まれる粒子の総数
 int Ice_SM::s_iIterationNum;
 float Ice_SM::s_fItrStiffness;
 
+Ice_SM::Ice_SM() : rxShapeMatching()
+{
+	m_pPrePos = 0;
+
+	m_fpAlphas = 0;
+	m_fpBetas =	0;
+	
+	m_ipLayeres = 0;
+}
+
 Ice_SM::Ice_SM(int obj) : rxShapeMatching(obj)
 {
 	m_mtrx3Apq = rxMatrix3(0.0);
@@ -60,10 +70,86 @@ Ice_SM::Ice_SM(int obj) : rxShapeMatching(obj)
 }
 
 /*!
+ * コピーコンストラクタ
+ */
+Ice_SM::Ice_SM(const Ice_SM& copy) : rxShapeMatching(copy)
+{
+	Copy(copy);
+}
+
+/*!
  * デストラクタ
  */
 Ice_SM::~Ice_SM()
 {
+	ReleaseMemory();
+}
+
+//代入演算子でコピー
+Ice_SM& Ice_SM::operator=(const Ice_SM& copy)
+{
+	if(this != &copy){
+		rxShapeMatching::ReleaseMemory();
+		ReleaseMemory();
+
+		rxShapeMatching::Copy(copy);
+		Copy(copy);
+	}
+
+	return *this;
+}
+
+//メモリ解放
+void Ice_SM::ReleaseMemory()
+{
+	if(m_pPrePos != 0){
+		delete[] m_pPrePos;
+		m_pPrePos = 0;
+	}
+
+	if(m_fpAlphas != 0){
+		delete[] m_fpAlphas;
+		m_fpAlphas = 0;
+	}
+
+	if(m_fpBetas != 0){
+		delete[] m_fpBetas;
+		m_fpBetas = 0;
+	}
+
+	if(m_ipLayeres != 0){
+		delete[] m_ipLayeres;
+		m_ipLayeres = 0;
+	}
+}
+
+//データのコピー
+void Ice_SM::Copy(const Ice_SM& copy)
+{
+	m_mtrx3Apq = copy.GetApq();
+	m_mtrxBeforeU.makeIdentity();	//TODO: コピーしてない　しなくていい？
+
+	m_iIndxNum = copy.GetIndxNum();
+	m_fDefAmount = copy.GetDefAmount();
+
+	m_pPrePos = new float[MAXPARTICLE*SM_DIM];
+
+	m_fpAlphas = new float[MAXPARTICLE];
+	m_fpBetas =	new float[MAXPARTICLE];
+
+	m_ipLayeres = new int[MAXPARTICLE];
+
+	//各情報のコピー
+	for(int i = 0; i < MAXPARTICLE; i++){
+		for(int j = 0; j < SM_DIM; j++){
+			m_pPrePos[i*SM_DIM+j] = copy.GetPrePos(i)[j];
+		}
+
+		m_fpAlphas[i] = copy.GetAlphas(i);
+		m_fpBetas[i] = copy.GetBetas(i);
+
+		m_ipLayeres[i] = copy.GetLayer(i);
+	}
 }
 
 void Ice_SM::InitFinalParamPointer(int vrtxNum)
@@ -289,6 +375,9 @@ void Ice_SM::AddVertex(const Vec3 &pos, double mass, int pIndx)
 	//最大添字番号の更新
 	if(m_iNumVertices > m_iIndxNum){	m_iIndxNum = m_iNumVertices;	}
 
+	CalcOrgCm();
+
+	//使ってない
 	//m_iLinearDeformation.push_back(0);
 	//m_iVolumeConservation.push_back(0);
 
@@ -332,22 +421,31 @@ void Ice_SM::AddVertex(const Vec3 &pos, double mass, int pIndx)
 	//m_vec3PreCm = m_vec3OrgCm;
 }
 
-void Ice_SM::Remove(int indx)
+void Ice_SM::AddVertex(const Vec3 &pos, const Vec3& vel, double mass, int pIndx)
 {
-	if(m_iNumVertices <= 0) return;
-	m_iNumVertices--;
+	rxShapeMatching::AddVertex(pos, vel, mass, pIndx);
 
-	m_iPIndxes[indx] = MAXINT;
+	//最大添字番号の更新
+	if(m_iNumVertices > m_iIndxNum){	m_iIndxNum = m_iNumVertices;	}
+}
 
-	for(int i = 0; i < SM_DIM; i++)
-	{
-		m_pOrgPos[indx*SM_DIM+i] = 0.0;
-		m_pCurPos[indx*SM_DIM+i] = 0.0;
-		m_pVel[indx*SM_DIM+i] = 0.0;
+void Ice_SM::AddAnotherClusterVertex(const Vec3& orgPos, const Vec3& curPos, const Vec3& vel, double mass, int pIndx, double alpha, double beta, int layer)
+{
+	int indx = rxShapeMatching::AddVertex(orgPos, curPos, vel, mass, pIndx);
+
+	if(indx != -1){
+		SetAlphas(indx, alpha);
+		SetBetas(indx, beta);
+		SetLayer(indx, layer);
 	}
 
-	m_pMass[indx] = 0.0;
-	m_pFix[indx] = false;
+	//最大添字番号の更新
+	if(m_iNumVertices > m_iIndxNum){	m_iIndxNum = m_iNumVertices;	}
+}
+
+void Ice_SM::Remove(int indx)
+{
+	rxShapeMatching::Remove(indx);
 
 	m_ipLayeres[indx] = -1;
 
@@ -1059,28 +1157,28 @@ void Ice_SM::ShapeMatchingIteration()
 
 	//Apqの行列式を求め，反転するかを判定
 	//不安定な場合が多いので×
-	//if( Apq.Determinant() < 0.0 && m_iNumVertices >= 4)
-	//{
-	//	//cout << "before det < 0" << endl;
-	//	//１　符号を反転
-	//	Apq(0,2) = -Apq(0,2);
-	//	Apq(1,2) = -Apq(1,2);
-	//	Apq(2,2) = -Apq(2,2);
+	if( Apq.Determinant() < 0.0 && m_iNumVertices >= 4)
+	{
+		//cout << "before det < 0" << endl;
+		//１　符号を反転
+		Apq(0,2) = -Apq(0,2);
+		Apq(1,2) = -Apq(1,2);
+		Apq(2,2) = -Apq(2,2);
 
-	//	////２　a2とa3を交換
-	//	//double tmp;
-	//	//tmp = Apq(0,2);
-	//	//Apq(0,2) = Apq(0,1);
-	//	//Apq(0,1) = tmp;
+		////２　a2とa3を交換
+		//double tmp;
+		//tmp = Apq(0,2);
+		//Apq(0,2) = Apq(0,1);
+		//Apq(0,1) = tmp;
 
-	//	//tmp = Apq(1,2);
-	//	//Apq(1,2) = Apq(1,1);
-	//	//Apq(1,1) = tmp;
+		//tmp = Apq(1,2);
+		//Apq(1,2) = Apq(1,1);
+		//Apq(1,1) = tmp;
 
-	//	//tmp = Apq(2,2);
-	//	//Apq(2,2) = Apq(2,1);
-	//	//Apq(2,1) = tmp;
-	//}
+		//tmp = Apq(2,2);
+		//Apq(2,2) = Apq(2,1);
+		//Apq(2,1) = tmp;
+	}
 
 	//PolarDecomposition(Apq, R, S, m_mtrxBeforeU);
 	PolarDecomposition(Apq, R, S);

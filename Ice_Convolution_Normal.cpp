@@ -24,9 +24,7 @@ Ice_ConvoJudge* ConvoNormal::GetConvoJudge()
 
 void ConvoNormal::StepConvolution()
 {
-	//StepConvolution2();
-	//return;
-
+	//現在はm_iceStrctを用いずにsm法のデータm_iceSMだけで計算している
 	unsigned pNum = IceObject::GetParticleNum();
 	vector<unsigned> addParticleNum(pNum, 0);
 

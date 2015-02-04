@@ -128,7 +128,7 @@ void IceObject::InitSelectCluster()
 		//運動計算クラスタの含む粒子を取得し，運動計算されるならフラグを立てる
 		if(m_iceStrct->GetMotionCalcCluster(cIndx) == false) continue;
 		
-		for(int oIndx = 0; oIndx < m_iceSM[cIndx]->GetIndxNum(); oIndx++)
+		for(unsigned oIndx = 0; oIndx < m_iceSM[cIndx]->GetIndxNum(); oIndx++)
 		{
 			int pIndx = m_iceSM[cIndx]->GetParticleIndx(oIndx);
 			if(pIndx == MAXINT) continue;
@@ -260,13 +260,142 @@ cout << __FUNCTION__ << ", check1" << endl;
 cout << __FUNCTION__ << ", check2" << endl;
 
 	//質量の修正
-	//UpdateParticleMass_Normal();		//一定に
-	UpdateParticleMass_Average();		//平均　LSMの方法
+	UpdateParticleMass_Normal();		//一定に
+	//UpdateParticleMass_Average();		//平均　LSMの方法
 	//UpdateParticleMass_Direction();	//方向ベクトルとの類似度で重み付け　Ijiriらの方法
 
 	////MakeOneCluster();
 	
 	Ice_SM::InitFinalParamPointer(sm_clusterNum);
+
+//テスト
+	//float* sldPos = Ice_SM::GetSldPosPointer();
+	//float* sldVel = Ice_SM::GetSldVelPointer();
+
+	//////テスト全ての粒子をremoveしてみる
+	////for(unsigned i = 0; i < m_iceSM.size(); i++){
+	////	for(unsigned j = 0; j < m_iceSM[i]->GetIndxNum(); j++){
+	////		int jpIndx = m_iceSM[i]->GetParticleIndx(j);
+	////		if(jpIndx == MAXINT){
+	////			continue;
+	////		}
+	////	}
+	////}
+
+	//////ファイルを読み込み
+	////string filePath = RESULT_DATA_PATH;
+	////filePath += "ExpandParticle.txt";
+	////ofstream ofs(filePath);
+
+	//////ファイルの存在確認
+	////if(ofs.fail()) {	cerr << filePath << " is do not exist.\n";	return;	}
+
+	////近傍に存在する粒子とその初期位置のリストを作成
+	//vector<vector<pair<int, Vec3>>> addPIndxList;
+	//addPIndxList.resize(m_iceSM.size(), vector<pair<int, Vec3>>());
+
+	//for(unsigned i = 0; i < m_iceSM.size(); ++i){
+	//	//リストを現在のクラスタに含まれている粒子で初期化
+	//	for(unsigned j = 0; j < m_iceSM[i]->GetIndxNum(); j++){
+	//		int jpIndx = m_iceSM[i]->GetParticleIndx(j);
+	//		if(jpIndx == MAXINT){	
+	//			continue;
+	//		}
+
+	//		//クラスタに含められる粒子数は最大300個
+	//		if(addPIndxList[i].size() > 299){
+	//			//cout << "init max" << endl;
+	//			return ;
+	//		}
+
+	//		Vec3 orgPos = m_iceSM[i]->GetOrgPos(j);
+	//		addPIndxList[i].push_back(pair<int, Vec3>(jpIndx, orgPos));
+	//	}
+
+	//	//近傍クラスタを探索
+	//	for(unsigned j = 0; j < m_iceSM[i]->GetIndxNum(); j++){
+	//		int jpIndx = m_iceSM[i]->GetParticleIndx(j);
+	//		if(jpIndx == MAXINT){	
+	//			continue;
+	//		}
+
+	//		//jpIndxのクラスタに含まれる粒子を取得
+	//		for(unsigned k = 0; k < m_iceSM[jpIndx]->GetIndxNum(); k++){
+	//			int kpIndx = m_iceSM[jpIndx]->GetParticleIndx(k);
+	//			if(kpIndx == MAXINT){	
+	//				continue;
+	//			}
+
+	//			//クラスタに含められる粒子数は最大300個
+	//			if(addPIndxList[i].size() > 299){
+	//				//cout << "search max" << endl;
+	//				break ;
+	//			}
+
+	//			//追加粒子リストに含まれていないなら追加する
+	//			bool addCheck = false;
+	//			for(vector<pair<int, Vec3>>::iterator it = addPIndxList[i].begin(); it != addPIndxList[i].end(); it++){
+	//				int indx = it->first;
+
+	//				if(kpIndx == indx){
+	//					addCheck = true;
+	//					break;
+	//				}
+	//			}
+
+	//			if(addCheck){
+	//				continue;
+	//			}
+
+	//			Vec3 orgPos = m_iceSM[jpIndx]->GetOrgPos(k);
+	//			addPIndxList[i].push_back(pair<int, Vec3>(kpIndx, orgPos));
+	//		}
+
+	//		//クラスタに含められる粒子数は最大300個
+	//		if(addPIndxList[i].size() > 299){
+	//			//cout << "search max" << endl;
+	//			break ;
+	//		}
+	//	}
+
+	//	////デバッグ
+	//	//std::sort(addPIndxList[i].begin(), addPIndxList[i].end());
+
+	//	//ofs << i << ":";
+	//	//for(vector<int>::iterator it = addPIndxList[i].begin(); it != addPIndxList[i].end(); it++){
+	//	//	ofs << " " << *it ;
+	//	//}
+	//	//ofs << endl;
+
+	//	//cout << i << ":";
+	//	//for(vector<int>::iterator it = addPIndxList[i].begin(); it != addPIndxList[i].end(); it++){
+	//	//	cout << " " << *it ;
+	//	//}
+	//	//cout << endl;
+	//}
+	//
+	////TODO: 粒子を追加
+	//for(unsigned i = 0; i < m_iceSM.size(); i++){
+	//	for(vector<pair<int, Vec3>>::iterator it = addPIndxList[i].begin(); it != addPIndxList[i].end(); it++){
+	//		int addpIndx = it->first;
+
+	//		//クラスタに粒子が存在するかを確認
+	//		if(m_iceSM[i]->CheckIndx(addpIndx)){
+	//			continue;
+	//		}
+
+	//		int sldIndx = addpIndx * SM_DIM;
+	//		Vec3 pos = Vec3(sldPos[sldIndx+0], sldPos[sldIndx+1], sldPos[sldIndx+2]);
+	//		Vec3 vel = Vec3(sldVel[sldIndx+0], sldVel[sldIndx+1], sldVel[sldIndx+2]);
+	//		Vec3 orgPos = it->second;
+
+	//		m_iceSM[i]->AddAnotherClusterVertex(orgPos, pos, vel, 1.0, addpIndx, 1.0, 0.0, 0);
+	//	}
+
+	//	m_iceSM[i]->CalcOrgCm();
+
+	//	//デバッグ
+	//}
 
 //デバッグ
 	//DebugClusterInfo();
@@ -609,7 +738,7 @@ void IceObject::SetClusterMoveInfoFromNeight(int pIndx, const vector<vector<rxNe
 	m_iceSM[pIndx]->SetLayer (pNum, 0);
 
 	//近傍粒子をクラスタに追加
-	for(int id_np = 0; id_np < neights[pIndx].size(); id_np++)
+	for(unsigned id_np = 0; id_np < neights[pIndx].size(); id_np++)
 	{
 		int np_pIndx = neights[pIndx][id_np].Idx;
 		int pNum = m_iceSM[pIndx]->GetNumVertices();
@@ -1159,7 +1288,7 @@ void IceObject::ReConstructCluster(vector<unsigned>& pList, vector<unsigned>& cL
 
 		//融解クラスタのlayer0を取得
 		vector<int> connectPIndx;
-		for(int oIndx = 0; oIndx < GetMoveObj(pIndx)->GetIndxNum(); oIndx++)
+		for(unsigned oIndx = 0; oIndx < GetMoveObj(pIndx)->GetIndxNum(); oIndx++)
 		{
 			int layer = GetMoveObj(pIndx)->GetLayer(oIndx);
 
