@@ -27,19 +27,19 @@ public:
 	void StepObjMove();
 	void StepObjMoveDebug();
 
+	void StepObjMoveTest();
+
 	void CopyOriginalObject(vector<vector<unsigned>>& copyIndxes);
 	void ReplaceCluster(const vector<vector<unsigned>>& copyIndxes);
 
 	void GetExpandeCluster();
 	void ExpandeCluster(vector<int>& searchFinishIndxes);
-	void ExpandCluster_Test1();
-	void ExpandCluster_Test2(vector<int>& searchFinishInxes);
+	void ExpandeCluster_Test(vector<int>& searchFinishIndxes);
+	void ExpandCluster_Test2(vector<int>& searchFinishIndxes);
 
 	void ContractCluster();
 
 	void CalcVel();
-
-	void ResetFlag();
 
 private:
 	vector<Ice_SM*> m_iceSM;
@@ -49,9 +49,6 @@ private:
 
 	//最終統合結果を求めるクラス
 	Ice_Convolution* m_iceConvo;
-
-	//粒子を既に追加したかの判定用フラグ
-	vector<bool> m_isAdd;	//大したことはしないのでvectorを使う
 };
 
 #endif

@@ -1740,21 +1740,6 @@ void rxFlGLWindow::OnMenuParticleColor(double val, string label)
 			}
 		}
 
-		////PtoCのデータ
-		//cout << "PtoC:" << endl;
-		//for(int i = 0; i < m_iceObj->GetPtoCIndx(m_iShowClusterIndx); i++)
-		//{
-		//	int cIndx = m_iceObj->GetPtoC(m_iShowClusterIndx, i, 0);
-		//	int oIndx = m_iceObj->GetPtoC(m_iShowClusterIndx, i, 1);
-
-		//	cout << "i = " << i << ", ";
-		//	cout << "cIndx = " << cIndx << ", ";
-		//	cout << "oIndx = " << oIndx << endl;
-		//}
-
-		//CtoPのデータ
-
-
 		StepParticleColor();
 	}
 
@@ -2378,8 +2363,6 @@ bool rxFlGLWindow::calMeshSPH_SSM_GPU(int nmax, double thr)
 
 	return true;
 }
-
-
 
 //-----------------------------------------------------------------------------
 // SPH関数
