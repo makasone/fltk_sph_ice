@@ -490,7 +490,7 @@ rxFlWindow::rxFlWindow(int w_, int h_, const char* title)
 					m_pSpinStiff->callback(OnSpinStiff_s, this);
 					m_pSpinStiff->minimum(0.01);
 					m_pSpinStiff->maximum(100.0);
-					m_pSpinStiff->step(0.01);
+					m_pSpinStiff->step(0.2);
 					m_pSpinStiff->value(20.0);
 					m_pSpinStiff->clear_visible_focus();
 
@@ -501,6 +501,13 @@ rxFlWindow::rxFlWindow(int w_, int h_, const char* title)
 				radio->type(102);
 				radio->down_box(FL_ROUND_DOWN_BOX);
 				radio->callback(OnRadioMode_CalcMethod_s, this);
+
+				//反復　クラスタの粒子増加　許容変形量指定
+				radio = new Fl_Round_Button(calc_xs, calc_ys+20, 20, 20, "Itr_Exp_Stiff");
+				radio->type(102);
+				radio->down_box(FL_ROUND_DOWN_BOX);
+				radio->callback(OnRadioMode_CalcMethod_s, this);
+
 
 				gr->end();
 				gr->resizable(0);
@@ -886,6 +893,8 @@ void rxFlWindow::OnSpinRadius_Spears(Fl_Widget *widget)
 
 	m_pGLCanvas->m_iceObj->SetSelectRadius(radius);
 	m_pGLCanvas->m_iceObj->InitSelectCluster();
+	m_pGLCanvas->StepParticleColor();
+	m_pGLCanvas->ReDisplay();
 }
 
 //重み付き平均
@@ -963,11 +972,18 @@ void rxFlWindow::OnRadioMode_CalcMethod(Fl_Widget *widget)
 	}
 	else if(label == "Itr_Stiff")
 	{
+		double stiff = m_pSpinStiff->value();
+		Ice_SM::SetItrStiffness(stiff);
 		m_pGLCanvas->m_iceObj->ChangeMode_CalcMethod_Itr_Stiff();
 	}
 	else if(label == "Itr_Expand")
 	{
 		m_pGLCanvas->m_iceObj->ChangeMode_CalcMethod_Itr_Expand();
+	}
+	else if(label == "Itr_Exp_Stiff"){
+		double stiff = m_pSpinStiff->value();
+		Ice_SM::SetItrStiffness(stiff);
+		m_pGLCanvas->m_iceObj->ChangeMode_CalcMethod_Itr_Exp_Stiff();
 	}
 }
 

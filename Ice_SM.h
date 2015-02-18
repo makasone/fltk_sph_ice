@@ -14,6 +14,7 @@
 #include "ShapeMatching.h"
 #include "QueryCounter.h"
 
+#include <math.h>
 #include <time.h>
 
 using namespace std;
@@ -69,9 +70,42 @@ extern void LaunchShapeMatchingUsePathGPU
 
 class Ice_SM : public rxShapeMatching
 {
-protected:
+public:
+	//領域分割で指定するラベル　XYZ
+	//TODO: いずれは2進数で扱えるように
+	enum PrtErea{
+		TOP_LEFT__FORE = 122,
+		TOP_RIGHT_FORE = 222,
+		TOP_LEFT__BACK = 221,
+		TOP_RIGHT_BACK = 121,
+		BOT_LEFT__FORE = 112,
+		BOT_RIGHT_FORE = 212,
+		BOT_LEFT__BACK = 111,
+		BOT_RIGHT_BACK = 211,
 
-	unsigned m_iIndxNum;						//配列で実装したため、穴あきに対応するための最大添字番号
+		NUM
+	};
+
+	//ビットでなくintで領域分割ラベルを指定しているので，アクセスしやすい構造体を用意
+	struct EreaData{
+		int x;
+		int y;
+		int z;
+
+		EreaData(){};
+		EreaData(int data){
+			EreaData temp = IntToEreaData(data);
+			x = temp.x; y = temp.y; z = temp.z;
+		}
+		EreaData(int X, int Y, int Z){
+			if(X < 0 || Y < 0 || Z < 0){
+				cout << __FUNCTION__ << " ERROR" << endl;
+			}
+			x = X; y = Y; z = Z;
+		}
+	};
+
+protected:
 
 	float* m_pPrePos;							//前フレームの頂点位置
 
@@ -79,6 +113,7 @@ protected:
 	float* m_fpBetas;							//!< deformationパラメータ[0,1]	未使用
 	
 	int* m_ipLayeres;
+	EreaData* m_ipErea;
 
 	static int s_iIterationNum;					//反復回数
 	static float s_fItrStiffness;				//変形量の閾値
@@ -136,6 +171,7 @@ protected:
 public:
 	Ice_SM();
 	Ice_SM(int obj);
+	Ice_SM(int obj, int prtNum);
 	Ice_SM(const Ice_SM& copy);
 
 	~Ice_SM();
@@ -194,9 +230,24 @@ public:
 	void CalcMass();
 	void CalcOrgCm();
 
+	void ClassifyAllOrgParticle();
+	void ClassifyOrgParticle(int indx);
+
 	void integrate(double dt);
 	void integrateIteration();
 
+	int AddAnotherClusterVertex(const Vec3& orgPos, const Vec3& curPos, const Vec3& vel, double mass, int pIndx, double alpha, double beta, int layer);
+
+	void AddVertex(const Vec3 &pos, double mass, int pIndx);
+	void AddVertex(const Vec3 &pos, const Vec3& vel, double mass, int pIndx);
+	void Remove(int indx);
+	void Clear();
+
+	static unsigned CalcEreaDistance(const EreaData& ereaA, const EreaData& ereaB);
+	static EreaData IntToEreaData(int erea);
+	static int EreaDataToInt(EreaData erea);
+
+//アクセッサ
 	void SetAlphas(int indx, float alpha){	m_fpAlphas[indx] = alpha;	}
 	void SetBetas (int indx, float beta){	m_fpBetas[indx] = beta;		}
 
@@ -220,7 +271,7 @@ public:
 	float GetBetas (int indx) const {	return m_fpBetas[indx];	}
 
 	Vec3 GetCm(void){		return m_vec3NowCm;	}
-	Vec3 GetOrgCm(void){	return m_vec3OrgCm;	}
+	const Vec3& GetOrgCm(void) const {	return m_vec3OrgCm;	}
 	Vec3 GetPreCm(void){	return m_vec3PreCm;	}
 	Vec3 GetPrePos(int pIndx) const {	return Vec3(m_pPrePos[pIndx*SM_DIM+0],m_pPrePos[pIndx*SM_DIM+1],m_pPrePos[pIndx*SM_DIM+2]);	}
 
@@ -230,19 +281,12 @@ public:
 	float GetDefPriority(){	return m_fDefPriority;	}
 
 	int GetLayer(int indx) const {	return m_ipLayeres[indx];	}
+	const EreaData& erea(int indx) const { return m_ipErea[indx];	}
+
 	static int GetIteration(){		return s_iIterationNum;	}
 	static float GetItrStiffness(){	return s_fItrStiffness;	}
 
-	unsigned GetIndxNum() const {	return m_iIndxNum;	}
-	
-	int AddAnotherClusterVertex(const Vec3& orgPos, const Vec3& curPos, const Vec3& vel, double mass, int pIndx, double alpha, double beta, int layer);
-
-	void AddVertex(const Vec3 &pos, double mass, int pIndx);
-	void AddVertex(const Vec3 &pos, const Vec3& vel, double mass, int pIndx);
-	void Remove(int indx);
-	void Clear();
-
-	//いずれ使う？
+//いずれ使う？
 	int GetLinerFlags(int indx){	return m_iLinearDeformation[indx]; }
 	int GetVolumeFlags(int indx){	return m_iVolumeConservation[indx]; }
 
@@ -253,7 +297,7 @@ public:
 	const Vec3& GetDisVec(){	return m_vec3DisCm;	}
 	void CalcDisplaceMentVectorCm();
 
-	//デバッグ
+//デバッグ
 	void DebugIndx(void);
 	void DebugLayer(void);
 };

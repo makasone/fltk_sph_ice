@@ -6,6 +6,8 @@
 class Ice_CalcStiffData
 {
 public:
+	virtual void StepUpdate() = 0;
+	virtual void StepUpdateItr() = 0;
 	virtual float StepCalcData() = 0;
 	virtual void StepCalcDataDebug() = 0;
 

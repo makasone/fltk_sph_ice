@@ -17,6 +17,7 @@
 #include "Ice_CalcMethod_Iteration.h"
 #include "Ice_CalcMethod_Itr_Stiffness.h"
 #include "Ice_CalcMethod_Itr_Expand.h"
+#include "Ice_CalcMethod_Itr_Exp_Stiff.h"
 
 #include "Ice_ClusterMove.h"
 #include "Ice_ClusterMove_Normal.h"
@@ -161,6 +162,7 @@ public:
 	void ChangeMode_CalcMethod_Itr_Num();
 	void ChangeMode_CalcMethod_Itr_Stiff();
 	void ChangeMode_CalcMethod_Itr_Expand();
+	void ChangeMode_CalcMethod_Itr_Exp_Stiff();
 
 	//運動計算時のクラスタ選択
 	void ChangeMode_JudgeMove_Normal();
@@ -228,6 +230,8 @@ public:
 	void StepInterPolationNormal();
 	void StepInterPolationForCluster();
 	
+	void StepInterPolationKenjya();
+
 	//相変化
 	void StepHeatTransfer(const int* surfParticles, const vector<vector<rxNeigh>>& neights, float floor, float effRadius, const float* pos, const float* dens);		//熱処理
 	void StepIceStructure();								//相変化処理
@@ -261,9 +265,12 @@ public:
 	void SaveInitPos();
 	void ResetPosAndVel();
 
+	void Display();
+
 //デバッグ
 	void DebugTetraInfo();
 	void DebugClusterInfo();
+	void DebugNeights(const vector<vector<rxNeigh>>& neights);
 	void DebugObjMoveUsePathWithGPU();
 	void DebugUpdateSelectCluster();
 	string DebugNowMoveMethod();

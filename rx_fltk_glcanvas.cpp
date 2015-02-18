@@ -1119,7 +1119,7 @@ void rxFlGLWindow::Idle(void)
 	else if(m_bMode == MODE_ICE)
 	{
 		StepTimeEvent();			RXTIMER("StepTimeEvent");		//タイムイベント
-
+		
 		//StepPS(m_fDt);				RXTIMER("StepPS");				//液体運動
 		StepIceObj();												//固体運動
 		StepHeatTransfer();			RXTIMER("StepHeatTransfer");	//熱処理
@@ -1726,16 +1726,19 @@ void rxFlGLWindow::OnMenuParticleColor(double val, string label)
 		if(m_iShowClusterIndx != m_iClusteresNum && m_iShowClusterIndx >= 0)
 		{
 			cout << "Cluster :: Indxes :: " << endl;
-			for( int i = 0; i < m_iceObj->GetMoveObj(m_iShowClusterIndx)->GetIndxNum(); i++ )
+			for(unsigned i = 0; i < m_iceObj->GetMoveObj(m_iShowClusterIndx)->GetIndxNum(); i++ )
 			{
 				int pIndx = m_iceObj->GetMoveObj(m_iShowClusterIndx)->GetParticleIndx(i);
 				if(pIndx == MAXINT){
 					continue;
 				}
 
-				cout << "	i = " << i 
-					<< " pIndx = "<< pIndx
-					<< " layer = " << m_iceObj->GetMoveObj(m_iShowClusterIndx)->GetLayer(i);
+				int erea = Ice_SM::EreaDataToInt(m_iceObj->GetMoveObj(m_iShowClusterIndx)->erea(i));
+
+				cout << "	i = "  << i 
+					<< " pIndx = " << pIndx
+					<< " layer = " << m_iceObj->GetMoveObj(m_iShowClusterIndx)->GetLayer(i)
+					<< " era   = " << erea;
 				cout << endl;
 			}
 		}
@@ -2651,9 +2654,9 @@ void rxFlGLWindow::InitIceObj(void)
 	//近傍粒子
 	float radius = ((RXSPH*)m_pPS)->GetEffectiveRadius();
 	((RXSPH*)m_pPS)->SetEffectiveRadius(radius * 1.0f);						//1.2で分離するギリギリ
-	StepPS(m_fDt);															//一度タイムステップを勧めないと，近傍粒子が取得されないみたい
-	((RXSPH*)m_pPS)->SetEffectiveRadius(radius);
+	StepPS(m_fDt*0.1);														//一度タイムステップを勧めないと，近傍粒子が取得されないみたい
 	vector<vector<rxNeigh>>& neights = ((RXSPH*)m_pPS)->GetNeights();
+	((RXSPH*)m_pPS)->SetEffectiveRadius(radius);
 
 	//sm法の初期化
 	m_iceObj->InitCluster(
@@ -3063,6 +3066,13 @@ void rxFlGLWindow::ResetSimulation()
 {
 	m_iceObj->ResetPosAndVel();
 	ApplyNowData();
+
+	g_iTimeCount = 0;
+	m_iCurrentStep = 0;
+	g_fTotalTime = 0;
+	g_fAvgTime = 0;
+
+	redraw();
 }
 
 void rxFlGLWindow::ApplyNowData()
@@ -4823,6 +4833,8 @@ void rxFlGLWindow::RenderSphScene(void)
 		}
 	}
 
+	//iceObjectのデバッグ情報の描画
+	m_iceObj->Display();
 }
 
 

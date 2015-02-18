@@ -240,8 +240,11 @@
     <ClCompile Include="HeatTransfar.cpp" />
     <ClCompile Include="Ice_CalcMethod_Iteration.cpp" />
     <ClCompile Include="Ice_CalcMethod_Itr_Expand.cpp" />
+    <ClCompile Include="Ice_CalcMethod_Itr_Exp_Stiff.cpp" />
     <ClCompile Include="Ice_CalcMethod_Itr_Stiffness.cpp" />
     <ClCompile Include="Ice_CalcMethod_Normal.cpp" />
+    <ClCompile Include="Ice_CalcStiffData_Average.cpp" />
+    <ClCompile Include="Ice_CalcStiffData_CompareRigid.cpp" />
     <ClCompile Include="Ice_CalcStiffData_StdDevision.cpp" />
     <ClCompile Include="Ice_CalcStiffData_Summation.cpp" />
     <ClCompile Include="Ice_ClusterMove_FastPath.cpp" />
@@ -287,9 +290,12 @@
     <ClInclude Include="Ice_CalcMethod.h" />
     <ClInclude Include="Ice_CalcMethod_Iteration.h" />
     <ClInclude Include="Ice_CalcMethod_Itr_Expand.h" />
+    <ClInclude Include="Ice_CalcMethod_Itr_Exp_Stiff.h" />
     <ClInclude Include="Ice_CalcMethod_Itr_Stiffness.h" />
     <ClInclude Include="Ice_CalcMethod_Normal.h" />
     <ClInclude Include="Ice_CalcStiffData.h" />
+    <ClInclude Include="Ice_CalcStiffData_Average.h" />
+    <ClInclude Include="Ice_CalcStiffData_CompareRigid.h" />
     <ClInclude Include="Ice_CalcStiffData_StdDevision.h" />
     <ClInclude Include="Ice_CalcStiffData_Summation.h" />
     <ClInclude Include="Ice_ClusterMove.h" />

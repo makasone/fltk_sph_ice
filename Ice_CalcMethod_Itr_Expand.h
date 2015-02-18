@@ -27,19 +27,24 @@ public:
 	void StepObjMove();
 	void StepObjMoveDebug();
 
-	void StepObjMoveTest();
+private:
+	void CalcVel();
 
 	void CopyOriginalObject(vector<vector<unsigned>>& copyIndxes);
 	void ReplaceCluster(const vector<vector<unsigned>>& copyIndxes);
 
 	void GetExpandeCluster();
-	void ExpandeCluster(vector<int>& searchFinishIndxes);
-	void ExpandeCluster_Test(vector<int>& searchFinishIndxes);
-	void ExpandCluster_Test2(vector<int>& searchFinishIndxes);
+	void ExpandCluster(vector<int>& searchFinishIndxes);
+	void ExpandCluster_Far();
 
+	void SelectAddParticleFromNearestCluster(vector<vector<int>>& addParticleList, vector<int>& searchFinishIndxes);
+	void SelectAddParticleFromFarCluster(vector<vector<int>>& addParticleList);
+	void SearchSimilarParticle(vector<vector<int>>& addPIndxList, int clusterIndx, bool isAdd[], int& addIndxNum, int nearCluster, const Vec3& dirVec, const Ice_SM::EreaData& startErea);
+
+	void AddParticleToCluster(const vector<vector<int>>& addParticleList);	
 	void ContractCluster();
 
-	void CalcVel();
+	void Debug_SelectAddParticleFromFarCluster(vector<vector<int>>& addParticleList);
 
 private:
 	vector<Ice_SM*> m_iceSM;

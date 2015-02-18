@@ -192,6 +192,15 @@
     <ClCompile Include="Ice_CalcMethod_Itr_Expand.cpp">
       <Filter>IceObject\CalcMethod Files</Filter>
     </ClCompile>
+    <ClCompile Include="Ice_CalcMethod_Itr_Exp_Stiff.cpp">
+      <Filter>IceObject\CalcMethod Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Ice_CalcStiffData_CompareRigid.cpp">
+      <Filter>IceObject\CalcStiffnessData</Filter>
+    </ClCompile>
+    <ClCompile Include="Ice_CalcStiffData_Average.cpp">
+      <Filter>IceObject\CalcStiffnessData</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="rx_sph.h">
@@ -370,6 +379,15 @@
     </ClInclude>
     <ClInclude Include="Ice_CalcMethod_Itr_Expand.h">
       <Filter>IceObject\CalcMethod Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Ice_CalcMethod_Itr_Exp_Stiff.h">
+      <Filter>IceObject\CalcMethod Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Ice_CalcStiffData_CompareRigid.h">
+      <Filter>IceObject\CalcStiffnessData</Filter>
+    </ClInclude>
+    <ClInclude Include="Ice_CalcStiffData_Average.h">
+      <Filter>IceObject\CalcStiffnessData</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

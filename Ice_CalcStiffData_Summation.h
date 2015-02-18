@@ -15,6 +15,9 @@ public:
 	Ice_CalcStiffData_Summation(const vector<Ice_SM*>& iceSM);
 	~Ice_CalcStiffData_Summation();
 
+	void StepUpdate();
+	void StepUpdateItr();
+
 	float StepCalcData();
 	void StepCalcDataDebug();
 

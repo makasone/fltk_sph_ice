@@ -555,6 +555,8 @@ public:
 	void ResetSimulation();
 	void ApplyNowData();
 
+	void StepParticleColor(void);
+
 public:
 	// メッシュ生成
 	bool CalMeshSPH(int nmax, double thr = 300.0);
@@ -673,7 +675,7 @@ protected:
 	void Collision(Vec3 &p, Vec3 &np, Vec3 &v, int obj);	//衝突判定クラス
 	void ClearPick(void);
 	void ClearRect(void);
-	void StepParticleColor(void);
+
 	void UpdateInfo();
 
 	//追加：：四面体作成のための処理

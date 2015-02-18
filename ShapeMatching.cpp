@@ -24,13 +24,16 @@ rxShapeMatching::rxShapeMatching()
 {
 	m_pOrgPos = 0;
 	m_pCurPos = 0;
-	//m_pNewPos = new float[MAXPARTICLE*SM_DIM];
-	//m_pGoalPos = new float[MAXPARTICLE*SM_DIM];
-	
+	m_pNewPos = 0;
+	m_pGoalPos = 0;
+
 	m_pVel = 0;
 
 	m_pMass = 0;
 	m_pFix = 0;
+	m_iIndxNum = 0;
+
+	maxNum = MAXPARTICLE;
 }
 
 rxShapeMatching::rxShapeMatching(int obj)
@@ -40,8 +43,7 @@ rxShapeMatching::rxShapeMatching(int obj)
 
 	m_dDt = 0.01;
 
-	m_v3Gravity = Vec3(0.0, -9.81/**0.005*/, 0.0);
-	//m_v3Gravity = Vec3(0.0, 0.0, 0.0);
+	m_v3Gravity = Vec3(0.0, -9.81, 0.0);
 
 	m_v3Min = Vec3(-1.0);
 	m_v3Max = Vec3(1.0);
@@ -54,20 +56,65 @@ rxShapeMatching::rxShapeMatching(int obj)
 
 	m_fpCollision = 0;
 
+	maxNum = MAXPARTICLE;
+
 	//メモリ確保
 	//クラスタが保存できる最大粒子数をMAXPARTICLEで定義する．
 	//高速化を行う場合はコメントアウト
-	m_pOrgPos = new float[MAXPARTICLE*SM_DIM];
-	m_pCurPos = new float[MAXPARTICLE*SM_DIM];
-	//m_pNewPos = new float[MAXPARTICLE*SM_DIM];
-	//m_pGoalPos = new float[MAXPARTICLE*SM_DIM];
+	m_pOrgPos = new float[maxNum*SM_DIM];
+	m_pCurPos = new float[maxNum*SM_DIM];
+	m_pNewPos = new float[maxNum*SM_DIM];
+	m_pGoalPos = new float[maxNum*SM_DIM];
 	
-	m_pVel = new float[MAXPARTICLE*SM_DIM];
+	m_pVel = new float[maxNum*SM_DIM];
 
-	m_pMass = new float[MAXPARTICLE];
-	m_pFix = new bool[MAXPARTICLE];
+	m_pMass = new float[maxNum];
+	m_pFix = new bool[maxNum];
 
-	m_iPIndxes.resize(MAXPARTICLE, MAXINT);
+	m_iPIndxes.resize(maxNum, MAXINT);
+	
+	m_iIndxNum = 0;
+	
+	Clear();
+}
+
+//TODO: テスト用に作った不完全なもの
+rxShapeMatching::rxShapeMatching(int obj, int prtNum)
+{
+	//パラメータの初期化
+	m_iObjectNo = obj;
+
+	m_dDt = 0.01;
+
+	m_v3Gravity = Vec3(0.0, -9.81, 0.0);
+
+	m_v3Min = Vec3(-1.0);
+	m_v3Max = Vec3(1.0);
+
+	m_dAlpha = 1.0;	
+	m_dBeta = 1.0;	// これが小さいと硬い材質になる
+	
+	m_bLinearDeformation = true;
+	m_bVolumeConservation = true;
+
+	m_fpCollision = 0;
+
+	maxNum = prtNum;	//ここが違う
+
+	//メモリ確保
+	m_pOrgPos = new float[maxNum*SM_DIM];
+	m_pCurPos = new float[maxNum*SM_DIM];
+	m_pNewPos = new float[maxNum*SM_DIM];
+	m_pGoalPos = new float[maxNum*SM_DIM];
+
+	m_pVel = new float[maxNum*SM_DIM];
+
+	m_pMass = new float[maxNum];
+	m_pFix = new bool[maxNum];
+
+	m_iPIndxes.resize(maxNum, MAXINT);
+
+	m_iIndxNum = 0;
 
 	Clear();
 }
@@ -112,8 +159,9 @@ void rxShapeMatching::initialize(void)
 		for(int j = 0; j < SM_DIM; j++)
 		{
 			m_pCurPos[i*SM_DIM+j] = m_pOrgPos[i*SM_DIM+j];
-			//m_pNewPos[i*SM_DIM+j] = m_pOrgPos[i*SM_DIM+j];
-			//m_pGoalPos[i*SM_DIM+j] = m_pOrgPos[i*SM_DIM+j];
+			m_pNewPos[i*SM_DIM+j] = m_pOrgPos[i*SM_DIM+j];
+			m_pGoalPos[i*SM_DIM+j] = m_pOrgPos[i*SM_DIM+j];
+
 			m_pVel[i*SM_DIM+j] = 0.0;
 		}
 
@@ -127,15 +175,17 @@ void rxShapeMatching::initialize(void)
 void rxShapeMatching::Clear()
 {
 	m_iNumVertices = 0;
+	m_iIndxNum = 0;
 
-	for(int i = 0; i < MAXPARTICLE; i++)
+	for(int i = 0; i < maxNum; i++)
 	{
 		for(int j = 0; j < SM_DIM; j++)
 		{
 			m_pOrgPos[i*SM_DIM+j] = 0.0;
 			m_pCurPos[i*SM_DIM+j] = 0.0;
-			//m_pNewPos[i*SM_DIM+j] = 0.0;
-			//m_pGoalPos[i*SM_DIM+j] = 0.0;
+			m_pNewPos[i*SM_DIM+j] = 0.0;
+			m_pGoalPos[i*SM_DIM+j] = 0.0;
+
 			m_pVel[i*SM_DIM+j] = 0.0;
 		}
 
@@ -157,6 +207,16 @@ void rxShapeMatching::ReleaseMemory()
 	if(m_pCurPos != 0){
 		delete[] m_pCurPos;
 		m_pCurPos = 0;
+	}
+
+	if(m_pNewPos != 0){
+		delete[] m_pNewPos;
+		m_pNewPos = 0;
+	}
+
+	if(m_pGoalPos != 0){
+		delete[] m_pGoalPos;
+		m_pGoalPos = 0;
 	}
 
 	if(m_pVel != 0){
@@ -194,28 +254,34 @@ void rxShapeMatching::Copy(const rxShapeMatching& copy)
 
 	m_fpCollision = 0;
 
+	maxNum = copy.MaxNum();
+
 	//メモリ確保
 	//クラスタが保存できる最大粒子数をMAXPARTICLEで定義する．
 	//高速化を行う場合はコメントアウト
-	m_pOrgPos = new float[MAXPARTICLE*SM_DIM];
-	m_pCurPos = new float[MAXPARTICLE*SM_DIM];
-	//m_pNewPos = new float[MAXPARTICLE*SM_DIM];
-	//m_pGoalPos = new float[MAXPARTICLE*SM_DIM];
-	
-	m_pVel = new float[MAXPARTICLE*SM_DIM];
+	m_pOrgPos = new float[maxNum*SM_DIM];
+	m_pCurPos = new float[maxNum*SM_DIM];
+	m_pNewPos = new float[maxNum*SM_DIM];
+	m_pGoalPos = new float[maxNum*SM_DIM];
 
-	m_pMass = new float[MAXPARTICLE];
-	m_pFix = new bool[MAXPARTICLE];
+	m_pVel = new float[maxNum*SM_DIM];
 
-	m_iPIndxes.resize(MAXPARTICLE);
+	m_pMass = new float[maxNum];
+	m_pFix = new bool[maxNum];
+
+	m_iPIndxes.resize(maxNum);
+
+	m_iIndxNum = copy.GetIndxNum();
 
 	Clear();
 
 	//各情報をコピーして初期化
-	for(int i = 0; i < MAXPARTICLE; i++){
+	for(int i = 0; i < maxNum; i++){
 		for(int j = 0; j < SM_DIM; j++){
 			m_pOrgPos[i*SM_DIM+j] = copy.GetOrgPos(i)[j];
 			m_pCurPos[i*SM_DIM+j] = copy.GetVertexPos(i)[j];
+			m_pNewPos[i*SM_DIM+j] = copy.GetVertexPos(i)[j];
+			m_pGoalPos[i*SM_DIM+j] = copy.GetVertexPos(i)[j];
 
 			m_pVel[i*SM_DIM+j] = copy.GetVertexVel(i)[j];
 		}
@@ -252,16 +318,7 @@ void rxShapeMatching::AddVertex(const Vec3 &pos, const Vec3& vel, double mass, i
  */
 int rxShapeMatching::AddVertex(const Vec3& orgPos, const Vec3 &curPos, const Vec3& vel, double mass, int pIndx)
 {
-	//TODO: もう少し工夫して高速化できる
-	//i = 0でなくi = m_iIndxNumにして，最後まで行ったらはじめに戻す　見つからないなら永遠にループしないように判定
-	//開いている場所を探す
-	int freeIndx = MAXINT;
-	for(int i = 0; i < MAXPARTICLE; i++){
-		if(m_iPIndxes[i] == MAXINT){
-			freeIndx = i;
-			break;
-		}
-	}
+	int freeIndx = SearchFreeIndx();
 
 	if(freeIndx == MAXINT){
 		cerr << "Cant Add" << " " << m_iNumVertices << endl;
@@ -271,6 +328,8 @@ int rxShapeMatching::AddVertex(const Vec3& orgPos, const Vec3 &curPos, const Vec
 	for(int i = 0; i < SM_DIM; i++){
 		m_pOrgPos[freeIndx*SM_DIM+i] = orgPos[i];
 		m_pCurPos[freeIndx*SM_DIM+i] = curPos[i];
+		m_pNewPos[freeIndx*SM_DIM+i] = curPos[i];
+		m_pGoalPos[freeIndx*SM_DIM+i] = curPos[i];
 
 		m_pVel[freeIndx*SM_DIM+i] = vel[i];
 	}
@@ -279,14 +338,39 @@ int rxShapeMatching::AddVertex(const Vec3& orgPos, const Vec3 &curPos, const Vec
 	m_pMass[freeIndx] = mass;
 
 	m_iPIndxes[freeIndx] = pIndx;
-	//if(m_iPIndxes.size() >= 2)
-	//{
-	//	sort(m_iPIndxes.begin(), m_iPIndxes.end());	//ソート
-	//}
 
 	m_iNumVertices++;
 
 	return freeIndx;
+}
+
+//配列から空きを見つける
+int rxShapeMatching::SearchFreeIndx()
+{
+	//TODO: m_iIndxNumまでの配列の中身が詰まっている場合
+	//スタートをm_iIndxNumにする
+	for(int i = m_iIndxNum; i < maxNum; i++){
+		if(m_iPIndxes[i] == MAXINT){
+			//空きが見つかった場合，最大添字を更新して空き添字を返す
+			m_iIndxNum = (i+1 >= maxNum) ? i : i+1;
+			return i;
+		}
+	}
+
+	//見つからなかった場合，最初から探索してみる
+	for(int i = 0; i < maxNum; i++){
+		if(m_iPIndxes[i] == MAXINT){
+			return i;
+		}
+	}
+
+	//TODO: 中身がスカスカな場合
+	//乱択アルゴリズムで探索
+
+	//TODO: 空きがあるにも関わらず，見つからなかった場合
+	//乱択アルゴリズムで探索
+
+	return MAXINT;
 }
 
 //頂点削除
@@ -301,11 +385,25 @@ void rxShapeMatching::Remove(int indx)
 	{
 		m_pOrgPos[indx*SM_DIM+i] = 0.0;
 		m_pCurPos[indx*SM_DIM+i] = 0.0;
+		m_pNewPos[indx*SM_DIM+i] = 0.0;
+		m_pGoalPos[indx*SM_DIM+i] = 0.0;
+
 		m_pVel[indx*SM_DIM+i] = 0.0;
 	}
 
 	m_pMass[indx] = 0.0;
 	m_pFix[indx] = false;
+
+	//添字を切り詰める
+	CutBackIndx();
+}
+
+//最大添字をギリギリまで切り詰める
+void rxShapeMatching::CutBackIndx()
+{
+	while(m_iIndxNum >= 1 && m_iPIndxes[m_iIndxNum-1] == MAXINT){
+		m_iIndxNum--;
+	}
 }
 
 /*!
@@ -327,25 +425,30 @@ void rxShapeMatching::calExternalForces(double dt)
 	}
 
 	// 境界壁の影響
-	double res = 0.5;	// 反発係数
+	calcBoundary();
+}
+
+void rxShapeMatching::calcBoundary()
+{
+	double res = 0.9;	// 反発係数
 	for(int i = 0; i < m_iNumVertices; ++i){
 		if(m_pFix[i]) continue;
 
 		if(m_pNewPos[i*SM_DIM+0] < m_v3Min[0] || m_pNewPos[i*SM_DIM+0] > m_v3Max[0])
 		{
-			m_pNewPos[i*SM_DIM+0] = m_pCurPos[i*SM_DIM+0]-m_pVel[i*SM_DIM+0]*dt*res;
+			m_pNewPos[i*SM_DIM+0] = m_pCurPos[i*SM_DIM+0]-m_pVel[i*SM_DIM+0]*m_dDt*res;
 			m_pNewPos[i*SM_DIM+1] = m_pCurPos[i*SM_DIM+1];
 			m_pNewPos[i*SM_DIM+2] = m_pCurPos[i*SM_DIM+2];
 		}
 		if(m_pNewPos[i*SM_DIM+1] < m_v3Min[1] || m_pNewPos[i*SM_DIM+1] > m_v3Max[1])
 		{
-			m_pNewPos[i*SM_DIM+1] = m_pCurPos[i*SM_DIM+1]-m_pVel[i*SM_DIM+1]*dt*res;
+			m_pNewPos[i*SM_DIM+1] = m_pCurPos[i*SM_DIM+1]-m_pVel[i*SM_DIM+1]*m_dDt*res;
 			m_pNewPos[i*SM_DIM+0] = m_pCurPos[i*SM_DIM+0];
 			m_pNewPos[i*SM_DIM+2] = m_pCurPos[i*SM_DIM+2];
 		}
 		if(m_pNewPos[i*SM_DIM+2] < m_v3Min[2] || m_pNewPos[i*SM_DIM+2] > m_v3Max[2])
 		{
-			m_pNewPos[i*SM_DIM+2] = m_pCurPos[i*SM_DIM+2]-m_pVel[i*SM_DIM+2]*dt*res;
+			m_pNewPos[i*SM_DIM+2] = m_pCurPos[i*SM_DIM+2]-m_pVel[i*SM_DIM+2]*m_dDt*res;
 			m_pNewPos[i*SM_DIM+0] = m_pCurPos[i*SM_DIM+0];
 			m_pNewPos[i*SM_DIM+1] = m_pCurPos[i*SM_DIM+1];
 		}
@@ -391,8 +494,8 @@ void rxShapeMatching::shapeMatching(double dt)
 		if(m_pFix[i]) m *= 300.0;	// 固定点の質量を大きくする
 		mass += m;
 
-		Vec3 np(m_pNewPos[i*SM_DIM+0], m_pNewPos[i*SM_DIM+1], m_pNewPos[i*SM_DIM+3]);
-		Vec3 op(m_pOrgPos[i*SM_DIM+0], m_pOrgPos[i*SM_DIM+1], m_pOrgPos[i*SM_DIM+3]);
+		Vec3 np(m_pNewPos[i*SM_DIM+0], m_pNewPos[i*SM_DIM+1], m_pNewPos[i*SM_DIM+2]);
+		Vec3 op(m_pOrgPos[i*SM_DIM+0], m_pOrgPos[i*SM_DIM+1], m_pOrgPos[i*SM_DIM+2]);
 
 		cm += np*m;
 		cm_org += op*m;
@@ -408,8 +511,8 @@ void rxShapeMatching::shapeMatching(double dt)
 	// Aqq = Σmqq^T
 	for(int i = 0; i < m_iNumVertices; ++i){
 
-		Vec3 np(m_pNewPos[i*SM_DIM+0], m_pNewPos[i*SM_DIM+1], m_pNewPos[i*SM_DIM+3]);
-		Vec3 op(m_pOrgPos[i*SM_DIM+0], m_pOrgPos[i*SM_DIM+1], m_pOrgPos[i*SM_DIM+3]);
+		Vec3 np(m_pNewPos[i*SM_DIM+0], m_pNewPos[i*SM_DIM+1], m_pNewPos[i*SM_DIM+2]);
+		Vec3 op(m_pOrgPos[i*SM_DIM+0], m_pOrgPos[i*SM_DIM+1], m_pOrgPos[i*SM_DIM+2]);
 
 		p = np-cm;
 		q = op-cm_org;
@@ -439,7 +542,7 @@ void rxShapeMatching::shapeMatching(double dt)
 	rxMatrix3 R, S;
 	PolarDecomposition(Apq, R, S);
 
-	if(m_bLinearDeformation){
+	if(true/*m_bLinearDeformation*/){
 		// Linear Deformations
 		rxMatrix3 A;
 		A = Apq*Aqq.Inverse();	// A = Apq*Aqq^-1
@@ -461,8 +564,8 @@ void rxShapeMatching::shapeMatching(double dt)
 		for(int i = 0; i < m_iNumVertices; ++i){
 			if(m_pFix[i]) continue;
 
-			Vec3 np(m_pNewPos[i*SM_DIM+0], m_pNewPos[i*SM_DIM+1], m_pNewPos[i*SM_DIM+3]);
-			Vec3 op(m_pOrgPos[i*SM_DIM+0], m_pOrgPos[i*SM_DIM+1], m_pOrgPos[i*SM_DIM+3]);
+			Vec3 np(m_pNewPos[i*SM_DIM+0], m_pNewPos[i*SM_DIM+1], m_pNewPos[i*SM_DIM+2]);
+			Vec3 op(m_pOrgPos[i*SM_DIM+0], m_pOrgPos[i*SM_DIM+1], m_pOrgPos[i*SM_DIM+2]);
 
 			q = op-cm_org;
 			Vec3 gp = RL*q+cm;

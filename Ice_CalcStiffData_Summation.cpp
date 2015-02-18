@@ -12,6 +12,14 @@ StiffSummation::~Ice_CalcStiffData_Summation()
 
 }
 
+void StiffSummation::StepUpdate()
+{
+}
+
+void StiffSummation::StepUpdateItr()
+{
+}
+
 float StiffSummation::StepCalcData()
 {
 	float sum = 0.0f;

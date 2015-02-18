@@ -15,6 +15,9 @@ public:
 	Ice_CalcStiffData_StdDevision(const vector<Ice_SM*>& iceSM, Ice_JudgeMove* judge);
 	~Ice_CalcStiffData_StdDevision();
 
+	void StepUpdate();
+	void StepUpdateItr();
+
 	float StepCalcData();
 	void StepCalcDataDebug();
 

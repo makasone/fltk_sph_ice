@@ -38,7 +38,7 @@ typedef void (*CollisionFunc)(Vec3&, Vec3&, Vec3&, int);
 //TODO::この数字をパラメータにする
 //#define MAXPARTICLE 150
 //#define MAXPARTICLE 200		//2.0
-#define MAXPARTICLE 300			//layer2 300, 3.0 500
+#define MAXPARTICLE 300		//layer2 300, 3.0 500
 //#define MAXPARTICLE 15625	//MakeOneClusterの場合
 #define SM_DIM 3
 
@@ -63,10 +63,12 @@ protected:
 
 	//int* m_iPIndxes;				//!< クラスタに所属する粒子の番号
 	vector<int> m_iPIndxes;
-
+	unsigned m_iIndxNum;			//配列で実装したため、穴あきに対応するための最大添字番号
+	
 	bool* m_pFix;					//!< 頂点固定フラグ
 
 	int m_iNumVertices;
+	int maxNum;
 
 	// シミュレーションパラメータ
 	double m_dDt;					//!< タイムステップ幅
@@ -90,7 +92,8 @@ protected:
 public:
 	//! コンストラクタとデストラクタ
 	rxShapeMatching();
-	rxShapeMatching(int obj);
+	rxShapeMatching(int objId);
+	rxShapeMatching(int objId, int prtNum);
 	rxShapeMatching(const rxShapeMatching& copy);
 
 	~rxShapeMatching();
@@ -107,6 +110,9 @@ public:
 	void Remove(int pIndx);
 
 	void Update();
+	void shapeMatching(double dt);
+	void integrate(double dt);
+	void calcBoundary();
 
 	// アクセスメソッド
 	void SetTimeStep(double dt){ m_dDt = dt; }
@@ -162,11 +168,13 @@ public:
 	Vec3 areaMax() const {	return m_v3Max;	}
 	double alpha() const {	return m_dAlpha;	}
 	double beta() const {	return m_dBeta;	}
+	int MaxNum() const {return maxNum;	}
 	bool isLiner() const {	return m_bLinearDeformation;	}
 	bool isVolumeConserve() const { return m_bVolumeConservation;	}
 
 	int GetNumVertices() const { return m_iNumVertices; }
-
+	unsigned GetIndxNum() const {	return m_iIndxNum;	}
+	
 	Vec3 GetVertexPos(int i) const { return Vec3(m_pCurPos[i*SM_DIM+0], m_pCurPos[i*SM_DIM+1], m_pCurPos[i*SM_DIM+2]); }
 	Vec3 GetNewPos(int i) const { return Vec3(m_pNewPos[i*SM_DIM+0], m_pNewPos[i*SM_DIM+1], m_pNewPos[i*SM_DIM+2]); }
 	Vec3 GetOrgPos(int i) const { return Vec3(m_pOrgPos[i*SM_DIM+0], m_pOrgPos[i*SM_DIM+1], m_pOrgPos[i*SM_DIM+2]); }
@@ -187,8 +195,8 @@ protected:
 	// Shape Matching法の計算
 	void calExternalForces(double dt);
 	void calCollision(double dt);
-	void shapeMatching(double dt);
-	void integrate(double dt);
+	//void shapeMatching(double dt);
+	//void integrate(double dt);
 
 	void clamp(Vec3 &pos) const
 	{
@@ -210,6 +218,8 @@ protected:
 		if(pos[cIndx+2] > m_v3Max[2]) pos[cIndx+2] = m_v3Max[2];
 	}
 
+	int SearchFreeIndx();
+	void CutBackIndx();
 };
 
 

@@ -13,6 +13,14 @@ StiffDivision::~Ice_CalcStiffData_StdDevision()
 
 }
 
+void StiffDivision::StepUpdate()
+{
+}
+
+void StiffDivision::StepUpdateItr()
+{
+}
+
 //各クラスタの標準偏差の総和を返す
 //若干処理が重い
 float StiffDivision::StepCalcData()
@@ -67,15 +75,15 @@ float StiffDivision::StepCalcData()
 
 			Vec3 pos = m_iceSM[cIndx]->GetVertexPos(oIndx);
 			
-			//分散を求める　各軸で足し合わせ
-			stdDives[pIndx] += pow(pos[0] - finalPos[pIndx][0], 2.0);
-			stdDives[pIndx] += pow(pos[1] - finalPos[pIndx][1], 2.0);
-			stdDives[pIndx] += pow(pos[2] - finalPos[pIndx][2], 2.0);
+			////分散を求める　各軸で足し合わせ
+			//stdDives[pIndx] += pow(pos[0] - finalPos[pIndx][0], 2.0);
+			//stdDives[pIndx] += pow(pos[1] - finalPos[pIndx][1], 2.0);
+			//stdDives[pIndx] += pow(pos[2] - finalPos[pIndx][2], 2.0);
 
 			////こっちにすると少し扱いやすくなる
-			//stdDives[pIndx] += abs(pos[0] - finalPos[pIndx][0]);
-			//stdDives[pIndx] += abs(pos[1] - finalPos[pIndx][1]);
-			//stdDives[pIndx] += abs(pos[2] - finalPos[pIndx][2]);
+			stdDives[pIndx] += abs(pos[0] - finalPos[pIndx][0]);
+			stdDives[pIndx] += abs(pos[1] - finalPos[pIndx][1]);
+			stdDives[pIndx] += abs(pos[2] - finalPos[pIndx][2]);
 		}
 	}
 

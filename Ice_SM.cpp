@@ -50,6 +50,7 @@ Ice_SM::Ice_SM() : rxShapeMatching()
 	m_fpBetas =	0;
 	
 	m_ipLayeres = 0;
+	m_ipErea = 0;
 }
 
 Ice_SM::Ice_SM(int obj) : rxShapeMatching(obj)
@@ -57,16 +58,31 @@ Ice_SM::Ice_SM(int obj) : rxShapeMatching(obj)
 	m_mtrx3Apq = rxMatrix3(0.0);
 	m_mtrxBeforeU.makeIdentity();
 
-	m_iIndxNum = 0;
+	m_fDefAmount = 0.0f;
+
+	m_pPrePos = new float[maxNum*SM_DIM];
+
+	m_fpAlphas = new float[maxNum];
+	m_fpBetas =	new float[maxNum];
+
+	m_ipLayeres = new int[maxNum];
+	m_ipErea = new EreaData[maxNum];
+}
+
+Ice_SM::Ice_SM(int obj, int prtNum) : rxShapeMatching(obj, prtNum)
+{
+	m_mtrx3Apq = rxMatrix3(0.0);
+	m_mtrxBeforeU.makeIdentity();
 
 	m_fDefAmount = 0.0f;
 
-	m_pPrePos = new float[MAXPARTICLE*SM_DIM];
+	m_pPrePos = new float[maxNum*SM_DIM];
 
-	m_fpAlphas = new float[MAXPARTICLE];
-	m_fpBetas =	new float[MAXPARTICLE];
+	m_fpAlphas = new float[maxNum];
+	m_fpBetas =	new float[maxNum];
 
-	m_ipLayeres = new int[MAXPARTICLE];
+	m_ipLayeres = new int[maxNum];
+	m_ipErea = new EreaData[maxNum];
 }
 
 /*!
@@ -121,6 +137,11 @@ void Ice_SM::ReleaseMemory()
 		delete[] m_ipLayeres;
 		m_ipLayeres = 0;
 	}
+
+	if(m_ipErea != 0){
+		delete[] m_ipErea;
+		m_ipErea = 0;
+	}
 }
 
 //データのコピー
@@ -132,15 +153,17 @@ void Ice_SM::Copy(const Ice_SM& copy)
 	m_iIndxNum = copy.GetIndxNum();
 	m_fDefAmount = copy.GetDefAmount();
 
-	m_pPrePos = new float[MAXPARTICLE*SM_DIM];
+	m_pPrePos = new float[maxNum*SM_DIM];
 
-	m_fpAlphas = new float[MAXPARTICLE];
-	m_fpBetas =	new float[MAXPARTICLE];
+	m_fpAlphas = new float[maxNum];
+	m_fpBetas =	new float[maxNum];
 
-	m_ipLayeres = new int[MAXPARTICLE];
+	m_ipLayeres = new int[maxNum];
+
+	m_ipErea = new EreaData[maxNum];
 
 	//各情報のコピー
-	for(int i = 0; i < MAXPARTICLE; i++){
+	for(int i = 0; i < maxNum; i++){
 		for(int j = 0; j < SM_DIM; j++){
 			m_pPrePos[i*SM_DIM+j] = copy.GetPrePos(i)[j];
 		}
@@ -149,6 +172,7 @@ void Ice_SM::Copy(const Ice_SM& copy)
 		m_fpBetas[i] = copy.GetBetas(i);
 
 		m_ipLayeres[i] = copy.GetLayer(i);
+		m_ipErea[i] = copy.erea(i);
 	}
 }
 
@@ -375,7 +399,11 @@ void Ice_SM::AddVertex(const Vec3 &pos, double mass, int pIndx)
 	//最大添字番号の更新
 	if(m_iNumVertices > m_iIndxNum){	m_iIndxNum = m_iNumVertices;	}
 
+	//重心位置の更新
 	CalcOrgCm();
+
+	//各粒子の所属する領域情報の更新
+	ClassifyAllOrgParticle();
 
 	//使ってない
 	//m_iLinearDeformation.push_back(0);
@@ -450,6 +478,7 @@ void Ice_SM::Remove(int indx)
 	rxShapeMatching::Remove(indx);
 
 	m_ipLayeres[indx] = -1;
+	m_ipErea[indx] = EreaData();
 
 	m_fpAlphas[indx] = -1;
 	m_fpBetas[indx] = -1;
@@ -464,12 +493,13 @@ void Ice_SM::Clear()
 
 	m_iIndxNum = 0;
 
-	for(int i = 0; i < MAXPARTICLE; i++)
+	for(int i = 0; i < maxNum; i++)
 	{
 		m_fpAlphas[i] = 0.0f;
 		m_fpBetas[i] = 0.0f;
 
 		m_ipLayeres[i] = -1;
+		m_ipErea[i] = EreaData();
 	}
 
 	//m_iLinearDeformation	.clear();
@@ -679,8 +709,7 @@ void Ice_SM::calExternalForces()
 {
 	double dt = m_dDt;
 
-	//最終位置・速度をクラスタの各粒子に反映
-	// 重力の影響を付加，速度を反映
+	//最終位置・速度をクラスタの各粒子に反映　各クラスタの各粒子は統一される
 	for(int i = 0; i < m_iIndxNum; ++i)
 	{
 		if( CheckHole(i) ){	continue;	}
@@ -692,7 +721,7 @@ void Ice_SM::calExternalForces()
 			int jpIndx = pIndx+j;
 			int jcIndx = cIndx+j;
 			
-			m_pCurPos[jcIndx] = s_pfPrtPos[jpIndx] + s_pfPrtVel[jpIndx]*dt;
+			m_pCurPos[jcIndx] = s_pfPrtPos[jpIndx] + (s_pfPrtVel[jpIndx] + (m_v3Gravity[j] * dt)) *dt;
 		}
 	}
 
@@ -704,28 +733,30 @@ void Ice_SM::calExternalForces()
 		if( CheckHole(i) ){	continue;	}
 		if(m_pFix[i]) continue;
 
-		int pIndx = i*SM_DIM;
+		int pIndx =  m_iPIndxes[i]*4;
+		int cIndx = i*SM_DIM;
 
-		if(m_pVel[pIndx+0] < m_v3Min[0] || m_pVel[pIndx+0] > m_v3Max[0]){
-			m_pVel[pIndx+0] = m_pCurPos[pIndx+0]-m_pVel[pIndx+0]*dt*res;
-			m_pVel[pIndx+1] = m_pCurPos[pIndx+1];
-			m_pVel[pIndx+2] = m_pCurPos[pIndx+2];
-		}
-		if(m_pVel[pIndx+1] < m_v3Min[1] || m_pVel[pIndx+1] > m_v3Max[1]){
-			m_pVel[pIndx+1] = m_pCurPos[pIndx+1]-m_pVel[pIndx+1]*dt*res;
-			m_pVel[pIndx+0] = m_pCurPos[pIndx+0] ;
-			m_pVel[pIndx+2] = m_pCurPos[pIndx+2];
-		}
-		if(m_pVel[pIndx+2] < m_v3Min[2] || m_pVel[pIndx+2] > m_v3Max[2]){
-			m_pVel[pIndx+2] = m_pCurPos[pIndx+2]-m_pVel[pIndx+2]*dt*res;
-			m_pVel[pIndx+0] = m_pCurPos[pIndx+0];
-			m_pVel[pIndx+1] = m_pCurPos[pIndx+1];
+		if(m_pCurPos[cIndx+0] < m_v3Min[0] || m_pCurPos[cIndx+0] > m_v3Max[0]){
+			m_pCurPos[cIndx+0] = s_pfPrtPos[pIndx+0] - (s_pfPrtVel[pIndx+0] + (m_v3Gravity[0] * dt))*dt*res;
+			m_pCurPos[cIndx+1] = s_pfPrtPos[pIndx+1];
+			m_pCurPos[cIndx+2] = s_pfPrtPos[pIndx+2];
 		}
 
-		clamp(m_pCurPos, pIndx);
+		if(m_pCurPos[cIndx+1] < m_v3Min[1] || m_pCurPos[cIndx+1] > m_v3Max[1]){
+			m_pCurPos[cIndx+1] = s_pfPrtPos[pIndx+1] - (s_pfPrtVel[pIndx+1] + (m_v3Gravity[1] * dt))*dt*res;
+			m_pCurPos[cIndx+0] = s_pfPrtPos[pIndx+0] ;
+			m_pCurPos[cIndx+2] = s_pfPrtPos[pIndx+2];
+		}
+
+		if(m_pCurPos[cIndx+2] < m_v3Min[2] || m_pCurPos[cIndx+2] > m_v3Max[2]){
+			m_pCurPos[cIndx+2] = s_pfPrtPos[pIndx+2] - (s_pfPrtVel[pIndx+2] + (m_v3Gravity[2] * dt))*dt*res;
+			m_pCurPos[cIndx+0] = s_pfPrtPos[pIndx+0];
+			m_pCurPos[cIndx+1] = s_pfPrtPos[pIndx+1];
+		}
+
+		clamp(m_pCurPos, cIndx);
 	}
 }
-
 
 //----------------------------------------------ソリッド版---------------------------------------------
 /*!
@@ -990,18 +1021,9 @@ void Ice_SM::integrate(double dt)
 		for(int j = 0; j < SM_DIM; j++)
 		{
 			int cIndx = i*SM_DIM+j;
-			m_pVel[cIndx] = (m_pCurPos[cIndx] - s_pfPrtPos[pIndx+j]) * dt1 + m_v3Gravity[j] * dt;
+			m_pVel[cIndx] = (m_pCurPos[cIndx] - s_pfPrtPos[pIndx+j]) * dt1/* + m_v3Gravity[j] * dt*/;
 		}
 	}
-
-	////前フレームの位置ベクトルを更新
-	//for(int i = 0; i < m_iIndxNum; ++i)
-	//{
-	//	UpdatePrePos(i);
-	//}
-
-	////前フレームの重心ベクトルを更新
-	//m_vec3PreCm = m_vec3NowCm;
 }
 
 void Ice_SM::CalcDisplaceMentVectorCm()
@@ -1029,7 +1051,7 @@ void Ice_SM::CalcDisplaceMentVectorCm()
 }
 
 /*!
- * 最終位置を各クラスタに反映
+ * 反復用　固体の最終位置を各粒子に反映　速度は反映しない
  * @param[in] dt タイムステップ幅
  */
 void Ice_SM::calExternalForcesIteration()
@@ -1051,7 +1073,7 @@ void Ice_SM::calExternalForcesIteration()
 	}
 
 	// 境界壁の影響
-	//処理がかなり重くなるが，安定する
+	//処理がかなり重くなるが，安定はするみたい
 	double res = 0.9;	// 反発係数
 	double dt = m_dDt;
 	for(int i = 0; i < m_iIndxNum; ++i)
@@ -1059,26 +1081,28 @@ void Ice_SM::calExternalForcesIteration()
 		if( CheckHole(i) ){	continue;	}
 		if(m_pFix[i]) continue;
 
-		int pIndx = i*SM_DIM;
+		int pIndx =  m_iPIndxes[i]*SM_DIM;
+		int cIndx = i*SM_DIM;
 
-		if(m_pVel[pIndx+0] < m_v3Min[0] || m_pVel[pIndx+0] > m_v3Max[0]){
-			m_pVel[pIndx+0] = m_pCurPos[pIndx+0]-m_pVel[pIndx+0]*dt*res;
-			m_pVel[pIndx+1] = m_pCurPos[pIndx+1];
-			m_pVel[pIndx+2] = m_pCurPos[pIndx+2];
-		}
-		if(m_pVel[pIndx+1] < m_v3Min[1] || m_pVel[pIndx+1] > m_v3Max[1]){
-			m_pVel[pIndx+1] = m_pCurPos[pIndx+1]-m_pVel[pIndx+1]*dt*res;
-			m_pVel[pIndx+0] = m_pCurPos[pIndx+0] ;
-			m_pVel[pIndx+2] = m_pCurPos[pIndx+2];
-		}
-		if(m_pVel[pIndx+2] < m_v3Min[2] || m_pVel[pIndx+2] > m_v3Max[2]){
-			m_pVel[pIndx+2] = m_pCurPos[pIndx+2]-m_pVel[pIndx+2]*dt*res;
-			m_pVel[pIndx+0] = m_pCurPos[pIndx+0];
-			m_pVel[pIndx+1] = m_pCurPos[pIndx+1];
-		}
+		//if(m_pCurPos[cIndx+0] < m_v3Min[0] || m_pCurPos[cIndx+0] > m_v3Max[0]){
+		//	m_pCurPos[cIndx+0] = s_pfSldPos[pIndx+0]-s_pfSldVel[pIndx+0]*dt*res;
+		//	m_pCurPos[cIndx+1] = s_pfSldPos[pIndx+1];
+		//	m_pCurPos[cIndx+2] = s_pfSldPos[pIndx+2];
+		//}
+		//if(m_pCurPos[cIndx+1] < m_v3Min[1] || m_pCurPos[cIndx+1] > m_v3Max[1]){
+		//	m_pCurPos[cIndx+1] = s_pfSldPos[pIndx+1]-s_pfSldVel[pIndx+1]*dt*res;
+		//	m_pCurPos[cIndx+0] = s_pfSldPos[pIndx+0] ;
+		//	m_pCurPos[cIndx+2] = s_pfSldPos[pIndx+2];
+		//}
+		//if(m_pCurPos[cIndx+2] < m_v3Min[2] || m_pCurPos[cIndx+2] > m_v3Max[2]){
+		//	m_pCurPos[cIndx+2] = s_pfSldPos[pIndx+2]-s_pfSldVel[pIndx+2]*dt*res;
+		//	m_pCurPos[cIndx+0] = s_pfSldPos[pIndx+0];
+		//	m_pCurPos[cIndx+1] = s_pfSldPos[pIndx+1];
+		//}
 
-		clamp(m_pCurPos, i*SM_DIM);
+		clamp(m_pCurPos, cIndx);
 	}
+
 }
 
 
@@ -1254,22 +1278,15 @@ void Ice_SM::integrateIteration()
 	{
 		if( CheckHole(i) ){	continue;	}
 		int pIndx = m_iPIndxes[i]*4;
+		int sldIndx = m_iPIndxes[i]*SM_DIM;
 
 		for(int j = 0; j < SM_DIM; j++)
 		{
 			int cIndx = i*SM_DIM+j;
-			m_pVel[cIndx] = (m_pCurPos[cIndx] - s_pfPrtPos[pIndx+j]) * dt1 + m_v3Gravity[j] * m_dDt;	//TODO::パラメータ0.1fを使わなくてもいいように
+			m_pVel[cIndx] = (m_pCurPos[cIndx] - s_pfPrtPos[pIndx+j]) * dt1;
+			//m_pVel[cIndx] = (s_pfSldPos[sldIndx+j] - s_pfPrtPos[pIndx+j]) * dt1;
 		}
 	}
-
-	////前フレームの位置ベクトルを更新
-	//for(int i = 0; i < m_iIndxNum; ++i)
-	//{
-	//	UpdatePrePos(i);
-	//}
-
-	////前フレームの重心ベクトルを更新
-	//m_vec3PreCm = m_vec3NowCm;
 }
 
 //前ステップと現ステップの位置から質量を決定
@@ -1334,6 +1351,82 @@ void Ice_SM::CalcOrgCm()
 	}
 
 	m_vec3OrgCm /= massSum;
+}
+
+//すべてのorg粒子を各領域に分類
+void Ice_SM::ClassifyAllOrgParticle()
+{
+	for(int i = 0; i < m_iIndxNum;++i)
+	{
+		if( CheckHole(i) ){	continue;	}
+
+		ClassifyOrgParticle(i);
+	}
+}
+
+//粒子を各領域に分類　まずは８分割 正六面体の場合だとn~3で分割数が増える
+void Ice_SM::ClassifyOrgParticle(int indx)
+{
+	double X = GetOrgPos(indx)[0] - GetOrgCm()[0];
+	double Y = GetOrgPos(indx)[1] - GetOrgCm()[1];
+	double Z = GetOrgPos(indx)[2] - GetOrgCm()[2];
+
+	//８パターンに分類
+	if(X >= 0.0 && Y >= 0.0 && Z >= 0.0){
+		m_ipErea[indx] = EreaData(TOP_LEFT__FORE);
+	}
+	else if(X < 0.0 && Y >= 0.0 && Z >= 0.0){
+		m_ipErea[indx] = EreaData(TOP_RIGHT_FORE);
+	}
+	else if(X >= 0.0 && Y >= 0.0 && Z < 0.0){
+		m_ipErea[indx] = EreaData(TOP_LEFT__BACK);
+	}
+	else if(X < 0.0 && Y >= 0.0 && Z < 0.0){
+		m_ipErea[indx] = EreaData(TOP_RIGHT_BACK);
+	}
+
+	else if(X >= 0.0 && Y < 0.0 && Z >= 0.0){
+		m_ipErea[indx] = EreaData(BOT_LEFT__FORE);
+	}
+	else if(X < 0.0 && Y < 0.0 && Z >= 0.0){
+		m_ipErea[indx] = EreaData(BOT_RIGHT_FORE);
+	}
+	else if(X >= 0.0 && Y < 0.0 && Z < 0.0){
+		m_ipErea[indx] = EreaData(BOT_LEFT__BACK);
+	}
+	else if(X < 0.0 && Y < 0.0 && Z < 0.0){
+		m_ipErea[indx] = EreaData(BOT_RIGHT_BACK);
+	}
+
+	return;
+}
+
+//領域間の距離を計算
+unsigned Ice_SM::CalcEreaDistance(const EreaData& ereaA, const EreaData& ereaB)
+{
+	//unsigned dist = 0;
+	//dist += abs(ereaA.x - ereaB.x);
+	//dist += abs(ereaA.y - ereaB.y);
+	//dist += abs(ereaA.z - ereaB.z);
+
+	//return dist;
+
+	return abs(ereaA.x - ereaB.x) + abs(ereaA.y - ereaB.y) + abs(ereaA.z - ereaB.z);
+}
+
+//領域は全て3桁の変数で指定
+Ice_SM::EreaData Ice_SM::IntToEreaData(int erea)
+{
+	if(erea >= 1000){
+		cout << __FUNCTION__ << " Error 現状は３桁まで" << endl;
+	}
+
+	return EreaData(erea/100, erea%100 /10, erea%10); 
+}
+
+int Ice_SM::EreaDataToInt(EreaData erea)
+{
+	return erea.x * 100 + erea.y * 10 + erea.z;
 }
 
 void Ice_SM::UpdatePrePos(int pIndx)

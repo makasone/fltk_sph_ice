@@ -10,7 +10,9 @@ CalcIteration::Ice_CalcMethod_Itr_Stiffness(const vector<Ice_SM*>& iceSM, Ice_Cl
 
 	//閾値用データ算出クラス
 	//m_iceCalcStiff = new Ice_CalcStiffData_Summation(iceSM);	//総変形量
-	m_iceCalcStiff = new Ice_CalcStiffData_StdDevision(iceSM, m_iceMove->GetJudgeMove());	//粒子位置の分散
+	m_iceCalcStiff = new Ice_CalcStiffData_Average(iceSM);		//平均変化量
+	//m_iceCalcStiff = new Ice_CalcStiffData_StdDevision(iceSM, m_iceMove->GetJudgeMove());		//粒子位置の分散
+	//m_iceCalcStiff = new Ice_CalcStiffData_CompareRigid(iceSM, m_iceMove->GetJudgeMove());	//剛体との差分
 }
 
 CalcIteration::~Ice_CalcMethod_Itr_Stiffness()
@@ -29,20 +31,31 @@ void CalcIteration::SetConvolution(Ice_Convolution* convo)
 
 void CalcIteration::StepObjMove()
 {
-	//初回の運動計算
-	m_iceMove->StepObjMove();		//そのまま呼ぶだけ
+	//初回
+	m_iceMove->StepObjMove();
 
-	//反復するか判定するための値
+	//rigidの最終結果　重力を反映しているバージョン
+	m_iceCalcStiff->StepUpdate();
+
+	//MSMの最終結果算出
+	m_iceConvo->StepConvolution();
+
+	//平均変形量測定
 	float threshold = m_iceCalcStiff->StepCalcData();
 
 	//反復	
 	while(threshold > Ice_SM::GetItrStiffness())
 	{
-		//運動計算
-		m_iceConvo->StepConvolution();
+		//各クラスタで運動計算
 		m_iceMove->StepObjMoveItr();
 
-		//反復するか判定するための値
+		//rigidの最終結果
+		m_iceCalcStiff->StepUpdateItr();
+
+		//MSMの最終結果算出
+		m_iceConvo->StepConvolution();
+
+		//閾値測定
 		threshold = m_iceCalcStiff->StepCalcData();
 	}
 
@@ -60,6 +73,12 @@ void CalcIteration::StepObjMoveDebug()
 	//初回
 	m_iceMove->StepObjMoveDebug();
 
+	//rigidの最終結果　重力を反映しているバージョン
+	m_iceCalcStiff->StepUpdate();
+
+	//MSMの最終結果算出
+	m_iceConvo->StepConvolution();
+
 	//平均変形量測定
 	float threshold = m_iceCalcStiff->StepCalcData();
 	int count = 0;
@@ -69,16 +88,21 @@ void CalcIteration::StepObjMoveDebug()
 	//反復	
 	while(threshold > Ice_SM::GetItrStiffness())
 	{
-		//運動計算
-		m_iceConvo->StepConvolution();
+		//各クラスタで運動計算
 		m_iceMove->StepObjMoveItrDebug();
 
-		//平均変形量測定
+		//rigidの最終結果
+		m_iceCalcStiff->StepUpdateItr();
+
+		//MSMの最終結果算出
+		m_iceConvo->StepConvolution();
+
+		//閾値測定
 		threshold = m_iceCalcStiff->StepCalcData();
 
-		//cout << __FUNCTION__ << " threshold = " << threshold << endl;
-
 		count++;
+
+		cout << __FUNCTION__ << " thrshold:" << threshold << " count:" << count << endl;
 	}
 
 	//速度算出
@@ -96,4 +120,10 @@ void CalcIteration::StepObjMoveDebug()
 	result += "Itr_Stiffness_CountNum.txt";
 	ofstream ofs(result, ios::app);
 	ofs << count << endl;
+}
+
+//硬さの閾値を測定する処理のデバッグ
+void CalcIteration::DebugStiffness()
+{
+	m_iceCalcStiff->StepCalcDataDebug();
 }

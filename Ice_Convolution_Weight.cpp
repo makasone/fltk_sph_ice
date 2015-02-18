@@ -25,6 +25,7 @@ Ice_ConvoJudge* ConvoWeight::GetConvoJudge()
 
 void ConvoWeight::StepConvolution()
 {
+	//現在はm_iceStrctを用いずにsm法のデータm_iceSMだけで計算している
 	unsigned sm_particleNum = IceObject::GetParticleNum();
 	vector<float> deformationSum(sm_particleNum, 0.0f);
 
@@ -72,7 +73,7 @@ void ConvoWeight::StepConvolution()
 		int smIndx = i*SM_DIM;
 
 		float clusterNum = (float)deformationSum[i];
-		if(clusterNum == 0){	continue;	}
+		if(clusterNum <= 0.0f){	continue;	}
 
 		//固体の最終位置
 		for(int dim = 0; dim < SM_DIM; dim++)

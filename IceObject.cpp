@@ -270,6 +270,7 @@ cout << __FUNCTION__ << ", check2" << endl;
 
 //デバッグ
 	//DebugClusterInfo();
+	//DebugNeights(neights);
 }
 
 //オブジェクトの構造の初期化
@@ -420,6 +421,14 @@ void IceObject::ChangeMode_CalcMethod_Itr_Expand()
 	if(m_iceCalcMethod != NULL) delete m_iceCalcMethod;
 	m_iceCalcMethod = new Ice_CalcMethod_Itr_Expand(m_iceSM, m_iceClsuterMove, m_iceConvolution);
 }
+
+void IceObject::ChangeMode_CalcMethod_Itr_Exp_Stiff()
+{	FUNCTION_NAME;
+
+	if(m_iceCalcMethod != NULL) delete m_iceCalcMethod;
+	m_iceCalcMethod = new Ice_CalcMethod_Itr_Exp_Stiff(m_iceSM, m_iceClsuterMove, m_iceConvolution);
+}
+
 
 //運動計算クラスタ選択
 void IceObject::ChangeMode_JudgeMove_Normal()
@@ -761,6 +770,28 @@ void IceObject::InitIceObjGPU()
 	delete[] fVeles;
 }
 
+//デバッグ情報の描画
+void IceObject::Display()
+{
+	//テスト
+	//現在のCalcMethodのモード確認
+	const char* calcMethodName1 = typeid(Ice_CalcMethod_Itr_Stiffness).name();
+	const char* calcMethodName2 = typeid(Ice_CalcMethod_Itr_Exp_Stiff).name();
+	const char* nowName = typeid(*(m_iceCalcMethod)).name();
+
+	//現在iteration_stiffnessモードかの確認　strcmpは文字列が一致すると0になる
+	if(strcmp(calcMethodName1, nowName) != 0
+	&& strcmp(calcMethodName2, nowName) != 0) return ;
+
+	//rigidオブジェクトの位置を描画してみる
+	if(strcmp(calcMethodName1, nowName) == 0){
+		((Ice_CalcMethod_Itr_Stiffness*)m_iceCalcMethod)->DebugStiffness();
+	}
+	else if(strcmp(calcMethodName2, nowName) == 0){
+		((Ice_CalcMethod_Itr_Exp_Stiff*)m_iceCalcMethod)->DebugStiffness();
+	}
+}
+
 //固体の運動計算，計算結果の統合
 //処理内容は別クラスに記述
 void IceObject::StepObjMoveCPU()
@@ -779,6 +810,7 @@ void IceObject::StepObjMoveCPUNormal()
 
 	//液体と固体の線形補間
 	StepInterPolation();					RXTIMER("StepInterPolation");
+	//StepInterPolationKenjya();
 }
 
 void IceObject::StepObjMoveCPUDebug()
@@ -816,6 +848,37 @@ void IceObject::StepInterPolation()
 		{
 			s_sphPrtVel[sphIndx+i] = sldVel[sldIndx+i] * m_fInterPolationCoefficience[pIndx] + s_sphPrtVel[sphIndx+i] * intrps;
 			s_sphPrtPos[sphIndx+i] = sldPos[sldIndx+i] * m_fInterPolationCoefficience[pIndx] + s_sphPrtPos[sphIndx+i] * intrps;
+		}
+	}
+}
+
+void IceObject::StepInterPolationKenjya()
+{
+	//総変形量
+	float defSum = 0.0f;
+	for(int pIndx = 0; pIndx < m_iceSM.size(); pIndx++){
+		defSum += m_iceSM[pIndx]->GetDefAmount();
+	}
+
+	for(int pIndx = 0; pIndx < sm_particleNum; pIndx++)
+	{
+		if(m_iceSM[pIndx]->GetNumVertices() == 0){			continue;	}
+
+		int sphIndx = pIndx*4;
+		int sldIndx = pIndx*3;
+
+		float defAmount = m_iceSM[pIndx]->GetDefAmount() / defSum;
+		if(defAmount > 1.0f) defAmount = 1.0f;
+		if(defAmount < 0.1f) defAmount = 0.1f;
+		double intrps = 1.0 - defAmount;	//補間係数
+	
+		float* sldVel = Ice_SM::GetSldVelPointer();
+		float* sldPos = Ice_SM::GetSldPosPointer();
+	
+		for(int i = 0; i < 3; i++)
+		{
+			s_sphPrtVel[sphIndx+i] = sldVel[sldIndx+i] * defAmount + s_sphPrtVel[sphIndx+i] * intrps;
+			s_sphPrtPos[sphIndx+i] = sldPos[sldIndx+i] * defAmount + s_sphPrtPos[sphIndx+i] * intrps;
 		}
 	}
 }
@@ -1212,6 +1275,7 @@ void IceObject::ReConstructCluster(vector<unsigned>& pList, vector<unsigned>& cL
 				}
 #endif
 				moveObj->CalcOrgCm();
+				moveObj->ClassifyAllOrgParticle();
 			}
 		}//end #pragma omp parallel
 	}
@@ -1636,6 +1700,7 @@ void IceObject::UpdateParticleMass_Normal()
 	for(int pIndx = 0; pIndx < sm_particleNum; pIndx++)
 	{
 		m_iceSM[pIndx]->CalcOrgCm();
+		m_iceSM[pIndx]->ClassifyAllOrgParticle();
 	}
 }
 
@@ -1676,6 +1741,7 @@ void IceObject::UpdateParticleMass_Average()
 	for(int pIndx = 0; pIndx < sm_particleNum; pIndx++)
 	{
 		m_iceSM[pIndx]->CalcOrgCm();
+		m_iceSM[pIndx]->ClassifyAllOrgParticle();
 	}
 }
 
@@ -1820,6 +1886,26 @@ void IceObject::DebugClusterInfo()
 
 	cout << "sum = " << sum << " ave = " << (float)(sum/sm_clusterNum) << endl;
 	cout << "max = " << max << " min = " << min << endl;
+}
+
+//近傍粒子
+void IceObject::DebugNeights(const vector<vector<rxNeigh>>& neights)
+{	cout << __FUNCTION__ << endl;
+	
+	string result = RESULT_DATA_PATH;
+	result += "DebugNeights.txt";
+	ofstream ofs(result, ios::app);
+
+	for(unsigned pIndx = 0; pIndx < neights.size(); pIndx++){
+		if(neights[pIndx].size() == 0){
+			continue;
+		}
+		ofs << "Particle:" << pIndx << endl;
+		for(unsigned id_np = 0; id_np < neights[pIndx].size(); id_np++){
+			int np_pIndx = neights[pIndx][id_np].Idx;
+			ofs << "	" << np_pIndx << endl;
+		}
+	}
 }
 
 //ある閾値を超えた粒子をカウント
@@ -2211,11 +2297,14 @@ void IceObject::DebugMakeGraph_DefAmountAverage(string dirName)
 void IceObject::DebugMakeGraph_IterationNum(string dirName)
 {
 	//モード確認
-	const char* calcMethodName = typeid(Ice_CalcMethod_Itr_Stiffness).name();
+	//TODO: あんまり綺麗なやり方じゃない
+	const char* calcMethodName1 = typeid(Ice_CalcMethod_Itr_Stiffness).name();
+	const char* calcMethodName2 = typeid(Ice_CalcMethod_Itr_Exp_Stiff).name();
 	const char* nowName = typeid(*(m_iceCalcMethod)).name();
 
 	//現在iteration_stiffnessモードかの確認　strcmpは文字列が一致すると0になる
-	if(strcmp(calcMethodName, nowName) != 0) return ;
+	if(strcmp(calcMethodName1, nowName) != 0
+	&& strcmp(calcMethodName2, nowName) != 0) return ;
 
 	FUNCTION_NAME;
 

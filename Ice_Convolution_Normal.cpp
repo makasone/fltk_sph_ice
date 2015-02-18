@@ -69,7 +69,6 @@ void ConvoNormal::StepConvolution()
 	//•½‹Ï’l‚ðŒÅ‘ÌˆÊ’u‚É”½‰f
 	for(int pIndx = 0; pIndx < pNum; pIndx++)
 	{
-		int sphIndx = pIndx*4;
 		int smIndx = pIndx*SM_DIM;
 
 		//CtoPNum == PtoCNum‚æ‚è
