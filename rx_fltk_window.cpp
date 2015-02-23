@@ -891,8 +891,7 @@ void rxFlWindow::OnSpinRadius_Spears(Fl_Widget *widget)
 
 	cout << __FUNCTION__ << " radius = " << radius << endl;
 
-	m_pGLCanvas->m_iceObj->SetSelectRadius(radius);
-	m_pGLCanvas->m_iceObj->InitSelectCluster();
+	m_pGLCanvas->m_iceObj->InitSelectCluster(radius);
 	m_pGLCanvas->StepParticleColor();
 	m_pGLCanvas->ReDisplay();
 }

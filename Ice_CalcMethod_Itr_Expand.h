@@ -39,7 +39,7 @@ private:
 
 	void SelectAddParticleFromNearestCluster(vector<vector<int>>& addParticleList, vector<int>& searchFinishIndxes);
 	void SelectAddParticleFromFarCluster(vector<vector<int>>& addParticleList);
-	void SearchSimilarParticle(vector<vector<int>>& addPIndxList, int clusterIndx, bool isAdd[], int& addIndxNum, int nearCluster, const Vec3& dirVec, const Ice_SM::EreaData& startErea);
+	pair<int, int> SearchSimilarParticle(int nearCluster, const Vec3& dirVec, const Ice_SM::EreaData& startErea);
 
 	void AddParticleToCluster(const vector<vector<int>>& addParticleList);	
 	void ContractCluster();

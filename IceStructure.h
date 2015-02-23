@@ -23,6 +23,7 @@
 #include "QueryCounter.h"
 
 #include <IceTetrahedra.h>
+#include "Ice_SM.h"
 
 using namespace std;
 
@@ -40,7 +41,9 @@ public:	//TODO: 全てpublicにしない
 	//初期化
 	void InitTetraInfo();									//四面体情報のメモリ確保
 	void InitClusterInfo();									//クラスタ情報のメモリ確保
-	
+	void InitSelectCluster(const vector<Ice_SM*>& iceSM);
+	void InitSelectClusterFromClusterSet(const vector<Ice_SM*>& iceSM);
+
 	void InitGPU();											//GPU処理で用いるデータの初期化
 
 	//相変化
@@ -55,6 +58,9 @@ public:	//TODO: 全てpublicにしない
 	void UpdateInfo_Melt_PandC(const vector<unsigned>& pList, const vector<unsigned>& cList);
 
 	void UpdateInfo_Delete_TandP(const vector<int>& tList, const vector<int>& deleteList);
+
+	void UpdateSelectCluster(const vector<unsigned>& prtList, vector<unsigned>& neighborClusters, const vector<Ice_SM*>& iceSM);
+	void UpdateSelectClusterFronSet(const vector<unsigned>& prtList, vector<unsigned>& neighborClusters, const vector<Ice_SM*>& iceSM);
 
 	void SetInfo_Cluster(const vector<unsigned>& pList, const vector<unsigned>& cList, const vector<unsigned>& lList);
 	void SetInfo_Tetra(const vector<unsigned>& pList, const vector<unsigned>& tList, const vector<unsigned>& lList);
@@ -135,6 +141,9 @@ public:	//TODO: 全てpublicにしない
 	void SetNeighborTetra(int tIndx, int layer);
 	void SetNeighborTetraFromLayer(int tIndx, int searchLayer, int deleteLayer);
 
+	void SetSelectRadius(float radius){	m_selectRadius = radius;	}
+	float GetSelectRadius(){	return m_selectRadius;	}
+
 	//削除
 	void DeleteTtoP(int tIndx, int lIndx);
 	void DeletePtoC(int pIndx, int lIndx);
@@ -214,6 +223,8 @@ protected:
 
 	int m_iNeighborMax;							//近傍粒子の最大数
 	int m_iLayer;
+
+	float m_selectRadius;						//運動計算クラスタを選択する際の半径
 
 	//とりあえず，擬似多次元配列にポインタは使わない
 	//粒子→

@@ -16,7 +16,6 @@ int IceObject::sm_particleNum;
 int IceObject::sm_tetraNum;
 int IceObject::sm_clusterNum;
 int IceObject::sm_layerNum;
-float IceObject::sm_selectRadius;
 
 int IceObject::sm_maxParticleNum;
 
@@ -51,115 +50,11 @@ void IceObject::InitIceObj(int pMaxNum, int cMaxNum, int tMaxNum)
 	InitInterPolation();
 }
 
-void IceObject::InitSelectCluster()
+//影響半径を元に運動計算するクラスタを選択　なるべく疎になるように選ぶ
+void IceObject::InitSelectCluster(float radius)
 {
-	//選択クラスタを全て非選択に
-	for(int cIndx = 0; cIndx < sm_clusterNum; cIndx++)
-	{
-		m_iceStrct->UpdateMotionCalcCluster(cIndx, 0);
-	}
-
-	//距離テーブル作成
-	mk_Vector2D<float> distanceTable;
-	distanceTable.SetSize(sm_clusterNum, sm_clusterNum);
-	 
-	for(int pIndx = 0; pIndx < sm_clusterNum; pIndx++)
-	{
-		Vec3 pPos(s_sphPrtPos[pIndx*4+0], s_sphPrtPos[pIndx*4+1], s_sphPrtPos[pIndx*4+2]);
-
-		for(int ipIndx = pIndx; ipIndx < sm_clusterNum; ipIndx++)
-		{
-			if(pIndx == ipIndx){distanceTable(pIndx, ipIndx) = 0.0f;	distanceTable(ipIndx, pIndx) = 0.0f;	continue;}
-
-			Vec3 ipPos(s_sphPrtPos[ipIndx*4+0], s_sphPrtPos[ipIndx*4+1], s_sphPrtPos[ipIndx*4+2]);
-			float distance = (pPos[0]-ipPos[0])*(pPos[0]-ipPos[0])
-							+(pPos[1]-ipPos[1])*(pPos[1]-ipPos[1])
-							+(pPos[2]-ipPos[2])*(pPos[2]-ipPos[2]);
-
-			distanceTable(pIndx, ipIndx) = distance;
-			distanceTable(ipIndx, pIndx) = distance;
-		}
-	}
-
-	//クラスタ集合の初期化
-	vector<unsigned> clusters;
-	for(int cIndx = 0; cIndx < sm_clusterNum; cIndx++)
-	{
-		if(m_iceSM[cIndx]->GetNumVertices() <= 0){	continue;	}
-		clusters.push_back(cIndx);
-	}
-
-	//クラスタ選択
-	srand((unsigned)time(NULL));
-
-	while(clusters.size() != 0)
-	{
-		unsigned rIndx = rand() % clusters.size();		//ランダムに粒子選択
-		unsigned cIndx = clusters[rIndx];
-		m_iceStrct->UpdateMotionCalcCluster(cIndx, 1);
-
-		//距離radius以下の粒子を取得
-		vector<unsigned> deleteIndx;
-		for(int indx = 0; indx < (int)clusters.size(); indx++)
-		{
-			unsigned icIndx = clusters[indx];
-			float distance = distanceTable(cIndx, icIndx);
-
-			if(cIndx == icIndx)						continue;
-			if(sm_selectRadius/100.0f < distance)	continue;
-
-			deleteIndx.push_back(icIndx);
-		}
-
-		//粒子を取り除く
-		for(int indx = 0; indx < (int)deleteIndx.size(); indx++)
-		{
-			clusters.erase(remove(clusters.begin(), clusters.end(), deleteIndx[indx]), clusters.end());	//stlで削除は，eraseとremoveを組み合わせて行う
-		}
-
-		clusters.erase(remove(clusters.begin(), clusters.end(), cIndx), clusters.end());  
-	}
-
-	//どの運動計算クラスタにも含まれていない粒子を検出
-	vector<bool> selectFlag(sm_clusterNum, false);
-
-	for(int cIndx = 0; cIndx < sm_clusterNum; cIndx++)
-	{
-		//運動計算クラスタの含む粒子を取得し，運動計算されるならフラグを立てる
-		if(m_iceStrct->GetMotionCalcCluster(cIndx) == false) continue;
-		
-		for(unsigned oIndx = 0; oIndx < m_iceSM[cIndx]->GetIndxNum(); oIndx++)
-		{
-			int pIndx = m_iceSM[cIndx]->GetParticleIndx(oIndx);
-			if(pIndx == MAXINT) continue;
-
-			selectFlag[pIndx] = true;
-		}
-	}
-
-	//フラグが立っていない粒子はどの運動計算クラスタにも含まれていない
-	vector<unsigned> nonSelected;
-	for(int cIndx = 0; cIndx < sm_clusterNum; cIndx++)
-	{
-		if(m_iceSM[cIndx]->GetNumVertices() == 0)	continue;
-		if(selectFlag[cIndx] == false)				nonSelected.push_back(cIndx);
-	}
-
-	//全ての粒子が運動計算されるように未選択粒子を選んでしまう
-	for(int cIndx = 0; cIndx < (int)nonSelected.size(); cIndx++)
-	{
-		m_iceStrct->UpdateMotionCalcCluster(nonSelected[cIndx], 1);
-	}
-
-//デバッグ
-	unsigned num = 0;
-	for(int i = 0; i < sm_clusterNum; i++)
-	{
-		if(m_iceStrct->GetMotionCalcCluster(i) != 0) num++;
-	}
-
-	cout << __FUNCTION__ << " nonSelectedNum = " << nonSelected.size() << endl;
-	cout << __FUNCTION__ << " SelectClusterNum = " << num << endl;
+	m_iceStrct->SetSelectRadius(radius);
+	m_iceStrct->InitSelectCluster(m_iceSM);
 
 	//DebugUpdateSelectCluster();
 }
@@ -444,8 +339,6 @@ void IceObject::ChangeMode_JudgeMove_Normal()
 
 void IceObject::ChangeMode_JudgeMove_Spears()
 {	FUNCTION_NAME
-
-	InitSelectCluster();		//選択的運動計算の更新
 
 	if(m_iceJudeMove != NULL) delete m_iceJudeMove;
 	m_iceJudeMove = new Ice_JudgeMove_Spears(m_iceSM, m_iceStrct);
@@ -1139,7 +1032,7 @@ counter1.Start();
 double end1 = counter1.End();
 
 counter2.Start();
-	UpdateSelectCluster(prtList, neighborList);
+	m_iceStrct->UpdateSelectCluster(prtList, neighborList, m_iceSM);
 double end2 = counter2.End();
 
 	cout << "Time" << endl;
@@ -1469,213 +1362,6 @@ void IceObject::CashNeighborList(const vector<unsigned>& prtList, vector<unsigne
 			neighborList.push_back((unsigned)pIndx);
 		}
 	}
-}
-
-void IceObject::UpdateSelectCluster(const vector<unsigned>& prtList, vector<unsigned>& neighborClusters)
-{
-	//融解クラスタのフラグを折る
-	//融解粒子を近傍クラスタ集合から取り除く
-	for(int pIndx = 0; pIndx < (int)prtList.size(); pIndx++)
-	{
-		m_iceStrct->UpdateMotionCalcCluster(prtList[pIndx], 0);
-		neighborClusters.erase(remove(neighborClusters.begin(), neighborClusters.end(), prtList[pIndx]), neighborClusters.end());
-	}
-
-//1 孤立クラスタ集合で選択クラスタを再定義
-	//孤立クラスタ集合を作成
-	//どの運動計算クラスタにも含まれていない粒子を検出
-	vector<bool> selectFlag2(sm_clusterNum, false);
-
-	for(int cIndx = 0; cIndx < sm_clusterNum; cIndx++)
-	{
-		//運動計算クラスタの含む粒子を取得し，運動計算されるならフラグを立てる
-		if(m_iceStrct->GetMotionCalcCluster(cIndx) == 0) continue;
-		if(m_iceSM[cIndx]->GetNumVertices() == 0)	continue;
-
-		for(int oIndx = 0; oIndx < m_iceSM[cIndx]->GetIndxNum(); oIndx++)
-		{
-			int pIndx = m_iceSM[cIndx]->GetParticleIndx(oIndx);
-			if(pIndx == MAXINT) continue;
-
-			selectFlag2[pIndx] = true;
-		}
-	}
-
-	//フラグが立っていない粒子はどの運動計算クラスタにも含まれていない
-	vector<unsigned> nonSelected2;
-	for(int cIndx = 0; cIndx < sm_clusterNum; cIndx++)
-	{
-		if(m_iceSM[cIndx]->GetNumVertices() == 0)	continue;
-		if(selectFlag2[cIndx] == false)				nonSelected2.push_back(cIndx);
-	}
-
-	unsigned beforeSize = nonSelected2.size();
-
-	//neighborClustersを使わないで処理
-	neighborClusters = nonSelected2;
-
-	//type2 近傍クラスタ集合で再定義する
-	//近傍クラスタ集合に含まれる粒子の選択をリセット
-	for(int pIndx = 0; pIndx < (int)neighborClusters.size(); pIndx++)
-	{
-		m_iceStrct->UpdateMotionCalcCluster(neighborClusters[pIndx], 0);		
-	}
-
-	//距離テーブル作成
-	mk_Vector2D<float> distanceTable;
-	distanceTable.SetSize(neighborClusters.size(), neighborClusters.size());
-	 
-	for(int nIndx = 0; nIndx < (int)neighborClusters.size(); nIndx++)
-	{
-		int pIndx = neighborClusters[nIndx];
-		Vec3 pPos(s_sphPrtPos[pIndx*4+0], s_sphPrtPos[pIndx*4+1], s_sphPrtPos[pIndx*4+2]);
-
-		for(int inIndx = nIndx; inIndx < (int)neighborClusters.size(); inIndx++)
-		{
-			int ipIndx = neighborClusters[inIndx];
-			if(pIndx == ipIndx){distanceTable(nIndx, inIndx) = 0.0f;	distanceTable(inIndx, nIndx) = 0.0f;	continue;}
-
-			Vec3 ipPos(s_sphPrtPos[ipIndx*4+0], s_sphPrtPos[ipIndx*4+1], s_sphPrtPos[ipIndx*4+2]);
-			float distance = (pPos[0]-ipPos[0])*(pPos[0]-ipPos[0])
-							+(pPos[1]-ipPos[1])*(pPos[1]-ipPos[1])
-							+(pPos[2]-ipPos[2])*(pPos[2]-ipPos[2]);
-
-			distanceTable(nIndx, inIndx) = distance;
-			distanceTable(inIndx, nIndx) = distance;
-		}
-	}
-
-	//neighborClustersの添字集合　ここから添字を選び，粒子を選択する
-	vector<unsigned> ncIndxes;
-	for(unsigned i = 0; i < neighborClusters.size(); i++){	ncIndxes.push_back(i);	}
-
-	//クラスタ選択
-	srand((unsigned)time(NULL));
-
-	while(ncIndxes.size() != 0)
-	{
-		unsigned rIndx = rand() % ncIndxes.size();		//ランダムに粒子を選択
-		unsigned ncIndx = ncIndxes[rIndx];
-
-		//距離radius以下の粒子は取り除く
-		vector<unsigned> deleteIndx;
-		for(int indx = 0; indx < (int)ncIndxes.size(); indx++)
-		{
-			unsigned incIndx = ncIndxes[indx];
-			if(ncIndx == incIndx)			continue;
-
-			float distance = distanceTable(ncIndx, incIndx);
-			if(sm_selectRadius/100.0f < distance)	continue;
-
-			deleteIndx.push_back(incIndx);
-		}
-
-		//選択
-		unsigned cIndx = neighborClusters[ncIndx];
-		m_iceStrct->UpdateMotionCalcCluster(cIndx, 1);
-		deleteIndx.push_back(ncIndx);
-
-		//再度選択しないよう，添字を取り除く
-		for(int indx = 0; indx < (int)deleteIndx.size(); indx++)
-		{
-			ncIndxes.erase(remove(ncIndxes.begin(), ncIndxes.end(), deleteIndx[indx]), ncIndxes.end());	//stlで削除は，eraseとremoveを組み合わせて行う
-		}
-	}
-
-//2 まだ選択されていないクラスタで，クラスタ重複がないように逐次選択
-	//どの運動計算クラスタにも含まれていない粒子を検出
-	vector<bool> selectFlag(sm_clusterNum, false);
-
-	for(int cIndx = 0; cIndx < sm_clusterNum; cIndx++)
-	{
-		//運動計算クラスタの含む粒子を取得し，運動計算されるならフラグを立てる
-		if(m_iceStrct->GetMotionCalcCluster(cIndx) == 0) continue;
-		if(m_iceSM[cIndx]->GetNumVertices() == 0)	continue;
-
-		for(int oIndx = 0; oIndx < m_iceSM[cIndx]->GetIndxNum(); oIndx++)
-		{
-			int pIndx = m_iceSM[cIndx]->GetParticleIndx(oIndx);
-			if(pIndx == MAXINT) continue;
-
-			selectFlag[pIndx] = true;
-		}
-	}
-
-	//フラグが立っていない粒子はどの運動計算クラスタにも含まれていない
-	vector<unsigned> nonSelected;
-	for(int cIndx = 0; cIndx < sm_clusterNum; cIndx++)
-	{
-		if(m_iceSM[cIndx]->GetNumVertices() == 0)	continue;
-		if(selectFlag[cIndx] == false)				nonSelected.push_back(cIndx);
-	}
-
-	//未選択クラスタを選択しつつ，できるだけ重複を疎にする
-	////クラスタ集合から運動計算するクラスタを選択
-	while(nonSelected.size() != 0)
-	{
-		unsigned cIndx = *nonSelected.begin();
-
-		m_iceStrct->UpdateMotionCalcCluster(cIndx, 1);
-
-		//近傍クラスタを取り除く
-		for(int indx = 0; indx < m_iceSM[cIndx]->GetIndxNum(); indx++)
-		{
-			int icIndx = m_iceSM[cIndx]->GetParticleIndx(indx);
-			if(icIndx == MAXINT) continue;
-
-			//stlで削除は，eraseとremoveを組み合わせて行う
-			nonSelected.erase(remove(nonSelected.begin(), nonSelected.end(), icIndx), nonSelected.end());  
-		}
-
-		nonSelected.erase(remove(nonSelected.begin(), nonSelected.end(), cIndx), nonSelected.end());  
-	}
-
-	////全ての粒子が運動計算されるように未選択粒子を選んでしまう
-	//for(int cIndx = 0; cIndx < (int)nonSelected.size(); cIndx++)
-	//{
-	//	m_iceStrct->UpdateMotionCalcCluster(nonSelected[cIndx], 1);
-	//}
-
-////デバッグ
-//	unsigned num = 0;
-//	for(int i = 0; i < sm_clusterNum; i++)
-//	{
-//		if(m_iceStrct->GetMotionCalcCluster(i) != 0) num++;
-//	}
-//	
-//	//どのクラスタにも含まれていない粒子を検出
-//	//どの運動計算クラスタにも含まれていない粒子を検出
-//	vector<bool> selectFlagDebug(sm_clusterNum, false);
-//
-//	for(int cIndx = 0; cIndx < sm_clusterNum; cIndx++)
-//	{
-//		//運動計算クラスタの含む粒子を取得し，運動計算されるならフラグを立てる
-//		if(m_iceStrct->GetMotionCalcCluster(cIndx) == 0) continue;
-//		if(m_iceSM[cIndx]->GetNumVertices() == 0)	continue;
-//
-//		for(int oIndx = 0; oIndx < m_iceSM[cIndx]->GetIndxNum(); oIndx++)
-//		{
-//			int pIndx = m_iceSM[cIndx]->GetParticleIndx(oIndx);
-//			if(pIndx == MAXINT) continue;
-//
-//			selectFlagDebug[pIndx] = true;
-//		}
-//	}
-//
-//	//フラグが立っていない粒子はどの運動計算クラスタにも含まれていない
-//	vector<unsigned> nonSelectedDebug;
-//	for(int cIndx = 0; cIndx < sm_clusterNum; cIndx++)
-//	{
-//		if(m_iceSM[cIndx]->GetNumVertices() == 0)	continue;
-//		if(selectFlagDebug[cIndx] == false)				nonSelectedDebug.push_back(cIndx);
-//	}
-//
-//	cout << __FUNCTION__ << " nonSelected before = " << beforeSize << endl;
-//	cout << __FUNCTION__ << " neighborClusterSize = " << neighborClusters.size() << endl;
-//	cout << __FUNCTION__ << " nonSelectedDebug = " << nonSelectedDebug.size() << endl;
-//	cout << __FUNCTION__ << " SelectClusterNum = " << num << endl;
-//
-//	//DebugUpdateSelectCluster();
 }
 
 //質量修正　全て1.0f

@@ -45,6 +45,9 @@ void CalcIteration::StepObjMove()
 	//各反復時に走査済みの添字番号を記録しておく
 	vector<int> searchFinishIndxes(m_iceSM.size(), 0);
 
+	////初回だけ：遠くのクラスタで影響範囲を拡大
+	//ExpandCluster_Far();
+
 	//反復
 	for(int itr = 1; itr < Ice_SM::GetIteration(); itr++){	
 		////クラスタの影響範囲を拡大して再構成
@@ -247,22 +250,39 @@ void CalcIteration::SelectAddParticleFromNearestCluster(vector<vector<int>>& add
 //階層探索：クラスタへ追加する粒子の添え字を取得
 void CalcIteration::SelectAddParticleFromFarCluster(vector<vector<int>>& addPIndxList)
 {
+	//string result = RESULT_DATA_PATH;
+	//result += "SelectAddParticleFromFarCluster.txt";
+	//ofstream ofs(result);
+
+	int debug_searchCounter = 0;
+	int debug_indxSum = 0;
+	int debug_crossHold = 0;
+	int debug_secondAdd = 0;
+
 	for(unsigned i = 0; i < m_iceSM.size(); ++i){
 		if(m_iceSM[i]->GetNumVertices() >= MAXPARTICLE){
 			continue;
 		}
+
+		//ofs << "Cluster:" << i << endl;
 
 		//粒子を追加しているかどうかのフラグ
 		bool isAdd[PNUM] = {};
 
 		//現在のクラスタに含まれている粒子は追加しない
 		for(unsigned j = 0; j < m_iceSM[i]->GetIndxNum(); j++){
+			//粒子番号である
 			int orgPrt = m_iceSM[i]->GetParticleIndx(j);
-
-			//追加粒子リストに含まれていないか
-			if(orgPrt == MAXINT || isAdd[orgPrt]){	
+			if(orgPrt == MAXINT){	
 				continue;
 			}
+
+			////これより前のクラスタの探索で追加されている場合
+			//if(addPIndxList[i][j] != MAXINT){
+			//	int preAddPrt = addPIndxList[i][j];
+			//	isAdd[preAddPrt] = true;
+			//	continue;
+			//}
 			
 			isAdd[orgPrt] = true;
 		}
@@ -271,67 +291,123 @@ void CalcIteration::SelectAddParticleFromFarCluster(vector<vector<int>>& addPInd
 		////追加する粒子数：初期のクラスタに含まれている粒子数
 		//unsigned addParticleNum = m_iceSM[i]->GetNumVertices();
 
-		//現在の粒子数兼添え字
-		int addIndxNum = 0;
-
+//QueryCounter counter;
+//counter.Start();
 		//クラスタに含まれている粒子を探索の起点とする
-		for(unsigned clsI = 0; clsI < m_iceSM[i]->GetIndxNum(); clsI++){
+		for(unsigned clsI = 1; clsI < m_iceSM[i]->GetIndxNum(); clsI++){
+			//debug_indxSum++;
+
+			////既に追加済みかどうか
+			//if(addPIndxList[i][clsI] != MAXINT){
+			//	//cout << "CONTINU+E" << endl;
+			//	debug_crossHold++;
+			//	continue;
+			//}
+
+			//探索起点粒子
 			int nearCluster = m_iceSM[i]->GetParticleIndx(clsI);
-			if(nearCluster == MAXINT || i == nearCluster){	
+			
+			//粒子番号である
+			if(nearCluster == MAXINT){
 				continue;
 			}
 
+			//ofs << "	pIndx:" << nearCluster << endl;
+
 			//起点粒子の方向を示す単位ベクトル
-			Vec3 dirVec = Unit(m_iceSM[i]->GetOrgPos(clsI) - m_iceSM[i]->GetOrgCm());
+			const Vec3 dirVec = Unit(m_iceSM[i]->GetOrgPos(clsI) - m_iceSM[i]->GetOrgCm());
 
 			//起点粒子の領域
 			const Ice_SM::EreaData startErea = m_iceSM[i]->erea(clsI);
 
 			//似た方向ベクトルを持つ粒子を辿る
-			SearchSimilarParticle(addPIndxList, i, isAdd, addIndxNum, nearCluster, dirVec, startErea);
+			pair<int, int> resultIndxes = SearchSimilarParticle(nearCluster, dirVec, startErea);
+
+			int searchPrtIndx = resultIndxes.first;
+			int searchClsIndx = resultIndxes.second;
+
+			//探索粒子を追加
+			if(isAdd[searchPrtIndx]){
+				//既に含まれているなら，追加しない
+				//TODO:ここで戻るということは，無駄な探索があるということ．なるべく無駄にならないように粒子を追加する
+				continue;;
+			}
+
+			debug_searchCounter++;
+
+			//最後に選んだ類似粒子をクラスタに追加する
+			isAdd[searchPrtIndx] = true;
+			addPIndxList[i][clsI] = searchPrtIndx;
+
+			////ofs << "		addPIndx:" << searchPrtIndx
+			////	<< "	nowIndxNum:" << clsI << endl;
+
+			////TODO:持ち合い関係
+			////探索が進まずに打ち切られた場合は持ち合い関係にはならない
+			//if(searchClsIndx == MAXINT){
+			//	continue;
+			//}
+
+			////変数の関係が逆でややこしいのに注意
+			//int oIndx = m_iceSM[searchPrtIndx]->SearchIndx(searchClsIndx);
+			////if(oIndx == MAXINT){
+			////	//ofs << __FUNCTION__ << " ERROR" << endl;
+			////	continue;
+			////}
+
+			////持ち合い関係を保存したいが，1対多関係になっている
+			//if(addPIndxList[searchPrtIndx][oIndx] != MAXINT){
+			//	//ofs << "1対多" << "searchPrtIndx:" << searchPrtIndx << "," << "searchClsIndx:" << searchClsIndx << endl;
+			//	continue;
+			//}
+
+			//addPIndxList[searchPrtIndx][oIndx] = i;
+			//debug_secondAdd++;
 		}//for(unsigned clsI = 0;
+//double end = counter.End();
+//cout << "LOOP_TIME:" << end << endl;
 	}//for(unsigned i = 0;
+
+	cout << "HOLD:" << debug_crossHold << ",";
+	cout << "SEARCH_COUNTER:" << debug_searchCounter << ",";
+	cout << "SEDONDADD:" << debug_secondAdd << ",";
+	cout << endl;
 }
 
 //似た方向ベクトルを持つ粒子を辿って，遠い粒子を取得
-void CalcIteration::SearchSimilarParticle(vector<vector<int>>& addPIndxList, int clusterIndx, bool isAdd[], int& addIndxNum, int nearCluster, const Vec3& dirVec, const Ice_SM::EreaData& startErea)
+pair<int, int> CalcIteration::SearchSimilarParticle(int nearCluster, const Vec3& dirVec, const Ice_SM::EreaData& startErea)
 {
 	//探索階層：適当に指定
 	unsigned searchLayer = SEARCH_LAYER;
-	int i = clusterIndx;
 
 	//探索粒子の持つクラスタを取得し，含まれている粒子を調査
 	unsigned nowLayer = 1;
-	int mostSimPrtIndx = nearCluster;
+	int mostSimPrtIndx = MAXINT;
 	double mostSimilarity = 0.0;
 
 	for(unsigned srchI = 0; srchI <= m_iceSM[nearCluster]->GetIndxNum(); srchI++){
 		//終了判定
 		if(srchI == m_iceSM[nearCluster]->GetIndxNum()){
-			//探索を続けるかの分岐
-			if(nowLayer < searchLayer){
-				//探索を続けるなら，各変数を更新
-				nowLayer++;
-			
-				srchI = 0;
-				nearCluster = mostSimPrtIndx;
-			
-				mostSimPrtIndx = nearCluster;
-				mostSimilarity = 0.0;
-
-				continue;
+			//探索を続けるかの判定
+			 if(mostSimPrtIndx == MAXINT){
+				//一つも候補が見つからず探索が進まなかった場合，現在のクラスタを探索結果として探索終了
+				return pair<int, int>(nearCluster, MAXINT);
 			}
-			else{
-				//探索の回数制限を迎えると，探索終了
-				//最後に選んだ類似粒子をクラスタに追加する
-				//TODO: このままだと追加されない場合が多くなるので，stackを使う
-				if(!isAdd[mostSimPrtIndx]){
-					isAdd[mostSimPrtIndx] = true;
-					addPIndxList[i][addIndxNum++] = mostSimPrtIndx;
-				}
-
-				return;
+			else if(nowLayer == searchLayer){
+				//探索の回数制限を迎えた場合，探索終了
+				return pair<int, int>(mostSimPrtIndx, nearCluster);
 			}
+
+			//探索を続けるなら，各変数を更新
+			nowLayer++;
+			
+			srchI = 0;
+			nearCluster = mostSimPrtIndx;
+			
+			mostSimPrtIndx = MAXINT;
+			mostSimilarity = 0.0;
+
+			continue;
 		}
 
 		int searchPrt = m_iceSM[nearCluster]->GetParticleIndx(srchI);
@@ -356,11 +432,13 @@ void CalcIteration::SearchSimilarParticle(vector<vector<int>>& addPIndxList, int
 		double similarity = dot(dirVec, srchDirVec);
 
 		//類似度が高い粒子を選択
-		if(mostSimPrtIndx == nearCluster || mostSimilarity <= similarity){
+		if(mostSimPrtIndx == MAXINT || mostSimilarity <= similarity){
 			mostSimPrtIndx = searchPrt;
 			mostSimilarity = similarity;
 		}
 	}
+
+	return pair<int, int>(nearCluster, MAXINT);
 }
 
 //リストを基にクラスタへ粒子を追加
@@ -374,7 +452,9 @@ void CalcIteration::AddParticleToCluster(const vector<vector<int>>& addPIndxList
 	const float* sldVel = Ice_SM::GetSldVelPointer();
 
 	for(unsigned i = 0; i < m_iceSM.size(); i++){
+
 		bool isAdd[PNUM] = {};
+
 		//クラスタに含まれる粒子のフラグオン
 		for(unsigned j = 0; j < m_iceSM[i]->GetIndxNum(); j++){
 			int orgPrtI = m_iceSM[i]->GetParticleIndx(j);
@@ -388,8 +468,14 @@ void CalcIteration::AddParticleToCluster(const vector<vector<int>>& addPIndxList
 		for(vector<int>::const_iterator it = addPIndxList[i].begin(); it != addPIndxList[i].end(); it++){
 			int addpIndx = *it;
 
-			if(addpIndx == MAXINT || m_iceSM[i]->GetNumVertices() >= MAXPARTICLE){
+			if(m_iceSM[i]->GetNumVertices() >= MAXPARTICLE){
 				break;
+			}
+
+			//farの場合はcontinue, normalはbreak
+			if(addpIndx == MAXINT){
+				//break;
+				continue;
 			}
 
 			//クラスタに粒子が存在するかを確認
@@ -399,6 +485,7 @@ void CalcIteration::AddParticleToCluster(const vector<vector<int>>& addPIndxList
 
 			isAdd[addpIndx] = true;
 
+			//addpIndx番目の０番目の粒子は，粒子番号addpIndxと保証されている
 			int sldIndx = addpIndx * SM_DIM;
 			Vec3 orgPos(m_iceSM[addpIndx]->GetOrgPos(0));
 			Vec3 pos(sldPos[sldIndx+0], sldPos[sldIndx+1], sldPos[sldIndx+2]);

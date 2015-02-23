@@ -93,8 +93,6 @@ private:
 	
 	static int sm_maxParticleNum;					//最大粒子数
 
-	static float sm_selectRadius;					//運動計算クラスタを選択する際の半径　ここにおいていいのか？
-
 	//運動計算の関数ポインタ
 	void (IceObject::*m_fpStepObjMove)();
 
@@ -145,7 +143,7 @@ public:
 	void InitCluster(Vec3 boundarySpaceHigh, Vec3 boundarySpaceLow, float timeStep, int itr, const vector<vector<rxNeigh>>& neights);
 	void InitStrct();
 	void InitMoveMethod();
-	void InitSelectCluster();
+	void InitSelectCluster(float radius);
 	void InitPath();
 	void InitHeatTransfer(float effectiveRadius, float timeStep, float tempMax, float tempMin, float latentHeat, float cffcntHt, float cffcntTd);
 
@@ -197,13 +195,10 @@ public:
 	void SetClusterMoveInfoFromNeight(int pIndx, const vector<vector<rxNeigh>>& neights);
 	void SetClusterStrctInfo(int cIndx, int *PtoCNum);
 
-	static void SetSelectRadius(float radius){	sm_selectRadius = radius;	}
-
 	static int GetParticleNum(){	return sm_particleNum;		}
 	static int GetClusterNum(){		return sm_clusterNum;		}
 	static int GetTetrahedraNum(){	return sm_tetraNum;			}
 	static int GetLayerNum(){		return sm_layerNum;			}
-	static float GetSelectRadius(){	return sm_selectRadius;		}
 
 	static int GetMaxClusterNum(){	return sm_maxParticleNum;	}
 
@@ -251,7 +246,6 @@ public:
 	short unsigned GetMotionCalcClsuter(unsigned cIndx){	return m_iceStrct->GetMotionCalcCluster(cIndx);	}
 
 	void CashNeighborList(const vector<unsigned>& prtList, vector<unsigned>& neighborList);
-	void UpdateSelectCluster(const vector<unsigned>& prtList, vector<unsigned>& neighborList);
 	void ResetSelectCluster();
 
 	//質量修正

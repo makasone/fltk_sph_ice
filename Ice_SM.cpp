@@ -1404,13 +1404,6 @@ void Ice_SM::ClassifyOrgParticle(int indx)
 //—ÌˆæŠÔ‚Ì‹——£‚ğŒvZ
 unsigned Ice_SM::CalcEreaDistance(const EreaData& ereaA, const EreaData& ereaB)
 {
-	//unsigned dist = 0;
-	//dist += abs(ereaA.x - ereaB.x);
-	//dist += abs(ereaA.y - ereaB.y);
-	//dist += abs(ereaA.z - ereaB.z);
-
-	//return dist;
-
 	return abs(ereaA.x - ereaB.x) + abs(ereaA.y - ereaB.y) + abs(ereaA.z - ereaB.z);
 }
 

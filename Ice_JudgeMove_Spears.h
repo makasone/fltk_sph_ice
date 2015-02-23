@@ -16,7 +16,7 @@ class Ice_JudgeMove_Spears : public Ice_JudgeMove
 public:
 	Ice_JudgeMove_Spears(const vector<Ice_SM*>& iceSM, IceStructure* strct);
 	~Ice_JudgeMove_Spears();
-	
+
 	bool JudgeMove(unsigned indx);
 	bool JudgeMoveDebug(unsigned indx);
 
