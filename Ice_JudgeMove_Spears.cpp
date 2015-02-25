@@ -7,7 +7,8 @@ JudgeSpears::Ice_JudgeMove_Spears(const vector<Ice_SM*>& iceSM, IceStructure* st
 	m_iceSM = iceSM;
 	m_iceStrct = strct;
 
-	m_iceStrct->InitSelectCluster(iceSM);
+	//m_iceStrct->InitSelectCluster(iceSM);
+	m_iceStrct->InitSelectClusterFromClusterSet(m_iceSM);
 }
 
 JudgeSpears::~Ice_JudgeMove_Spears()

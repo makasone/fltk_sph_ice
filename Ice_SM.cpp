@@ -174,6 +174,15 @@ void Ice_SM::Copy(const Ice_SM& copy)
 		m_ipLayeres[i] = copy.GetLayer(i);
 		m_ipErea[i] = copy.erea(i);
 	}
+
+	//近傍クラスタ情報のコピー
+	m_ivNeighborFeatureCluster.clear();
+	m_ivNeighborFeatureCluster.shrink_to_fit();
+	int size = copy.neighborFeatureClusterNum();
+
+	for(int i = 0; i < size; i++){
+		AddNeighborFeatureCluster(copy.neighborFeatureCluster(i));
+	}
 }
 
 void Ice_SM::InitFinalParamPointer(int vrtxNum)
@@ -489,11 +498,11 @@ void Ice_SM::Remove(int indx)
 
 void Ice_SM::Clear()
 {
+	int indx = m_iIndxNum;
+
 	rxShapeMatching::Clear();
 
-	m_iIndxNum = 0;
-
-	for(int i = 0; i < maxNum; i++)
+	for(int i = 0; i < m_iIndxNum; i++)
 	{
 		m_fpAlphas[i] = 0.0f;
 		m_fpBetas[i] = 0.0f;
@@ -501,13 +510,16 @@ void Ice_SM::Clear()
 		m_ipLayeres[i] = -1;
 		m_ipErea[i] = EreaData();
 	}
+	
+	m_ivNeighborFeatureCluster.clear();
+	m_ivNeighborFeatureCluster.shrink_to_fit();
 
 	//m_iLinearDeformation	.clear();
 	//m_iVolumeConservation	.clear();
 }
 
 //TODO: 限りなく適当な実装　なるべく使わない
-bool Ice_SM::CheckIndx(int pIndx)
+bool Ice_SM::CheckIndx(int pIndx) const 
 {//	cout << __FUNCTION__ << endl;
 
 	//vector<int>::iterator check = find( m_iPIndxes.begin(), m_iPIndxes.end(), pIndx);
@@ -523,7 +535,7 @@ bool Ice_SM::CheckIndx(int pIndx)
 }
 
 //TODO: 限りなく適当な実装　なるべく使わない
-int	Ice_SM::SearchIndx(int pIndx)
+int	Ice_SM::SearchIndx(int pIndx) const
 {
 	////vector findバージョン　めちゃくちゃ重い
 	//vector<int>::iterator begin = m_iPIndxes.begin();
@@ -560,7 +572,7 @@ int	Ice_SM::SearchIndx(int pIndx)
 /*
  *	添字が穴かどうかのチェック
  */
-bool Ice_SM::CheckHole(int oIndx)
+bool Ice_SM::CheckHole(int oIndx) const
 {
 	return (m_iPIndxes[oIndx] == MAXINT);
 }
@@ -1528,6 +1540,34 @@ void Ice_SM::DebugLayer()
 	for(int i = 0; i < m_iIndxNum; i++)
 	{
 		cout << " " << m_ipLayeres[i];
+	}
+	cout << endl;
+}
+
+void Ice_SM::DebugClusterInfo()
+{
+	for(unsigned i = 0; i < GetIndxNum(); i++ )
+	{
+		if(CheckHole(i)){
+			continue;
+		}
+
+		int pIndx = GetParticleIndx(i);
+		int ereaNum = Ice_SM::EreaDataToInt(erea(i));
+
+		cout << "	i = "  << i 
+			<< " pIndx = " << pIndx
+			<< " layer = " << GetLayer(i)
+			<< " erea   = " << ereaNum;
+		cout << endl;
+	}
+}
+
+void Ice_SM::DebugNeighborFeatureClusterInfo()
+{
+	cout << "	NeighborClusterInfo:size=" << neighborFeatureClusterNum() << ",";
+	for(unsigned i = 0; i < neighborFeatureClusterNum(); i++){
+		cout << " " << neighborFeatureCluster(i);
 	}
 	cout << endl;
 }

@@ -34,14 +34,22 @@ private:
 	void ReplaceCluster(const vector<vector<unsigned>>& copyIndxes);
 
 	void GetExpandeCluster();
+
 	void ExpandCluster(vector<int>& searchFinishIndxes);
 	void ExpandCluster_Far();
+	void ExpandCluster_Far_Step();
+
+	void ExchangeCluster_Far();
 
 	void SelectAddParticleFromNearestCluster(vector<vector<int>>& addParticleList, vector<int>& searchFinishIndxes);
 	void SelectAddParticleFromFarCluster(vector<vector<int>>& addParticleList);
+	void SelectExchangeParticleFromFarCluster(vector<vector<int>>& exchangeParticleList);
+
 	pair<int, int> SearchSimilarParticle(int nearCluster, const Vec3& dirVec, const Ice_SM::EreaData& startErea);
 
 	void AddParticleToCluster(const vector<vector<int>>& addParticleList);	
+	void ExchangeParticleToCluster(const vector<vector<int>>& replaceParticleList);
+
 	void ContractCluster();
 
 	void Debug_SelectAddParticleFromFarCluster(vector<vector<int>>& addParticleList);

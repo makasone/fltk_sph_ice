@@ -42,7 +42,7 @@ public:	//TODO: 全てpublicにしない
 	void InitTetraInfo();									//四面体情報のメモリ確保
 	void InitClusterInfo();									//クラスタ情報のメモリ確保
 	void InitSelectCluster(const vector<Ice_SM*>& iceSM);
-	void InitSelectClusterFromClusterSet(const vector<Ice_SM*>& iceSM);
+	void InitSelectClusterFromClusterSet(vector<Ice_SM*>& iceSM);
 
 	void InitGPU();											//GPU処理で用いるデータの初期化
 
@@ -61,6 +61,7 @@ public:	//TODO: 全てpublicにしない
 
 	void UpdateSelectCluster(const vector<unsigned>& prtList, vector<unsigned>& neighborClusters, const vector<Ice_SM*>& iceSM);
 	void UpdateSelectClusterFronSet(const vector<unsigned>& prtList, vector<unsigned>& neighborClusters, const vector<Ice_SM*>& iceSM);
+	void UpdateNeighborOfSelectCluster(vector<Ice_SM*>& iceSM);
 
 	void SetInfo_Cluster(const vector<unsigned>& pList, const vector<unsigned>& cList, const vector<unsigned>& lList);
 	void SetInfo_Tetra(const vector<unsigned>& pList, const vector<unsigned>& tList, const vector<unsigned>& lList);

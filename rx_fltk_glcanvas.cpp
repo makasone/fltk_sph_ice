@@ -1726,21 +1726,12 @@ void rxFlGLWindow::OnMenuParticleColor(double val, string label)
 		if(m_iShowClusterIndx != m_iClusteresNum && m_iShowClusterIndx >= 0)
 		{
 			cout << "Cluster :: Indxes :: " << endl;
-			for(unsigned i = 0; i < m_iceObj->GetMoveObj(m_iShowClusterIndx)->GetIndxNum(); i++ )
-			{
-				int pIndx = m_iceObj->GetMoveObj(m_iShowClusterIndx)->GetParticleIndx(i);
-				if(pIndx == MAXINT){
-					continue;
-				}
 
-				int erea = Ice_SM::EreaDataToInt(m_iceObj->GetMoveObj(m_iShowClusterIndx)->erea(i));
+			//クラスタに関する情報
+			m_iceObj->GetMoveObj(m_iShowClusterIndx)->DebugClusterInfo();
 
-				cout << "	i = "  << i 
-					<< " pIndx = " << pIndx
-					<< " layer = " << m_iceObj->GetMoveObj(m_iShowClusterIndx)->GetLayer(i)
-					<< " era   = " << erea;
-				cout << endl;
-			}
+			//近傍特徴クラスタ情報
+			 m_iceObj->GetMoveObj(m_iShowClusterIndx)->DebugNeighborFeatureClusterInfo();
 		}
 
 		StepParticleColor();

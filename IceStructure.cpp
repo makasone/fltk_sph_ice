@@ -536,12 +536,48 @@ void IceStructure::InitSelectCluster(const vector<Ice_SM*>&  iceSM)
 }
 
 //クラスタの集合関係から運動計算するクラスタを選択
-void IceStructure::InitSelectClusterFromClusterSet(const vector<Ice_SM*>&  iceSM)
+//加えて，近傍特徴クラスタの情報も初期化する
+void IceStructure::InitSelectClusterFromClusterSet(vector<Ice_SM*>& iceSM)
 {
+	//選択クラスタを全て非選択に
+	int clusterNum = iceSM.size();
+	for(int cIndx = 0; cIndx < clusterNum; cIndx++){
+		UpdateMotionCalcCluster(cIndx, 0);
+	}
 
+	bool selectFlag[10000] = {};
+
+	for(vector<Ice_SM*>::const_iterator it = iceSM.begin(); it != iceSM.end(); it++){
+		Ice_SM* cluster = *it;
+		
+		//クラスタが既に選択されているなら戻る
+		int cIndx = cluster->objNo();
+		if(selectFlag[cIndx]){
+			continue;
+		}
+
+		//クラスタを選択
+		UpdateMotionCalcCluster(cIndx, 1);
+
+		//クラスタに含まれている粒子の情報を更新
+		for(int i = 0; i < cluster->GetIndxNum(); i++){
+			if(cluster->CheckHole(i)){
+				continue;
+			}
+
+			int pIndx = cluster->GetParticleIndx(i);
+
+			//選択したクラスタに含まれている粒子番号でもフラグを立てる
+			selectFlag[pIndx] = true;
+
+			//近傍特徴クラスタ情報を更新
+			iceSM[pIndx]->AddNeighborFeatureCluster(cIndx);
+		}
+	}
+
+	//特徴クラスタの近傍特徴クラスタ情報を更新
+	UpdateNeighborOfSelectCluster(iceSM);
 }
-
-
 //------------------------------------------__初期化-------------------------------------------------
 
 //------------------------------------------＿相変化-------------------------------------------------
@@ -1863,6 +1899,35 @@ void IceStructure::UpdateSelectCluster(const vector<unsigned>& prtList, vector<u
 //	//DebugUpdateSelectCluster();
 }
 
+//特徴クラスタ自身の近傍情報を更新
+void IceStructure::UpdateNeighborOfSelectCluster(vector<Ice_SM*>& iceSM)
+{
+	//特徴クラスタには近傍情報が自分自身しか入っていないため，探索して追加する必要がある
+	//TODO: stlで楽をしているので結構重い処理になっている
+	//TODO: 毎フレームやっても問題ないかを確かめる
+	for(vector<Ice_SM*>::iterator it = iceSM.begin(); it != iceSM.end(); it++){
+		Ice_SM* cluster = *it;
+		if(GetMotionCalcCluster(cluster->objNo()) == 0){
+			continue;
+		}
+
+		//クラスタに含まれる粒子＝クラスタの近傍情報の集合を取ることで，近傍情報を拡大する
+		for(int i = 0; i < cluster->GetIndxNum(); i++){
+			int pIndx = cluster->GetParticleIndx(i);
+			if(cluster->CheckHole(i) || cluster->objNo() == pIndx){
+				continue;
+			}
+
+			for(int j = 0; j < iceSM[pIndx]->neighborFeatureClusterNum(); j++){
+				int neighborIndx = iceSM[pIndx]->neighborFeatureCluster(j);
+
+				cluster->AddNeighborFeatureCluster(neighborIndx);
+			}
+		}
+	
+		cluster->OrganizeNeighborFeatureCluster();
+	}
+}
 
 void IceStructure::UpdateMotionCalcCluster(unsigned cIndx, short unsigned num)
 {

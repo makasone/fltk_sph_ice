@@ -209,6 +209,8 @@ void IceObject::InitStrct()
 
 	delete[] PtoCNum;
 
+	m_iceStrct->InitSelectClusterFromClusterSet(m_iceSM);
+
 //デバッグ
 	//for(int i = 0; i < m_iClusteresNum; i++)
 	//{

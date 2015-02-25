@@ -115,6 +115,10 @@ protected:
 	int* m_ipLayeres;
 	EreaData* m_ipErea;
 
+	vector<int> m_ivNeighborFeatureCluster;		//周辺に存在する特徴クラスタ（運動計算をするクラスタ）の近傍情報を格納
+												//自身が特徴クラスタの場合，少しい遠い特徴クラスタの情報を持つことになる
+												
+
 	static int s_iIterationNum;					//反復回数
 	static float s_fItrStiffness;				//変形量の閾値
 
@@ -286,13 +290,29 @@ public:
 	static int GetIteration(){		return s_iIterationNum;	}
 	static float GetItrStiffness(){	return s_fItrStiffness;	}
 
+	int neighborFeatureCluster(int indx) const {	return m_ivNeighborFeatureCluster[indx];	}
+	int neighborFeatureClusterNum() const {	return m_ivNeighborFeatureCluster.size();	}
+	void SetNeighborFeatureCluster(int indx, int cIndx){	m_ivNeighborFeatureCluster[indx] = cIndx;	}
+	void AddNeighborFeatureCluster(int cIndx) { m_ivNeighborFeatureCluster.push_back(cIndx);	}
+	void RemoveNeibhborFeatureCluster(int cIndx)
+	{ m_ivNeighborFeatureCluster.erase(remove(m_ivNeighborFeatureCluster.begin(), m_ivNeighborFeatureCluster.end(), cIndx), m_ivNeighborFeatureCluster.end());	}
+
+	void OrganizeNeighborFeatureCluster(){
+		sort(m_ivNeighborFeatureCluster.begin(), m_ivNeighborFeatureCluster.end());
+		m_ivNeighborFeatureCluster.erase( 
+			unique(m_ivNeighborFeatureCluster.begin(), m_ivNeighborFeatureCluster.end()),
+			m_ivNeighborFeatureCluster.end()
+		);
+		m_ivNeighborFeatureCluster.shrink_to_fit();
+	}
+
 //いずれ使う？
 	int GetLinerFlags(int indx){	return m_iLinearDeformation[indx]; }
 	int GetVolumeFlags(int indx){	return m_iVolumeConservation[indx]; }
 
-	bool CheckHole(int oIndx);
-	bool CheckIndx(int pIndx);
-	int	 SearchIndx(int pIndx);
+	bool CheckHole(int oIndx) const;
+	bool CheckIndx(int pIndx) const;
+	int	 SearchIndx(int pIndx) const;
 
 	const Vec3& GetDisVec(){	return m_vec3DisCm;	}
 	void CalcDisplaceMentVectorCm();
@@ -300,6 +320,9 @@ public:
 //デバッグ
 	void DebugIndx(void);
 	void DebugLayer(void);
+
+	void DebugClusterInfo();
+	void DebugNeighborFeatureClusterInfo();
 };
 
 #endif

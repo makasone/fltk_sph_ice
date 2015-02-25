@@ -20,6 +20,7 @@
 #include <cstdlib>
 
 #include <vector>
+#include <iterator>
 #include <string>
 
 #include "rx_utility.h"
@@ -182,6 +183,7 @@ public:
 	Vec3 GetVertexVel(int i) const { return Vec3(m_pVel[i*SM_DIM+0], m_pVel[i*SM_DIM+1], m_pVel[i*SM_DIM+2]); }
 	double GetMass(int i) const { return m_pMass[i]; }
 
+	void SetParticleIndx(int oIndx, int pIndx){	m_iPIndxes[oIndx] = pIndx;	}
 	int GetParticleIndx(int indx) const { return m_iPIndxes[indx]; }
 
 	void FixVertex(int i, const Vec3 &pos);
