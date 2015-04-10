@@ -297,6 +297,11 @@ public:
 	void RemoveNeibhborFeatureCluster(int cIndx)
 	{ m_ivNeighborFeatureCluster.erase(remove(m_ivNeighborFeatureCluster.begin(), m_ivNeighborFeatureCluster.end(), cIndx), m_ivNeighborFeatureCluster.end());	}
 
+	void ClearNeighborFeaturceCluster(){
+			m_ivNeighborFeatureCluster.clear();
+			m_ivNeighborFeatureCluster.shrink_to_fit();
+	}
+
 	void OrganizeNeighborFeatureCluster(){
 		sort(m_ivNeighborFeatureCluster.begin(), m_ivNeighborFeatureCluster.end());
 		m_ivNeighborFeatureCluster.erase( 

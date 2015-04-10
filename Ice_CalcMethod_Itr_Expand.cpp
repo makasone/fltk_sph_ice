@@ -2,13 +2,14 @@
 
 typedef Ice_CalcMethod_Itr_Expand CalcIteration;
 
-#define PNUM 2197
+#define PNUM 7000
 #define ADDLIMIT 50
 #define SEARCH_LAYER 5
 
-CalcIteration::Ice_CalcMethod_Itr_Expand(const vector<Ice_SM*>& iceSM, Ice_ClusterMove* clusterMove, Ice_Convolution* convo)
+CalcIteration::Ice_CalcMethod_Itr_Expand(const vector<Ice_SM*>& iceSM, IceStructure* iceStrct, Ice_ClusterMove* clusterMove, Ice_Convolution* convo)
 {
 	m_iceSM = iceSM;
+	m_iceStrct = iceStrct;
 	SetObjMove(clusterMove);
 	SetConvolution(convo);
 }
@@ -29,83 +30,38 @@ void CalcIteration::SetConvolution(Ice_Convolution* convo)
 
 void CalcIteration::StepObjMove()
 {
-	////初回の運動計算
-	//m_iceMove->StepObjMove();
-
-	////固体における最終位置決定
-	//m_iceConvo->StepConvolution();
-
-	////各クラスタのオリジナル粒子を覚えておく
-	////（実は，単なる拡張だけの処理ならオリジナル粒子の個数だけでよい）
-	//vector<vector<unsigned>> copyOriginalParticleIndxes(m_iceSM.size(), vector<unsigned>());
-	//CopyOriginalObject(copyOriginalParticleIndxes);
-
-	////各反復時に走査済みの添字番号を記録しておく
-	//vector<int> searchFinishIndxes(m_iceSM.size(), 0);
-
-	//////初回だけ：遠くのクラスタで影響範囲を拡大
-	////ExpandCluster_Far();
-
-	////反復
-	//for(int itr = 1; itr < Ice_SM::GetIteration(); itr++){	
-	//	////クラスタの影響範囲を拡大して再構成
-	//	//ExpandCluster(searchFinishIndxes);
-
-	//	////遠くのクラスタで影響範囲を拡大
-	//	//ExpandCluster_Far();
-
-	//	////遠くのクラスタで影響範囲を拡大　反復するたびに追加粒子を更新する
-	//	//ExpandCluster_Far_Step();
-
-	//	//遠くの粒子と現在の粒子を取り替える
-	//	ExchangeCluster_Far();
-
-	//	//反復時の運動計算
-	//	m_iceMove->StepObjMoveItr();
-
-	//	//固体における最終位置決定
-	//	m_iceConvo->StepConvolution();
-	//}
-
-	////コピーを利用してクラスタの構造を元に戻す
-	//ReplaceCluster(copyOriginalParticleIndxes);
-
-	////速度算出
-	//CalcVel();
-
-QueryCounter counter1;
-QueryCounter counter2;
-QueryCounter counter3;
-QueryCounter counter4;
-
-counter1.Start();
 	//初回の運動計算
 	m_iceMove->StepObjMove();
 
 	//固体における最終位置決定
 	m_iceConvo->StepConvolution();
-double end1 = counter1.End();
 
-counter2.Start();
 	//各クラスタのオリジナル粒子を覚えておく
 	//（実は，単なる拡張だけの処理ならオリジナル粒子の個数だけでよい）
 	vector<vector<unsigned>> copyOriginalParticleIndxes(m_iceSM.size(), vector<unsigned>());
 	CopyOriginalObject(copyOriginalParticleIndxes);
 
-	//各反復時に走査済みの添字番号を記録しておく
-	vector<int> searchFinishIndxes(m_iceSM.size(), 0);
-double end2 = counter2.End();
+	////各反復時に走査済みの添字番号を記録しておく
+	//vector<int> searchFinishIndxes(m_iceSM.size(), 0);
 
-counter3.Start();
-	//遠くの粒子と現在の粒子を取り替える
-	ExchangeCluster_Far();
+	//拡張したクラスタの番号
+	vector<int> expandClusterIndx;
+
+	//初回だけ：遠くのクラスタで影響範囲を拡大
+	ExchangeCluster_Far(expandClusterIndx);
+	//ExpandCluster_Far();
 
 	//反復
 	for(int itr = 1; itr < Ice_SM::GetIteration(); itr++){	
-		//クラスタの影響範囲を拡大して再構成
-		///ExpandCluster(searchFinishIndxes);
+		////クラスタの影響範囲を拡大して再構成
+		//ExpandCluster(searchFinishIndxes);
+
+		////遠くのクラスタで影響範囲を拡大
 		//ExpandCluster_Far();
-		
+
+		////遠くのクラスタで影響範囲を拡大　反復するたびに追加粒子を更新する
+		//ExpandCluster_Far_Step();
+
 		////遠くの粒子と現在の粒子を取り替える
 		//ExchangeCluster_Far();
 
@@ -115,23 +71,12 @@ counter3.Start();
 		//固体における最終位置決定
 		m_iceConvo->StepConvolution();
 	}
-double end3 = counter3.End();
 
-counter4.Start();
 	//コピーを利用してクラスタの構造を元に戻す
-	ReplaceCluster(copyOriginalParticleIndxes);
-double end4 = counter4.End();
+	ResetCluster(copyOriginalParticleIndxes, expandClusterIndx);
 
 	//速度算出
 	CalcVel();
-
-	//計算時間の比較
-	cout << "Time:"
-		<< " first:" << end1
-		<< " prepare:" << end2
-		<< " itr:" << end3
-		<< " replace:" << end4
-		<< endl;
 }
 
 //速度算出
@@ -162,7 +107,7 @@ void CalcIteration::CopyOriginalObject(vector<vector<unsigned>>& copyIndxes)
 }
 
 //クラスタを元に戻す
-void CalcIteration::ReplaceCluster(const vector<vector<unsigned>>& copyIndxes)
+void CalcIteration::ResetCluster(const vector<vector<unsigned>>& copyIndxes, const vector<int>& exClstrIndxes)
 {
 	////粒子を追加した場合の処理：
 	////copyIndxesに存在する粒子はオリジナル
@@ -189,19 +134,25 @@ void CalcIteration::ReplaceCluster(const vector<vector<unsigned>>& copyIndxes)
 	//	m_iceSM[i]->ClassifyAllOrgParticle();
 	//}
 
+QueryCounter count1;
+QueryCounter count2;
+
+count1.Start();
+	//粒子を交換した場合の処理
 	const float* sldPos = Ice_SM::GetSldPosPointer();
 	const float* sldVel = Ice_SM::GetSldVelPointer();
 
+	//クラスタ拡張したものだけリセットする
 	//粒子を入れ替えた場合の処理　処理は重いけど安全
 	//クラスタ番号＝粒子番号となる最初の一つ
-	for(unsigned pIndx = 0; pIndx < m_iceSM.size(); pIndx++){
+	//for(unsigned pIndx = 0; pIndx < m_iceSM.size(); pIndx++){
+	for(vector<int>::const_iterator it = exClstrIndxes.begin(); it != exClstrIndxes.end(); it++){
 		//最初の一つだけは保存しておく
+		int pIndx = *it;
 		int sldIndx = pIndx * SM_DIM;
 		Vec3 orgPos(m_iceSM[pIndx]->GetOrgPos(0));
-		Vec3 pos(m_iceSM[pIndx]->GetVertexPos(0));
-		Vec3 vel(m_iceSM[pIndx]->GetVertexVel(0));
-		//Vec3 pos(sldPos[sldIndx+0], sldPos[sldIndx+1], sldPos[sldIndx+2]);
-		//Vec3 vel(sldVel[sldIndx+0], sldVel[sldIndx+1], sldVel[sldIndx+2]);
+		Vec3 pos(sldPos[sldIndx+0], sldPos[sldIndx+1], sldPos[sldIndx+2]);
+		Vec3 vel(sldVel[sldIndx+0], sldVel[sldIndx+1], sldVel[sldIndx+2]);
 
 		//初期化
 		m_iceSM[pIndx]->Clear();
@@ -209,9 +160,13 @@ void CalcIteration::ReplaceCluster(const vector<vector<unsigned>>& copyIndxes)
 		//クラスタに粒子を追加し直す
 		int check = m_iceSM[pIndx]->AddAnotherClusterVertex(orgPos, pos, vel, 1.0, pIndx, 1.0, 0.0, 0);
 	}
+double end1 = count1.End();
 
+count2.Start();
 	//その他の粒子を詰め直す
-	for(unsigned pIndx = 0; pIndx < m_iceSM.size(); pIndx++){
+	//for(unsigned pIndx = 0; pIndx < m_iceSM.size(); pIndx++){
+	for(vector<int>::const_iterator it = exClstrIndxes.begin(); it != exClstrIndxes.end(); it++){
+		int pIndx = *it;
 		for(unsigned j = 0; j < copyIndxes[pIndx].size(); j++){
 
 			int copyIndx = copyIndxes[pIndx][j];
@@ -219,12 +174,9 @@ void CalcIteration::ReplaceCluster(const vector<vector<unsigned>>& copyIndxes)
 				continue;
 			}
 
-			int sldIndx = copyIndx * SM_DIM;
 			Vec3 orgPos(m_iceSM[copyIndx]->GetOrgPos(0));
 			Vec3 pos(m_iceSM[copyIndx]->GetVertexPos(0));
 			Vec3 vel(m_iceSM[copyIndx]->GetVertexVel(0));
-			//Vec3 pos(sldPos[sldIndx+0], sldPos[sldIndx+1], sldPos[sldIndx+2]);
-			//Vec3 vel(sldVel[sldIndx+0], sldVel[sldIndx+1], sldVel[sldIndx+2]);
 
 			int check = m_iceSM[pIndx]->AddAnotherClusterVertex(orgPos, pos, vel, 1.0, copyIndx, 1.0, 0.0, 0);
 		}
@@ -232,6 +184,9 @@ void CalcIteration::ReplaceCluster(const vector<vector<unsigned>>& copyIndxes)
 		m_iceSM[pIndx]->CalcOrgCm();
 		m_iceSM[pIndx]->ClassifyAllOrgParticle();
 	}
+double end2 = count2.End();
+
+//	//cout << __FUNCTION__ << "," << "end1:" << end1 << "," << "end2:" << end2 << endl;
 }
 
 //再構築するクラスタを検出
@@ -288,11 +243,12 @@ double end2 = counter2.End();
 }
 
 //遠くの粒子を使ってクラスタの要素を交換し，影響範囲を拡大していく
-void CalcIteration::ExchangeCluster_Far()
+void CalcIteration::ExchangeCluster_Far(vector<int>& exClstrIndxes)
 {
 //処理時間の計測
 QueryCounter counter1;
 QueryCounter counter2;
+QueryCounter counter3;
 
 counter1.Start();
 	//近傍に存在する粒子とその初期位置のリストを作成
@@ -307,13 +263,57 @@ counter2.Start();
 	ExchangeParticleToCluster(exchangePIndxList);
 double end2 = counter2.End();
 
-	cout << "Time:" << "Search:" << end1 << "," << "Exchange:" << end2 << endl;
+counter3. Start();
+	//交換が行われたクラスタ番号を確認
+	ConfirmExClusterIndx(exchangePIndxList, exClstrIndxes);
+double end3 = counter3.End();
+
+	//cout << "Time:" << "Search:" << end1 << "," << "Exchange:" << end2 << "," << "Confirm" << end3 << endl;
 }
 
 //遠くの粒子を使ってクラスタの影響範囲を拡大　反復するたびに拡大粒子を更新する
 void CalcIteration::ExpandCluster_Far_Step()
 {
 
+}
+
+//粒子を交換したクラスタ番号を確認
+void CalcIteration::ConfirmExClusterIndx(const vector<vector<int>> exIndxList, vector<int>& exClstrIndxes)
+{
+	for(unsigned i = 0; i < exIndxList.size(); i++){
+
+		////TODO: うまくいかない…
+		////exIndxListにMAXINTより小さい値が存在するかどうか
+		////存在するなら交換が行われている，存在しないなら交換が行われていないので戻る
+		//vector<int> exList = exIndxList[i];
+		//if( exList.end() != find(exList.begin(), exList.end(), bind2nd(less<int>(), MAXINT)) ){
+		//	continue;
+		//}
+
+		//どう考えても冗長
+		bool check = false;
+		for(vector<int>::const_iterator it = exIndxList[i].begin(); it != exIndxList[i].end(); it++){
+			if(*it != MAXINT){	check = true;	break;	}
+		}
+		if(!check){	continue;	}
+
+		exClstrIndxes.push_back(i);
+	}
+
+	//何度もExchangeした場合に備えた処理
+	////ソート
+	//sort(exClstrIndxes.begin(), exClstrIndxes.end());
+	//
+	////重複削除
+	//exClstrIndxes.erase( 
+	//	unique(exClstrIndxes.begin(), exClstrIndxes.end()),
+	//	exClstrIndxes.end()
+	//);
+
+	//サイズ調整
+	exClstrIndxes.shrink_to_fit();
+
+	//cout << __FUNCTION__ << "," << "exClstrIndxes.size:" << exClstrIndxes.size() << endl;
 }
 
 //近傍探索：クラスタへ追加する粒子の添え字を取得
@@ -355,8 +355,7 @@ void CalcIteration::SelectAddParticleFromNearestCluster(vector<vector<int>>& add
 			}
 
 			//クラスタに含められる粒子数は最大300個
-			if(addIndxNum >= limitPrtNum
-			|| addIndxNum >= ADDLIMIT){
+			if(addIndxNum >= limitPrtNum || addIndxNum >= ADDLIMIT){
 				break;
 			}
 
@@ -387,11 +386,25 @@ void CalcIteration::SelectAddParticleFromNearestCluster(vector<vector<int>>& add
 	}
 }
 
+int debug_searchAll = 0;
+int debug_searchCompare = 0;
+
 //階層探索：クラスタへ追加する粒子の添え字を取得
 void CalcIteration::SelectAddParticleFromFarCluster(vector<vector<int>>& addPIndxList)
 {
+	debug_searchAll = 0;
+	debug_searchCompare = 0;
+
+	//疎なクラスタのみを選ぶ実験
+	m_iceStrct->InitSelectClusterFromClusterSet(m_iceSM);
+
 	for(unsigned i = 0; i < m_iceSM.size(); ++i){
 		if(m_iceSM[i]->GetNumVertices() >= MAXPARTICLE){
+			continue;
+		}
+
+		//実験：疎なクラスタのみ探索する
+		if(m_iceStrct->GetMotionCalcCluster(i) == 0){
 			continue;
 		}
 
@@ -412,8 +425,8 @@ void CalcIteration::SelectAddParticleFromFarCluster(vector<vector<int>>& addPInd
 		//指向性探索
 		////追加する粒子数：初期のクラスタに含まれている粒子数
 		//unsigned addParticleNum = m_iceSM[i]->GetNumVertices();
-
-		//クラスタに含まれている粒子を探索の起点とする
+	
+		//クラスタに含まれている粒子を探索の起点とする 粒子番号＝クラスタ番号は除くのでi=1からスタート
 		for(unsigned clsI = 1; clsI < m_iceSM[i]->GetIndxNum(); clsI++){
 
 			//探索起点粒子
@@ -431,7 +444,7 @@ void CalcIteration::SelectAddParticleFromFarCluster(vector<vector<int>>& addPInd
 			const Ice_SM::EreaData startErea = m_iceSM[i]->erea(clsI);
 
 			//似た方向ベクトルを持つ粒子を辿る
-			pair<int, int> resultIndxes = SearchSimilarParticle(nearCluster, dirVec, startErea);
+			const pair<int, int> resultIndxes = SearchSimilarParticle(nearCluster, dirVec, startErea);
 
 			int searchPrtIndx = resultIndxes.first;
 			int searchClsIndx = resultIndxes.second;
@@ -448,22 +461,30 @@ void CalcIteration::SelectAddParticleFromFarCluster(vector<vector<int>>& addPInd
 			addPIndxList[i][clsI] = searchPrtIndx;
 		}//for(unsigned clsI = 0;
 	}//for(unsigned i = 0;
+
+	//実験
+	m_iceStrct->ResetSelectCluster(m_iceSM);
+
+	//cout << "All:" << debug_searchAll << "," << "Compare:" << debug_searchCompare << endl;
 }
 
 //似た方向ベクトルを持つ粒子を辿って，遠い粒子を取得
-pair<int, int> CalcIteration::SearchSimilarParticle(int nearCluster, const Vec3& dirVec, const Ice_SM::EreaData& startErea)
+const pair<int, int> CalcIteration::SearchSimilarParticle(int nearCluster, const Vec3& dirVec, const Ice_SM::EreaData& startErea)
 {
 	//探索階層：適当に指定
 	unsigned searchLayer = SEARCH_LAYER;
 
 	//探索粒子の持つクラスタを取得し，含まれている粒子を調査
 	unsigned nowLayer = 1;
+	unsigned IndxNum = m_iceSM[nearCluster]->GetIndxNum();
 	int mostSimPrtIndx = MAXINT;
 	double mostSimilarity = 0.0;
 
-	for(unsigned srchI = 0; srchI <= m_iceSM[nearCluster]->GetIndxNum(); srchI++){
+	for(unsigned srchI = 0; srchI <= IndxNum; srchI++){
+		debug_searchAll++;
+
 		//終了判定
-		if(srchI == m_iceSM[nearCluster]->GetIndxNum()){
+		if(srchI == IndxNum){
 			//探索を続けるかの判定
 			 if(mostSimPrtIndx == MAXINT){
 				//一つも候補が見つからず探索が進まなかった場合，現在のクラスタを探索結果として探索終了
@@ -483,13 +504,15 @@ pair<int, int> CalcIteration::SearchSimilarParticle(int nearCluster, const Vec3&
 			mostSimPrtIndx = MAXINT;
 			mostSimilarity = 0.0;
 
+			IndxNum = m_iceSM[nearCluster]->GetIndxNum();
+			
 			continue;
 		}
 
 		int searchPrt = m_iceSM[nearCluster]->GetParticleIndx(srchI);
 
-		//粒子番号である，自分自身でない，除外と判断されていない
-		if(searchPrt == MAXINT || searchPrt == nearCluster){
+		//粒子番号である，自分自身でない
+		if(m_iceSM[nearCluster]->CheckHole(srchI) || searchPrt == nearCluster){
 			continue;
 		}
 
@@ -502,7 +525,10 @@ pair<int, int> CalcIteration::SearchSimilarParticle(int nearCluster, const Vec3&
 		}
 
 		//探索粒子の方向を示す単位ベクトル
-		Vec3 srchDirVec = Unit(m_iceSM[nearCluster]->GetOrgPos(srchI) - m_iceSM[nearCluster]->GetOrgCm());
+		const Vec3 srchDirVec = Unit(m_iceSM[nearCluster]->GetOrgPos(srchI) - m_iceSM[nearCluster]->GetOrgCm());
+
+		//探索対象は近傍粒子のため，正規化しないで近似　結果は大して変わらないが処理がぐっと早くなる
+		//const Vec3 srchDirVec(m_iceSM[nearCluster]->GetOrgPos(srchI) - m_iceSM[nearCluster]->GetOrgCm());
 
 		//各粒子とcos類似度を比べる
 		double similarity = dot(dirVec, srchDirVec);
@@ -512,6 +538,8 @@ pair<int, int> CalcIteration::SearchSimilarParticle(int nearCluster, const Vec3&
 			mostSimPrtIndx = searchPrt;
 			mostSimilarity = similarity;
 		}
+
+		debug_searchCompare++;
 	}
 
 	return pair<int, int>(nearCluster, MAXINT);
@@ -555,9 +583,8 @@ void CalcIteration::AddParticleToCluster(const vector<vector<int>>& addPIndxList
 				break;
 			}
 
-			//farの場合はcontinue, normalはbreak
+			//探索対象が見つからなかった場合
 			if(addpIndx == MAXINT){
-				//break;
 				continue;
 			}
 
@@ -620,9 +647,8 @@ void CalcIteration::ExchangeParticleToCluster(const vector<vector<int>>& exchang
 				break;
 			}
 
-			//farの場合はcontinue, normalはbreak
+			//探索対象が見つからなかった場合
 			if(exchangePIndx == MAXINT){
-				//break;
 				continue;
 			}
 
@@ -641,20 +667,14 @@ void CalcIteration::ExchangeParticleToCluster(const vector<vector<int>>& exchang
 
 			//交換する粒子の，クラスタ内での添字
 			int oldIndx = it-exchangePIndxList[i].begin();
-			if(oldIndx == 0){
-				cout << __FUNCTION__ << " ERROR! Base Exchange!" << endl;
-			}
+			//if(oldIndx == 0){
+			//	cout << __FUNCTION__ << " ERROR! Base Exchange!" << endl;
+			//}
 
 			m_iceSM[i]->SetOriginalPos(oldIndx, orgPos);
 			m_iceSM[i]->SetCurrentPos(oldIndx, pos);
 			m_iceSM[i]->SetVelocity(oldIndx, vel);
 			m_iceSM[i]->SetParticleIndx(oldIndx, exchangePIndx);
-
-
-			//int check = m_iceSM[i]->AddAnotherClusterVertex(orgPos, pos, vel, 1.0, addpIndx, 1.0, 0.0, 0);
-			//if(check == -1){
-			//	cout << "over " << addPIndxList[i].size() << endl;
-			//}
 
 			debug_replaceNum++;
 		}
@@ -663,7 +683,7 @@ void CalcIteration::ExchangeParticleToCluster(const vector<vector<int>>& exchang
 		m_iceSM[i]->ClassifyAllOrgParticle();
 	}
 
-	cout << __FUNCTION__ << " replaceNum:" << debug_replaceNum << endl;
+	//cout << __FUNCTION__ << " replaceNum:" << debug_replaceNum << endl;
 }
 
 //クラスタの影響範囲を縮小して再構成
@@ -702,7 +722,12 @@ counter2.Start();
 double end2 = counter2.End();
 
 counter3.Start();
-	ExpandCluster_Far();
+
+	//拡張したクラスタの番号
+	vector<int> expandClusterIndx;
+
+	//初回だけ：遠くのクラスタで影響範囲を拡大
+	ExchangeCluster_Far(expandClusterIndx);
 
 	//反復
 	for(int itr = 1; itr < Ice_SM::GetIteration(); itr++){	
@@ -723,7 +748,7 @@ double end3 = counter3.End();
 
 counter4.Start();
 	//コピーを利用してクラスタの構造を元に戻す
-	ReplaceCluster(copyOriginalParticleIndxes);
+	ResetCluster(copyOriginalParticleIndxes, expandClusterIndx);
 double end4 = counter4.End();
 
 	//速度算出
@@ -736,126 +761,4 @@ double end4 = counter4.End();
 		<< " itr:" << end3
 		<< " replace:" << end4
 		<< endl;
-}
-
-//遠いクラスタから，追加するための粒子を選択
-void CalcIteration::Debug_SelectAddParticleFromFarCluster(vector<vector<int>>& addPIndxList)
-{
-	string result = RESULT_DATA_PATH;
-	result += "SelectAddParticleFromFarCluster.txt";
-	ofstream ofs(result, ios::app);
-
-	for(unsigned i = 0; i < m_iceSM.size(); ++i){
-		if(m_iceSM[i]->GetNumVertices() >= MAXPARTICLE){
-			continue;
-		}
-
-		ofs << "Cluster:" << i << endl;
-
-		//粒子を追加しているかどうかのフラグ
-		bool isAdd[PNUM] = {};
-
-		//現在のクラスタに含まれている粒子は追加しない
-		for(unsigned j = 0; j < m_iceSM[i]->GetIndxNum(); j++){
-			int orgPrt = m_iceSM[i]->GetParticleIndx(j);
-
-			//追加粒子リストに含まれていないか
-			if(orgPrt == MAXINT || isAdd[orgPrt]){	
-				continue;
-			}
-			
-			isAdd[orgPrt] = true;
-		}
-
-		//指向性探索
-		////追加する粒子数：初期のクラスタに含まれている粒子数
-		//unsigned addParticleNum = m_iceSM[i]->GetNumVertices();
-
-		//探索階層：適当に指定
-		unsigned searchLayer = SEARCH_LAYER;
-
-		//現在の粒子数兼添え字
-		int addIndxNum = 0;
-
-		//クラスタに含まれている粒子を探索の起点とする
-		for(unsigned clsI = 0; clsI < m_iceSM[i]->GetIndxNum(); clsI++){
-			int nearCluster = m_iceSM[i]->GetParticleIndx(clsI);
-			if(nearCluster == MAXINT || i == nearCluster){	
-				continue;
-			}
-
-			//起点粒子の方向を示す単位ベクトル
-			Vec3 dirVec = Unit(m_iceSM[i]->GetOrgPos(clsI) - m_iceSM[i]->GetOrgPos(0));
-
-			//ofs << "	StartCluster:" << nearCluster
-			//	<< "	dirVec:" << dirVec
-			//	<< endl;
-
-			//探索粒子の持つクラスタを取得し，含まれている粒子を調査
-			unsigned nowLayer = 1;
-			int mostSimPrtIndx = MAXINT;
-			double mostSimilarity = 0.0;
-
-			for(unsigned srchI = 0; srchI < m_iceSM[nearCluster]->GetIndxNum(); srchI++){
-				int searchPrt = m_iceSM[nearCluster]->GetParticleIndx(srchI);
-				if(searchPrt == MAXINT || searchPrt == nearCluster){	
-					continue;
-				}
-
-				//探索粒子の方向を示す単位ベクトル
-				Vec3 srchDirVec = Unit(m_iceSM[nearCluster]->GetOrgPos(srchI) - m_iceSM[nearCluster]->GetOrgPos(0));
-
-				//各粒子とcos類似度を比べる
-				double similarity = dot(dirVec, srchDirVec);
-
-				//ofs << "		srchI:" << srchI
-				//	<< "	searchPrt:" << searchPrt
-				//	<< "	similarity:" << similarity
-				//	<< "	srchDirVec:" << srchDirVec << endl;
-
-				//類似度が高い粒子を選択
-				if(mostSimPrtIndx == MAXINT || mostSimilarity <= similarity){
-					mostSimPrtIndx = searchPrt;
-					mostSimilarity = similarity;
-				}
-
-				//終了判定
-				if(srchI < m_iceSM[nearCluster]->GetIndxNum() -1){
-					continue;
-				}
-
-				//ofs << "	End"
-				//	<< "	nowLayer:" << nowLayer
-				//	<< "	nearClst:" << nearCluster
-				//	<< "	mostSimPrtIndx" << mostSimPrtIndx
-				//	<< "	mostSimilarity" << mostSimilarity << endl;
-
-				//探索を続けるかの分岐
-				if(nowLayer < searchLayer){
-					//探索を続けるなら，各変数を更新
-					nowLayer++;
-
-					srchI = 0;
-					nearCluster = mostSimPrtIndx;
-
-					mostSimPrtIndx = MAXINT;
-					mostSimilarity = 0.0;
-					continue;
-				}
-				else{
-					ofs << "		addPIndx:" << mostSimPrtIndx
-						<< "	nowIndxNum:" << addIndxNum << endl;
-
-					//探索の回数制限を迎えると，探索終了
-					//最後に選んだ類似粒子をクラスタに追加する
-					//TODO: このままだと追加されない場合が多くなるので，stackを使う
-					if(!isAdd[mostSimPrtIndx]){
-						isAdd[mostSimPrtIndx] = true;
-						addPIndxList[i][addIndxNum++] = mostSimPrtIndx;
-					}
-					break;
-				}
-			}//for(unsigned srchI = 0;
-		}//for(unsigned clsI = 0;
-	}//for(unsigned i = 0;
 }

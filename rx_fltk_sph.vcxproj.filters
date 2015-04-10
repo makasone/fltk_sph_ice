@@ -482,5 +482,8 @@
     <CudaCompile Include="IceInterPolation.cu">
       <Filter>IceObject</Filter>
     </CudaCompile>
+    <CudaCompile Include="HeatTransfer.cu">
+      <Filter>Heat Files</Filter>
+    </CudaCompile>
   </ItemGroup>
 </Project>

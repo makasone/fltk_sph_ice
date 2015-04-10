@@ -813,11 +813,23 @@ void rxFlGLWindow::Motion(int x, int y)
 
 	if(m_bSolidMove)
 	{
-		if(((m_iMouseButton >> 3) == GLUT_LEFT_BUTTON) && ((m_iMouseButton & 1) == GLUT_DOWN)){
-			double dm = 0.4/(double)m_iWinW;
+		//if(((m_iMouseButton >> 3) == GLUT_LEFT_BUTTON) && ((m_iMouseButton & 1) == GLUT_DOWN)){
+		//	double dm = 0.4/(double)m_iWinW;
 
-			m_pPS->MoveSphereObstacle(0, Vec3(0.0, dm*(y0-y), dm*(x-x0)));
-		}
+		//	m_pPS->MoveSphereObstacle(0, Vec3(0.0, dm*(y0-y), dm*(x-x0)));
+		//}
+
+		Vec3 ray_from, ray_to;
+		Vec3 init_pos = Vec3(0.0);
+		m_tbView.CalLocalPos(ray_from, init_pos);
+		m_tbView.GetRayTo(x, y, RX_FOV, ray_to);
+
+		Vec3 spherePos = m_pPS->GetSphereObstaclePos();
+		float dist = length(spherePos-ray_from);
+		Vec3 dir = Unit(ray_to-ray_from);	// 視点からマウス位置へのベクトル
+		Vec3 new_pos = ray_from+dir*dist;
+
+		m_pPS->MoveSphereObstacle(0, new_pos-spherePos);
 	}
 	else if( m_ht_bRectFlag )
 	{
@@ -1120,7 +1132,7 @@ void rxFlGLWindow::Idle(void)
 	{
 		StepTimeEvent();			RXTIMER("StepTimeEvent");		//タイムイベント
 		
-		//StepPS(m_fDt);				RXTIMER("StepPS");				//液体運動
+		StepPS(m_fDt);				RXTIMER("StepPS");				//液体運動
 		StepIceObj();												//固体運動
 		StepHeatTransfer();			RXTIMER("StepHeatTransfer");	//熱処理
 		StepIceStructure();			RXTIMER("StepIceStructure");	//相変化
@@ -2644,8 +2656,8 @@ void rxFlGLWindow::InitIceObj(void)
 
 	//近傍粒子
 	float radius = ((RXSPH*)m_pPS)->GetEffectiveRadius();
-	((RXSPH*)m_pPS)->SetEffectiveRadius(radius * 1.0f);						//1.2で分離するギリギリ
-	StepPS(m_fDt*0.1);														//一度タイムステップを勧めないと，近傍粒子が取得されないみたい
+	((RXSPH*)m_pPS)->SetEffectiveRadius(radius * 1.0f);
+	StepPS(m_fDt*0.0);														//一度タイムステップを勧めないと，近傍粒子が取得されないみたい
 	vector<vector<rxNeigh>>& neights = ((RXSPH*)m_pPS)->GetNeights();
 	((RXSPH*)m_pPS)->SetEffectiveRadius(radius);
 
@@ -2981,18 +2993,82 @@ void rxFlGLWindow::StepIceObj()
 //熱処理
 void rxFlGLWindow::StepHeatTransfer()
 {
-	RXREAL *d  = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_DENSITY);		//各粒子の密度
-	RXREAL *p  = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);		//各粒子の位置
+	//RXREAL *d  = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_DENSITY);		//各粒子の密度
+	//RXREAL *p  = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);		//各粒子の位置
 
-	((RXSPH*)m_pPS)->DetectSurfaceParticles();								//表面粒子検出
+	//((RXSPH*)m_pPS)->DetectSurfaceParticles();								//表面粒子検出
 
-	int* surfaceParticles = (int *)( ((RXSPH*)m_pPS)->GetArraySurf() );		//表面粒子
-	vector<vector<rxNeigh>>& neights = ((RXSPH*)m_pPS)->GetNeights();
+	//int* surfaceParticles = (int *)( ((RXSPH*)m_pPS)->GetArraySurf() );		//表面粒子
+	//vector<vector<rxNeigh>>& neights = ((RXSPH*)m_pPS)->GetNeights();
 
-	float floor = -m_Scene.GetSphEnv().boundary_ext[2];
-	float radius = ((RXSPH*)m_pPS)->GetEffectiveRadius();
+	//float floor = -m_Scene.GetSphEnv().boundary_ext[2];
+	//float radius = ((RXSPH*)m_pPS)->GetEffectiveRadius();
 
-	m_iceObj->StepHeatTransfer(surfaceParticles, neights, floor, radius, p, d);
+	//vector<int> nhs;
+	//RXREAL h = radius * 3.0f;	//TODO: パラメータ化
+	//Vec3 pos = m_pPS->GetSphereObstaclePos();
+
+	//Vec3 min = ((RXSPH*)m_pPS)->GetMin();
+	//rxSimParams param = ((RXSPH*)m_pPS)->GetParams();
+
+	//uint* cellStart = ((RXSPH*)m_pPS)->GetCellStartInfo();
+	//uint* cellEnd = ((RXSPH*)m_pPS)->GetCellEndInfo();
+	//uint* sortedIndx = ((RXSPH*)m_pPS)->GetSortedIndx();
+
+	//// 分割セルインデックスの算出
+	//int x = (pos[0]-min[0])/param.CellWidth.x;
+	//int y = (pos[1]-min[1])/param.CellWidth.y;
+	//int z = (pos[2]-min[2])/param.CellWidth.z;
+
+	//int numArdGrid = (int)(h/param.CellWidth.x+1);
+	//for(int k = -numArdGrid; k <= numArdGrid; ++k){
+	//	for(int j = -numArdGrid; j <= numArdGrid; ++j){
+	//		for(int i = -numArdGrid; i <= numArdGrid; ++i){
+	//			int i1 = x+i;
+	//			int j1 = y+j;
+	//			int k1 = z+k;
+	//			if(i1 < 0 || (unsigned)i1 >= param.GridSize.x || j1 < 0 || (unsigned)j1 >= param.GridSize.y || k1 < 0 || (unsigned)k1 >= param.GridSize.z){
+	//				continue;
+	//			}
+
+	//			RXREAL h2 = h*h;
+
+	//			uint grid_hash = k1*param.GridSize.y*param.GridSize.x+j1*param.GridSize.x+i1;
+
+	//			uint start_index = cellStart[grid_hash];
+	//			if(start_index != 0xffffffff){	// セルが空でないかのチェック
+	//				uint end_index = cellEnd[grid_hash];
+	//				for(uint j = start_index; j < end_index; ++j){
+	//					uint idx = sortedIndx[j];
+
+	//					Vec3 xij;
+	//					xij[0] = pos[0]-p[DIM*idx+0];
+	//					xij[1] = pos[1]-p[DIM*idx+1];
+	//					xij[2] = pos[2]-p[DIM*idx+2];
+
+	//					rxNeigh neigh;
+	//					neigh.Dist2 = norm2(xij);
+
+	//					if(neigh.Dist2 <= h2){
+	//						neigh.Idx = idx;
+	//						nhs.push_back(neigh.Idx);
+	//					}
+	//				}
+	//			}
+
+
+	//		}
+	//	}
+	//}
+
+	//m_iceObj->StepHeatTransfer(surfaceParticles, neights, nhs, floor, radius, p, d);
+
+//GPU
+	//近傍粒子探索
+	((RXSPH*)m_pPS)->DetectSurfaceParticlesGPU();							//表面粒子検出
+
+	int* surfPrt = ((RXSPH*)m_pPS)->GetArraySurfGPU();
+	m_iceObj->StepHeatTransferGPU(surfPrt);
 }
 
 
@@ -3729,14 +3805,25 @@ void rxFlGLWindow::StepParticleColor()
 	if( m_iColorType == rxParticleSystemBase::RX_TEMP )
 	{
 		//真っ黒では見えにくかったので，ちょっと青いのがデフォルトとした．
+		//CPU
+		//float* tempColor = new float[m_pPS->GetNumParticles()];
+		//for( int i = 0; i < m_pPS->GetNumParticles(); i++ ){
+		//	tempColor[i] = m_iceObj->GetTemps()[i] + 100.0f;
+		//}
+
+		//m_pPS->SetColorVBOFromArray( tempColor, 1, false, 1000.0f );
+		//delete[] tempColor;
+
+		//GPU
 		float* tempColor = new float[m_pPS->GetNumParticles()];
-		for( int i = 0; i < m_pPS->GetNumParticles(); i++ )
-		{
-			tempColor[i] = m_iceObj->GetTemps()[i] + 100.0f;
+		m_iceObj->CopyTempDeviceToHost(tempColor);
+		for( int i = 0; i < m_pPS->GetNumParticles(); i++ ){
+			tempColor[i] += 100.0f;
 		}
 
 		m_pPS->SetColorVBOFromArray( tempColor, 1, false, 1000.0f );
 		delete[] tempColor;
+
 	}
 	//表面粒子
 	else if(m_iColorType == rxParticleSystemBase::RX_SURFACE)

@@ -466,6 +466,12 @@ void CuIceMeshMake(float *dGridD, rxParticleCell cell,
 }
 
 
+//追加：表面パーティクルの検出
+void CuSphDetectSurfaceParticles()
+{
+
+}
+
 /*!
  * 境界パーティクルの体積を計算
  *  - "Versatile Rigid-Fluid Coupling for Incompressible SPH", 2.2 式(3)の上

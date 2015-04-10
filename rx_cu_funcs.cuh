@@ -91,6 +91,9 @@ void CuSphGridDensity(float *dGridD, rxParticleCell cell,
 void CuIceMeshMake(float *dGridD, rxParticleCell cell, 
 					  int nx, int ny, int nz, float x0, float y0, float z0, float dx, float dy, float dz, float *bIceFlag);
 
+//追加：表面粒子検出
+void CuSphDetectSurfaceParticles();
+
 //-----------------------------------------------------------------------------
 // PBDSPH
 //-----------------------------------------------------------------------------

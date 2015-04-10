@@ -154,7 +154,9 @@ rxShapeMatching& rxShapeMatching::operator=(const rxShapeMatching& copy)
  */
 void rxShapeMatching::initialize(void)
 {
-	for(int i = 0; i < m_iNumVertices; ++i){
+	int indx = m_iIndxNum == 0 ? maxNum : m_iIndxNum;
+
+	for(int i = 0; i < indx; ++i){
 
 		for(int j = 0; j < SM_DIM; j++)
 		{
@@ -174,19 +176,20 @@ void rxShapeMatching::initialize(void)
  */
 void rxShapeMatching::Clear()
 {
-	m_iNumVertices = 0;
-	m_iIndxNum = 0;
+	int indx = m_iIndxNum == 0 ? maxNum : m_iIndxNum;
 
-	for(int i = 0; i < maxNum; i++)
+	for(int i = 0; i < indx; i++)
 	{
+		int indx = i*SM_DIM;
+
 		for(int j = 0; j < SM_DIM; j++)
 		{
-			m_pOrgPos[i*SM_DIM+j] = 0.0;
-			m_pCurPos[i*SM_DIM+j] = 0.0;
-			m_pNewPos[i*SM_DIM+j] = 0.0;
-			m_pGoalPos[i*SM_DIM+j] = 0.0;
+			m_pOrgPos[indx+j] = 0.0;
+			m_pCurPos[indx+j] = 0.0;
+			m_pNewPos[indx+j] = 0.0;
+			m_pGoalPos[indx+j] = 0.0;
 
-			m_pVel[i*SM_DIM+j] = 0.0;
+			m_pVel[indx+j] = 0.0;
 		}
 
 		m_pMass[i] = 0.0;
@@ -194,6 +197,9 @@ void rxShapeMatching::Clear()
 
 		m_iPIndxes[i] = MAXINT;
 	}
+
+	m_iNumVertices = 0;
+	m_iIndxNum = 0;
 }
 
 //ƒƒ‚ƒŠ‚ÌŠJ•ú

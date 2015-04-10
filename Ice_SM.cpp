@@ -511,8 +511,7 @@ void Ice_SM::Clear()
 		m_ipErea[i] = EreaData();
 	}
 	
-	m_ivNeighborFeatureCluster.clear();
-	m_ivNeighborFeatureCluster.shrink_to_fit();
+	ClearNeighborFeaturceCluster();
 
 	//m_iLinearDeformation	.clear();
 	//m_iVolumeConservation	.clear();
@@ -1197,30 +1196,15 @@ void Ice_SM::ShapeMatchingIteration()
 
 	//Apqの行列式を求め，反転するかを判定
 	//不安定な場合が多いので×
-	if( Apq.Determinant() < 0.0 && m_iNumVertices >= 4)
+	if( Apq.Determinant() < 0.0 && m_iNumVertices >= 10)
 	{
-		//cout << "before det < 0" << endl;
 		//１　符号を反転
 		Apq(0,2) = -Apq(0,2);
 		Apq(1,2) = -Apq(1,2);
 		Apq(2,2) = -Apq(2,2);
-
-		////２　a2とa3を交換
-		//double tmp;
-		//tmp = Apq(0,2);
-		//Apq(0,2) = Apq(0,1);
-		//Apq(0,1) = tmp;
-
-		//tmp = Apq(1,2);
-		//Apq(1,2) = Apq(1,1);
-		//Apq(1,1) = tmp;
-
-		//tmp = Apq(2,2);
-		//Apq(2,2) = Apq(2,1);
-		//Apq(2,1) = tmp;
 	}
 
-	//PolarDecomposition(Apq, R, S, m_mtrxBeforeU);
+	//PolarDecomposition(Apq, R, S, m_mtrxBeforeU); //warm start
 	PolarDecomposition(Apq, R, S);
 
 	if(m_bLinearDeformation)
@@ -1238,9 +1222,6 @@ void Ice_SM::ShapeMatchingIteration()
 		//		A *= det;
 		//	}
 		//}
-
-		//cout << "計測開始2" << endl;
-		//qc.Start();
 
 		m_fDefAmount = 0.0f;
 

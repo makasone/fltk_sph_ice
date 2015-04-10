@@ -538,6 +538,15 @@ rxFlWindow::rxFlWindow(int w_, int h_, const char* title)
 			int dx = 125;
 			ys += 30;
 
+			//熱源オブジェクトボタン
+			m_pCheckHeatObj = new Fl_Check_Button(xs+dx, ys, 25, 25, "Object");
+			m_pCheckHeatObj->down_box(FL_DOWN_BOX);
+			m_pCheckHeatObj->callback(OnCheckMode_HeatObj_s, this);
+			m_pCheckHeatObj->align(Fl_Align(FL_ALIGN_LEFT));
+			m_pCheckHeatObj->clear_visible_focus();
+			
+			ys += 30;
+
 			//デバッグボタン
 			m_pCheckDebug = new Fl_Check_Button(xs+dx, ys, 25, 25, "DebugMode");
 			m_pCheckDebug->down_box(FL_DOWN_BOX);
@@ -1013,6 +1022,22 @@ void rxFlWindow::OnSpinStiff(Fl_Widget *widget)
 	cout << __FUNCTION__ << " stiffness = " << stiffness << endl;
 
 	Ice_SM::SetItrStiffness(stiffness);
+}
+
+//熱源オブジェクト
+void rxFlWindow::OnCheckMode_HeatObj_s(Fl_Widget *widget, void* x)
+{
+	((rxFlWindow*)x)->OnCheckMode_HeatObj(widget);
+}
+
+void rxFlWindow::OnCheckMode_HeatObj(Fl_Widget *widget)
+{	cout << __FUNCTION__ << endl;
+
+	Fl_Check_Button* check = (Fl_Check_Button*)widget;
+	bool flag = check->value();
+
+	cout << __FUNCTION__ << "flag = " << flag << endl;
+	m_pGLCanvas->SetObjMove(flag);		
 }
 
 //デバッグモード

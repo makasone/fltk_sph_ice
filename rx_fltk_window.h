@@ -82,6 +82,7 @@ protected:
 
 	//デバッグモード
 	Fl_Check_Button *m_pCheckDebug;
+	Fl_Check_Button* m_pCheckHeatObj;
 
 	rxFlDndBox *m_pDndBox;		//!< D&D領域
 	Fl_Box *m_pBoxStatus;		//!< ステータスバー
@@ -166,6 +167,9 @@ public:
 
 	static void OnButtonDebugDeformation_s(Fl_Widget *widget, void* x);
 	inline void OnButtonDebugDeformation(Fl_Widget *widget);
+
+	static void OnCheckMode_HeatObj_s(Fl_Widget *widget, void* x);
+	inline void OnCheckMode_HeatObj(Fl_Widget *widget);
 
 	static void OnSpinStiff_s(Fl_Widget *widget, void* x);
 	inline void OnSpinStiff(Fl_Widget *widget);

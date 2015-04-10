@@ -36,10 +36,11 @@ void ConvoWeight::StepConvolution()
 	float* s_sphPrtVel = IceObject::GetSPHHostVelPointer();
 
 	//sldの初期化
-	Ice_SM::ResetFinalParamPointer(sm_particleNum);
+	//Ice_SM::ResetFinalParamPointer(sm_particleNum);
+	float tempPos[7000 * 3] = {};
+	float tempVel[7000 * 3] = {};
 
-	for(int cIndx = 0; cIndx < sm_particleNum; cIndx++)
-	{
+	for(int cIndx = 0; cIndx < sm_particleNum; cIndx++){
 		//最終結果算出に用いるクラスタの判定
 		if(m_iceJudge->JudgeConvolution(cIndx) == false){	continue;	}
 
@@ -50,15 +51,20 @@ void ConvoWeight::StepConvolution()
 			int pIndx = m_iceSM[cIndx]->GetParticleIndx(oIndx);
 			if(pIndx == MAXINT){	continue;	}
 
-			float defAmount = pow(m_iceSM[cIndx]->GetDefAmount(), m_kernelDegree);
+			//重い処理みたい
+			//float defAmount = pow(m_iceSM[cIndx]->GetDefAmount(), m_kernelDegree);
+			//for(int i = 0; i < m_kernelDegree; i++){
+			//	defAmount *= m_iceSM[cIndx]->GetDefAmount();
+			//}
+			float defAmount = m_iceSM[cIndx]->GetDefAmount();
+			
+			Vec3& pos = m_iceSM[cIndx]->GetVertexPos(oIndx) * defAmount;
+			Vec3& vel = m_iceSM[cIndx]->GetVertexVel(oIndx) * defAmount;
 
-			Vec3 pos = m_iceSM[cIndx]->GetVertexPos(oIndx) * defAmount;
-			Vec3 vel = m_iceSM[cIndx]->GetVertexVel(oIndx) * defAmount;
-
-			for(int dim = 0; dim < SM_DIM; dim++)
-			{
-				sldPos[pIndx*SM_DIM+dim] += pos[dim];
-				sldVel[pIndx*SM_DIM+dim] += vel[dim];
+			int sldIndx = pIndx * SM_DIM;
+			for(int dim = 0; dim < SM_DIM; dim++){
+				tempPos[sldIndx+dim] += pos[dim];
+				tempVel[sldIndx+dim] += vel[dim];
 			}
 
 			//総変形量をカウント
@@ -72,14 +78,13 @@ void ConvoWeight::StepConvolution()
 	{
 		int smIndx = i*SM_DIM;
 
-		float clusterNum = (float)deformationSum[i];
+		float clusterNum = deformationSum[i];
 		if(clusterNum <= 0.0f){	continue;	}
 
 		//固体の最終位置
-		for(int dim = 0; dim < SM_DIM; dim++)
-		{
-			sldPos[smIndx+dim] /= clusterNum;
-			sldVel[smIndx+dim] /= clusterNum;
+		for(int dim = 0; dim < SM_DIM; dim++){
+			sldPos[smIndx+dim] = tempPos[smIndx+dim]/clusterNum;
+			sldVel[smIndx+dim] = tempVel[smIndx+dim]/clusterNum;
 		}
 	}
 }

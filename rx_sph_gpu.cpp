@@ -398,6 +398,17 @@ void rxSPH_GPU::Allocate(int maxParticles)
 	CuAllocateArray((void**)&m_dPres,   mem_size1);
 	CuAllocateArray((void**)&m_dAttr,   size1*sizeof(int));
 
+	//追加
+	//CuAllocateArray((void**)&m_dSurf,	mem_size);
+	cudaMalloc((void**)&m_dSurf, sizeof(int) * m_uMaxParticles);
+	int* surf = new int[m_uMaxParticles];
+	for(int i = 0; i < m_uMaxParticles; i++){
+		surf[i] = 4;
+	}
+
+	cudaMemcpy(m_dSurf, surf,	sizeof(int) * m_uMaxParticles, cudaMemcpyHostToDevice);
+	delete[] surf;
+
 	// ウェーブレット乱流
 	CuAllocateArray((void**)&m_dEt,     mem_size1);
 	CuAllocateArray((void**)&m_dTurb,   mem_size);
@@ -1784,6 +1795,11 @@ void rxSPH_GPU::DetectSurfaceParticles(void)
 	}
 }
 
+void rxSPH_GPU::DetectSurfaceParticlesGPU()
+{
+	CuSphDetectSurfaceParticles();
+}
+
 /*!
  * 近傍パーティクルの正規化重心までの距離を計算
  * @param[in] i パーティクルインデックス
@@ -1824,6 +1840,11 @@ uint* rxSPH_GPU::GetArraySurf(void)
 	return m_hSurf;
 }
 
+int* rxSPH_GPU::GetArraySurfGPU()
+{
+	return m_dSurf;
+}
+
 /*!
  * 指定した座標の近傍の表面パーティクル情報を取得する
  * @param[in] pos 探索中心座標
@@ -1833,8 +1854,6 @@ uint* rxSPH_GPU::GetArraySurf(void)
  */
 int rxSPH_GPU::GetSurfaceParticles(const Vec3 pos, RXREAL h, vector<rxSurfaceParticle> &sps)
 {
-	int num = 0;
-	return num;
 }
 
 

@@ -7,7 +7,13 @@
 
 using namespace std;
 
-#define RX_PI          (double)(3.1415926535897932384626433832795)   
+#define RX_PI          (double)(3.1415926535897932384626433832795)
+
+float* HeatTransfar::sd_Heats;	
+float* HeatTransfar::sd_Temps;
+float* HeatTransfar::sd_DTemps;
+int* HeatTransfar::sd_Phase;
+int* HeatTransfar::sd_PhaseChangeFlag;
 
 HeatTransfar::HeatTransfar(int num)
 {	
@@ -28,28 +34,74 @@ HeatTransfar::HeatTransfar(int num)
 	mNeighborhoodsDis.clear();
 
 	//粒子の温度，熱量，状態の初期化
-	for( int i = 0; i < mNumVertices; i++)
-	{
+	for( int i = 0; i < mNumVertices; i++){
 		mTemps[i] = 0.0f;
 		mHeats[i] = 0.0f;
-		if( mTemps[i] < 250 )
-		{
-			mPhase[i]	 = -2;	//氷
+
+		if( mTemps[i] < 250 ){
+			mPhase[i]	 = -2;		//氷
 			mPhaseChange[i] = 0;
 		}
-		else
-		{
-			mPhase[i]	 = 2;	//水
+		else{
+			mPhase[i]	 = 2;		//水
 			mPhaseChange[i] = 0;
 		}
 	}
+
+	//GPU側のメモリ確保
+	InitGPU();
 }
 
 HeatTransfar::~HeatTransfar(void)
 {
 }
 
+void HeatTransfar::InitGPU()
+{
+	//GPU側のメモリ確保
+	cudaMalloc((void**)&sd_Heats, sizeof(float) * mNumVertices);
+	cudaMalloc((void**)&sd_Temps, sizeof(float) * mNumVertices);
+	cudaMalloc((void**)&sd_DTemps, sizeof(float) * mNumVertices);
 
+	cudaMalloc((void**)&sd_Phase,			sizeof(int) * mNumVertices);
+	cudaMalloc((void**)&sd_PhaseChangeFlag, sizeof(int) * mNumVertices);
+
+	float* heats = new float[mNumVertices];
+	float* temps = new float[mNumVertices];
+	float* dtemps = new float[mNumVertices];
+
+	int* phase = new int[mNumVertices];
+	int* phaseChangeFlag = new int[mNumVertices];
+
+	for(int i = 0; i < mNumVertices; i++){
+		heats[i] = 0.0f;
+		temps[i] = 0.0f;
+		dtemps[i] = 0.0f;
+
+		if(temps[i] < 250){
+			phase[i] = -2;
+			phaseChangeFlag[i] = 0;
+		}
+		else{
+			phase[i] = 2;
+			phaseChangeFlag[i] = 0;
+		}
+	}
+
+	cudaMemcpy(sd_Heats, heats,	sizeof(float) * mNumVertices, cudaMemcpyHostToDevice);
+	cudaMemcpy(sd_Temps, temps,	sizeof(float) * mNumVertices, cudaMemcpyHostToDevice);
+	cudaMemcpy(sd_DTemps, dtemps, sizeof(float) * mNumVertices, cudaMemcpyHostToDevice);
+	cudaMemcpy(sd_Phase, phase, sizeof(int) * mNumVertices, cudaMemcpyHostToDevice);
+	cudaMemcpy(sd_PhaseChangeFlag, phaseChangeFlag, sizeof(int) * mNumVertices, cudaMemcpyHostToDevice);
+
+	delete[] heats;
+	delete[] temps;
+	delete[] dtemps;
+	delete[] phase;
+	delete[] phaseChangeFlag;
+}
+
+//TODO: コンストラクタの中身をこっちに移す
 void HeatTransfar::initState()
 {
 
@@ -381,21 +433,26 @@ void HeatTransfar::heatAirAndParticle()
 	for( int i = 0; i < mNumVertices; i++ )
 	{
 		if( surfaceId[i] == -1 ) continue;
-//		if( i >  2200 ) continue;
-//		cout << "surcaceid = " << surfaceId[i] << endl;
 
 		double airNum = 20.0-(double)surfaceId[i];
 		if(airNum < 0) airNum = 0.0;
 
-		double surfaceArea = airNum/20.0;						//空気と触れている表面積　0～1.0 15は適当
+		double surfaceArea = airNum/20.0;						//空気と触れている表面積　0～1.0 20は適当
 
 		if( surfaceArea < 0.0) surfaceArea = 0.0;
 		if( surfaceArea > 1.0) surfaceArea = 1.0;
 
 		double qHeat = mHT * ( mAirTemp - mTemps[i])*surfaceArea;		//ニュートンの冷却法則の式から熱量を計算
 		mHeats[i] += qHeat;												//熱量を加算
-//		cout << "i = " << i << "qHeat=" << qHeat << " mHT=" << mHT 
-//			<< " mAirTemp=" << mAirTemp << " mTemps[" << i << "]=" << mTemps[i] << " surfaceArea=" << surfaceArea << endl;
+	}
+}
+
+//オブジェクトと粒子の熱処理
+void HeatTransfar::heatObjAndParticle(const std::vector<int>& neight)
+{
+	for(vector<int>::const_iterator it = neight.begin(); it != neight.end(); it++){
+		int indx = *it;
+		mHeats[indx] += 300.0f;	//TODO: パラメータ化
 	}
 }
 

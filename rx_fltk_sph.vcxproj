@@ -348,6 +348,7 @@
     <ClInclude Include="UtilityScript\mk_Vector3D.h" />
   </ItemGroup>
   <ItemGroup>
+    <CudaCompile Include="HeatTransfer.cu" />
     <CudaCompile Include="IceInterPolation.cu" />
     <CudaCompile Include="IceObject.cu" />
     <CudaCompile Include="IceStructure.cu" />

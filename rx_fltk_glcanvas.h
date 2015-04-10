@@ -554,6 +554,7 @@ public:
 	//追加：シミュレーション
 	void ResetSimulation();
 	void ApplyNowData();
+	void SetObjMove(bool flag){	m_bSolidMove = flag;	}
 
 	void StepParticleColor(void);
 

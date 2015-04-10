@@ -498,6 +498,7 @@ private:
 	RXREAL *m_hPres;		//!< パーティクル圧力
 
 	uint *m_hSurf;			//!< 表面パーティクル
+	int* m_dSurf;			//追加：表面パーティクル
 
 	// 表面生成用(Anisotropic kernel)
 	RXREAL *m_hUpPos;		//!< 平滑化パーティクル位置
@@ -666,6 +667,9 @@ public:
 	double CalDistToNormalizedMassCenter(const int i);	// 近傍パーティクルの重心までの距離計算
 	uint* GetArraySurf(void);							// 表面パーティクル情報の取得
 
+	void DetectSurfaceParticlesGPU();					// 追加：表面パーティクルの検出
+	int* GetArraySurfGPU();								// 追加：表面パーティクル情報の取得
+
 	// 表面パーティクル情報の取得
 	int GetSurfaceParticles(const Vec3 pos, RXREAL h, vector<rxSurfaceParticle> &sp);
 
@@ -678,6 +682,11 @@ public:
 
 	//追加：：近傍粒子取得
 	vector<vector<rxNeigh>>& GetNeights(void){ return m_vNeighs; }
+
+	//追加：：セル情報取得
+	uint* GetCellStartInfo(void){ return m_hCellStart; }
+	uint* GetCellEndInfo(void){ return m_hCellEnd;	}
+	uint* GetSortedIndx(void){ return m_hSortedIndex;	}
 
 	//
 	// Anisotropic kernel

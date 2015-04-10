@@ -4,8 +4,28 @@
 #define HeatTransfarH
 //---------------------------------------------------------------------------
 
+#include <cuda_runtime.h>
+
 #include <vector>
 #include "Math2d\math2d.h"
+
+//GPU処理
+extern void LaunchHeatTransferGPU
+(
+	float* heats,
+	float* temps,
+	float* dtemps,
+	const int* surfParticles,
+	float airTemp,
+	float cffCnHt,
+	int prtNum
+	//const vector<vector<rxNeigh>>& neights,
+	//const vector<int>& objNeight,
+	//float floor,
+	//float effRadius,
+	//const float* pos,
+	//const float* dens
+);
 
 class HeatTransfar
 {
@@ -13,8 +33,19 @@ public:
 	HeatTransfar(int num);
 	~HeatTransfar(void);
 
+	void InitGPU();
+
 	void MeltParticle(int pIndx);
 	void WarmParticle(int pIndx, float temp, float heat);
+
+//----------------------------------------GPU----------------------------------------------
+	float* getHostHeats(){	return sd_Heats;	}
+	float* getHostTemps(){	return sd_Temps;	}
+	float* getHostDTemps(){	return sd_DTemps;	}
+
+	int* getHostPhase(){	return sd_Phase;	}
+	int* getHostPhaseChangeFlag(){	return sd_PhaseChangeFlag;	}
+//----------------------------------------GPU----------------------------------------------
 
 	float* getTemps(){	return mTemps;	}								//各粒子の温度配列を取得
 	float* getHeats(){	return mHeats;	}								//各粒子の熱量配列を取得
@@ -25,11 +56,13 @@ public:
 	float getTempMax(){	return mTempMax;	}							//上界（最大）温度を取得
 	float getTempMin(){ return mTempMin;	}							//下界（最小）温度を取得
 
+	float getCffCntHt(){ return mHT;	}
+	float getCffCntTd(){ return mTD;	}
+
 	float getLatentHeat(){ return mLatentHeat; }						//融解潜熱を取得
 
 	int getPhase(int i){		return mPhase[i];	}					//現在の状態を返す（水・氷）
 	int getPhaseChange(int i){	return mPhaseChange[i]; }
-
 
 	void setNumVertices(int num){	mNumVertices = num;	};				//粒子の個数を設定
 	
@@ -61,7 +94,8 @@ public:
 	void AddParticle(int nowVerticesNum);								//sph法で粒子が追加された際の処理
 
 	void heatAirAndParticle();											//空気とパーティクルの熱処理
-	void heatParticleAndParticle(const float* d, double h);					//パーティクル間の熱処理
+	void heatObjAndParticle(const std::vector<int>& neight);					//オブジェクトとパーティクルの熱処理
+	void heatParticleAndParticle(const float* d, double h);				//パーティクル間の熱処理
 
 	void calcTempAndHeat();												//熱量から温度を求める
 	void calcTempAndHeat(int pIndx);									//1個の粒子だけ熱量から温度を求める
@@ -75,6 +109,15 @@ public:
 
 private:
 	void initState();						//初期化
+
+//----------------------------------------GPU----------------------------------------------
+	static float* sd_Heats;
+	static float* sd_Temps;
+	static float* sd_DTemps;
+
+	static int* sd_Phase;
+	static int* sd_PhaseChangeFlag;
+//----------------------------------------GPU----------------------------------------------
 
 	float timeStep;							//タイムステップ
 

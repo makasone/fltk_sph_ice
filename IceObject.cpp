@@ -316,7 +316,7 @@ void IceObject::ChangeMode_CalcMethod_Itr_Expand()
 {	FUNCTION_NAME;
 
 	if(m_iceCalcMethod != NULL) delete m_iceCalcMethod;
-	m_iceCalcMethod = new Ice_CalcMethod_Itr_Expand(m_iceSM, m_iceClsuterMove, m_iceConvolution);
+	m_iceCalcMethod = new Ice_CalcMethod_Itr_Expand(m_iceSM, m_iceStrct, m_iceClsuterMove, m_iceConvolution);
 }
 
 void IceObject::ChangeMode_CalcMethod_Itr_Exp_Stiff()
@@ -920,7 +920,8 @@ void IceObject::StepInterPolationForCluster()
 }
 
 //熱処理
-void IceObject::StepHeatTransfer(const int* surfParticles, const vector<vector<rxNeigh>>& neights, float floor, float effRadius, const float* pos, const float* dens)
+void IceObject::StepHeatTransfer(const int* surfParticles, const vector<vector<rxNeigh>>& neights,
+	const vector<int>& objNeight, float floor, float effRadius, const float* pos, const float* dens)
 {
 	vector<int> ids;														//表面粒子の添え字
 	vector<float> dists;													//表面粒子の距離
@@ -929,55 +930,64 @@ void IceObject::StepHeatTransfer(const int* surfParticles, const vector<vector<r
 	m_heatTransfer->resetNeighborhoodsId();
 	m_heatTransfer->resetNeighborhoodsDist();
 
-	//近傍粒子の添え字と距離の設定
-	for( int i = 0; i < sm_particleNum; i++ )
-	{
-		//表面粒子判定情報　１ならば表面粒子，０なら内部粒子　その際の数値は近傍粒子総数を表す
-		//近傍粒子総数で表面積を近似
-		if( surfParticles[i] == 1 )
-		{
-			//床に近く，圧力の高い粒子は，表面ではなく底面とする
-			//粒子数によってパラメータを変えないといけない．
-			//表面粒子判定に不具合があるので修正が必要．
-			//0.75で下２段とれる
-			if(pos[i*4+1] < floor+effRadius*0.2)				//1331　下１段
-			{
-				if(dens[i] < 950.0)
-				{
-					m_heatTransfer->setSurfaceParticleNums(i, (int)( neights[i].size() ));		//表面扱い
-				}
-				else
-				{
-					m_heatTransfer->setSurfaceParticleNums(i, -1);								//底面扱い
-				}
-			}
-			else
-			{
-				m_heatTransfer->setSurfaceParticleNums(i, (int)( neights[i].size() ));
-			}
-		}
-		else
-		{
-			m_heatTransfer->setSurfaceParticleNums(i, -1);
-		}
+	////近傍粒子の添え字と距離の設定
+	//for( int i = 0; i < sm_particleNum; i++ ){
+	//	//表面粒子判定情報　１ならば表面粒子，０なら内部粒子　その際の数値は近傍粒子総数を表す
+	//	//近傍粒子総数で表面積を近似
+	//	if( surfParticles[i] == 1 ){
+
+	//		////床に近く，圧力の高い粒子は，表面ではなく底面とする.粒子数によってパラメータを変えないといけない．
+	//		////表面粒子判定に不具合があるので修正が必要．0.75で下２段とれる //1331　下１段
+	//		//if(pos[i*4+1] < floor+effRadius*0.2){
+	//		//	if(dens[i] < 950.0){
+	//		//		m_heatTransfer->setSurfaceParticleNums(i, (int)( neights[i].size() ));		//表面扱い
+	//		//	}
+	//		//	else{
+	//		//		m_heatTransfer->setSurfaceParticleNums(i, -1);								//底面扱い
+	//		//	}
+	//		//}
+	//		//else{
+	//		//	m_heatTransfer->setSurfaceParticleNums(i, (int)( neights[i].size() ));
+	//		//}
+
+	//		m_heatTransfer->setSurfaceParticleNums(i, (int)( neights[i].size() ));		//表面扱い
+	//	}
+	//	else{
+	//		m_heatTransfer->setSurfaceParticleNums(i, -1);
+	//	}
+	//	
+	//	//初期化
+	//	ids.clear();
+	//	dists.clear();
+
+	//	for( unsigned j = 0; j < neights[i].size(); j++){
+	//		if( i == (int)( neights[i][j].Idx ) ) continue;							//自分自身を省く
+	//		ids.push_back( (int)( neights[i][j].Idx ) );
+	//		dists.push_back( (float)( neights[i][j].Dist ) );
+	//	}
+
+	//	m_heatTransfer->AddNeighborhoodsId( ids );
+	//	m_heatTransfer->AddNeighborhoodsDist( dists );
+	//}
 		
-		//初期化
-		ids.clear();
-		dists.clear();
+	//	//初期化
+	//	ids.clear();
+	//	dists.clear();
 
-		for( unsigned j = 0; j < neights[i].size(); j++)
-		{
-			if( i == (int)( neights[i][j].Idx ) ) continue;							//自分自身を省く
-			ids.push_back( (int)( neights[i][j].Idx ) );
-			dists.push_back( (float)( neights[i][j].Dist ) );
-		}
+	//	for( unsigned j = 0; j < neights[i].size(); j++)
+	//	{
+	//		if( i == (int)( neights[i][j].Idx ) ) continue;							//自分自身を省く
+	//		ids.push_back( (int)( neights[i][j].Idx ) );
+	//		dists.push_back( (float)( neights[i][j].Dist ) );
+	//	}
 
-		m_heatTransfer->AddNeighborhoodsId( ids );
-		m_heatTransfer->AddNeighborhoodsDist( dists );
-	}
+	//	m_heatTransfer->AddNeighborhoodsId( ids );
+	//	m_heatTransfer->AddNeighborhoodsDist( dists );
+	//}
 
 	//熱処理計算
-	m_heatTransfer->heatAirAndParticle(); 		 										//熱処理　空気と粒子
+	//m_heatTransfer->heatAirAndParticle();						//熱処理　空気と粒子
+	m_heatTransfer->heatObjAndParticle(objNeight);				//熱処理　オブジェクトと粒子
 	m_heatTransfer->heatParticleAndParticle(dens, effRadius);	//熱処理　粒子間
 	m_heatTransfer->calcTempAndHeat();													//熱量の温度変換，温度の熱量変換
 
@@ -986,6 +996,28 @@ void IceObject::StepHeatTransfer(const int* surfParticles, const vector<vector<r
 	//{
 	//	cout << m_heatTransfer->getTemps()[i] << endl;
 	//}
+}
+
+//GPUでの熱処理
+void IceObject::StepHeatTransferGPU(const int* surfacePrt)
+{
+	float* heat = m_heatTransfer->getHostHeats();
+	float* temp = m_heatTransfer->getHostTemps();
+	float* dtemp = m_heatTransfer->getHostDTemps();
+
+	int* phase = m_heatTransfer->getHostPhase();
+	int* phaseChangeF = m_heatTransfer->getHostPhaseChangeFlag();
+
+	float airTemp = m_heatTransfer->getAirTemp();
+	float cffCnHt = m_heatTransfer->getCffCntHt();
+
+	LaunchHeatTransferGPU(heat, temp, dtemp, surfacePrt, airTemp, cffCnHt, sm_particleNum);
+}
+
+void IceObject::CopyTempDeviceToHost(float* h_temp)
+{
+	float* d_temp = m_heatTransfer->getHostTemps();
+	cudaMemcpy(h_temp, d_temp, sizeof(float) * sm_particleNum, cudaMemcpyDeviceToHost);
 }
 
 //伝熱処理，相変化処理や固体データの更新

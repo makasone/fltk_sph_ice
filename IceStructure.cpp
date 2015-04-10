@@ -419,14 +419,12 @@ void IceStructure::InitGPU()
 }
 
 //影響半径を元に運動計算するクラスタを選択　なるべく疎になるように選ぶ
-void IceStructure::InitSelectCluster(const vector<Ice_SM*>&  iceSM)
+void IceStructure::InitSelectCluster(vector<Ice_SM*>&  iceSM)
 {
-	//選択クラスタを全て非選択に
 	int sm_clusterNum = iceSM.size();
-	for(int cIndx = 0; cIndx < sm_clusterNum; cIndx++)
-	{
-		UpdateMotionCalcCluster(cIndx, 0);
-	}
+
+	//選択クラスタを全て非選択に
+	ResetSelectCluster(iceSM);
 
 	//距離テーブル作成
 	mk_Vector2D<float> distanceTable;
@@ -540,10 +538,7 @@ void IceStructure::InitSelectCluster(const vector<Ice_SM*>&  iceSM)
 void IceStructure::InitSelectClusterFromClusterSet(vector<Ice_SM*>& iceSM)
 {
 	//選択クラスタを全て非選択に
-	int clusterNum = iceSM.size();
-	for(int cIndx = 0; cIndx < clusterNum; cIndx++){
-		UpdateMotionCalcCluster(cIndx, 0);
-	}
+	ResetSelectCluster(iceSM);
 
 	bool selectFlag[10000] = {};
 
@@ -575,8 +570,8 @@ void IceStructure::InitSelectClusterFromClusterSet(vector<Ice_SM*>& iceSM)
 		}
 	}
 
-	//特徴クラスタの近傍特徴クラスタ情報を更新
-	UpdateNeighborOfSelectCluster(iceSM);
+	////特徴クラスタの近傍特徴クラスタ情報を更新
+	//UpdateNeighborOfSelectCluster(iceSM);
 }
 //------------------------------------------__初期化-------------------------------------------------
 
@@ -1904,7 +1899,6 @@ void IceStructure::UpdateNeighborOfSelectCluster(vector<Ice_SM*>& iceSM)
 {
 	//特徴クラスタには近傍情報が自分自身しか入っていないため，探索して追加する必要がある
 	//TODO: stlで楽をしているので結構重い処理になっている
-	//TODO: 毎フレームやっても問題ないかを確かめる
 	for(vector<Ice_SM*>::iterator it = iceSM.begin(); it != iceSM.end(); it++){
 		Ice_SM* cluster = *it;
 		if(GetMotionCalcCluster(cluster->objNo()) == 0){
@@ -1929,13 +1923,22 @@ void IceStructure::UpdateNeighborOfSelectCluster(vector<Ice_SM*>& iceSM)
 	}
 }
 
+void IceStructure::ResetSelectCluster(vector<Ice_SM*>& iceSM)
+{
+	int clusterNum = iceSM.size();
+	for(int cIndx = 0; cIndx < clusterNum; cIndx++){
+		UpdateMotionCalcCluster(cIndx, 0);
+		iceSM[cIndx]->ClearNeighborFeaturceCluster();
+	}
+}
+
 void IceStructure::UpdateMotionCalcCluster(unsigned cIndx, short unsigned num)
 {
 	//cout << __FUNCTION__ << ", cIndx = " << cIndx << ", num = " << num << endl;
 	m_psuSelectClusterIndx[cIndx] = num;
 }
 
-short unsigned IceStructure::GetMotionCalcCluster(unsigned cIndx)
+short unsigned IceStructure::GetMotionCalcCluster(unsigned cIndx) const
 {
 	return m_psuSelectClusterIndx[cIndx];
 }

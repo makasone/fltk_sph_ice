@@ -228,7 +228,9 @@ public:
 	void StepInterPolationKenjya();
 
 	//‘Š•Ï‰»
-	void StepHeatTransfer(const int* surfParticles, const vector<vector<rxNeigh>>& neights, float floor, float effRadius, const float* pos, const float* dens);		//”Mˆ—
+	void StepHeatTransfer(const int* surfParticles, const vector<vector<rxNeigh>>& neights, const vector<int>& objNeight, float floor, float effRadius, const float* pos, const float* dens);		//”Mˆ—
+	void StepHeatTransferGPU(const int* surfacePrt);
+
 	void StepIceStructure();								//‘Š•Ï‰»ˆ—
 	void StepMelting();										//—Z‰ğ
 	void StepFreezing();									//‹ÃŒÅ
@@ -247,6 +249,8 @@ public:
 
 	void CashNeighborList(const vector<unsigned>& prtList, vector<unsigned>& neighborList);
 	void ResetSelectCluster();
+
+	void CopyTempDeviceToHost(float* temp);
 
 	//¿—ÊC³
 	void UpdateParticleMass_Normal();		//‘S‚Ä1.0f‚É

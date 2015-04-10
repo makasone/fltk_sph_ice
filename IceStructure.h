@@ -41,7 +41,7 @@ public:	//TODO: 全てpublicにしない
 	//初期化
 	void InitTetraInfo();									//四面体情報のメモリ確保
 	void InitClusterInfo();									//クラスタ情報のメモリ確保
-	void InitSelectCluster(const vector<Ice_SM*>& iceSM);
+	void InitSelectCluster(vector<Ice_SM*>& iceSM);
 	void InitSelectClusterFromClusterSet(vector<Ice_SM*>& iceSM);
 
 	void InitGPU();											//GPU処理で用いるデータの初期化
@@ -58,10 +58,6 @@ public:	//TODO: 全てpublicにしない
 	void UpdateInfo_Melt_PandC(const vector<unsigned>& pList, const vector<unsigned>& cList);
 
 	void UpdateInfo_Delete_TandP(const vector<int>& tList, const vector<int>& deleteList);
-
-	void UpdateSelectCluster(const vector<unsigned>& prtList, vector<unsigned>& neighborClusters, const vector<Ice_SM*>& iceSM);
-	void UpdateSelectClusterFronSet(const vector<unsigned>& prtList, vector<unsigned>& neighborClusters, const vector<Ice_SM*>& iceSM);
-	void UpdateNeighborOfSelectCluster(vector<Ice_SM*>& iceSM);
 
 	void SetInfo_Cluster(const vector<unsigned>& pList, const vector<unsigned>& cList, const vector<unsigned>& lList);
 	void SetInfo_Tetra(const vector<unsigned>& pList, const vector<unsigned>& tList, const vector<unsigned>& lList);
@@ -170,10 +166,14 @@ public:	//TODO: 全てpublicにしない
 	//判定
 	int  CheckNeighborTetra(int tIndx, int checkTIndx);
 
-	//選択的運動計算
-	void UpdateMotionCalcCluster(unsigned cIndx, short unsigned num);
+	//運動計算クラスタの選択
+	void UpdateSelectCluster(const vector<unsigned>& prtList, vector<unsigned>& neighborClusters, const vector<Ice_SM*>& iceSM);
+	void UpdateSelectClusterFronSet(const vector<unsigned>& prtList, vector<unsigned>& neighborClusters, const vector<Ice_SM*>& iceSM);
+	void UpdateNeighborOfSelectCluster(vector<Ice_SM*>& iceSM);
+	void ResetSelectCluster(vector<Ice_SM*>& iceSM);
 
-	short unsigned GetMotionCalcCluster(unsigned cIndx);
+	void UpdateMotionCalcCluster(unsigned cIndx, short unsigned num);
+	short unsigned GetMotionCalcCluster(unsigned cIndx) const;
 
 	//デバッグ
 	void DebugPtoT(int pIndx);
