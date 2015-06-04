@@ -467,9 +467,28 @@ void CuIceMeshMake(float *dGridD, rxParticleCell cell,
 
 
 //追加：表面パーティクルの検出
-void CuSphDetectSurfaceParticles()
+#define NEIGHT_MAX 30	//近傍最大粒子数
+void CuSphDetectSurfaceParticles(int* neights, int* surface, rxParticleCell celldata, float* pos, float radius)
 {
+	uint numThreads, numBlocks;
+	computeGridSize(celldata.uNumParticles, THREAD_NUM, numBlocks, numThreads);
 
+	detectSurfaceParticles<<<numBlocks, numThreads>>>(neights, surface, celldata, NEIGHT_MAX, (float4*)pos, radius);
+
+	RX_CUERROR("Kernel execution failed");	// カーネル実行エラーチェック
+	cudaThreadSynchronize();
+}
+
+//追加：近傍パーティクルの検出
+void CuSphDetectNeighborParticles(int* neights, rxParticleCell celldata, float radius, int prtNum)
+{
+	uint numThreads, numBlocks;
+	computeGridSize(celldata.uNumParticles, THREAD_NUM, numBlocks, numThreads);
+
+	detectNeighborParticles<<<numBlocks, numThreads>>>(neights, celldata, radius, NEIGHT_MAX);
+
+	RX_CUERROR("Kernel execution failed");	// カーネル実行エラーチェック
+	cudaThreadSynchronize();
 }
 
 /*!

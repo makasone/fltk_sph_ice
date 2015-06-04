@@ -120,8 +120,7 @@ void IceObject::InitCluster(Vec3 boundarySpaceHigh, Vec3 boundarySpaceLow, float
 {	cout << __FUNCTION__ << endl;
 
 	//変数の初期化
-	for(vector<Ice_SM*>::iterator it = m_iceSM.begin(); it != m_iceSM.end(); ++it)
-	{
+	for(vector<Ice_SM*>::iterator it = m_iceSM.begin(); it != m_iceSM.end(); ++it){
 		if(*it) delete *it;
 	}
 	
@@ -134,8 +133,7 @@ void IceObject::InitCluster(Vec3 boundarySpaceHigh, Vec3 boundarySpaceLow, float
 cout << __FUNCTION__ << ", check1" << endl;
 
 	//四面体リストを元に，粒子毎にクラスタ作成
-	for(int i = 0; i < sm_particleNum; ++i)
-	{
+	for(int i = 0; i < sm_particleNum; ++i){
 		//クラスタ初期化
 		m_iceSM.push_back(new Ice_SM(sm_clusterNum));
 		m_iceSM[sm_clusterNum]->SetSimulationSpace(boundarySpaceLow, boundarySpaceHigh);
@@ -162,6 +160,43 @@ cout << __FUNCTION__ << ", check2" << endl;
 	////MakeOneCluster();
 	
 	Ice_SM::InitFinalParamPointer(sm_clusterNum);
+
+
+//OrientedParticle版の初期化
+	//変数の初期化
+	for(vector<OrientedParticleBaseElasticObject*>::iterator it = m_orientedObj.begin(); it != m_orientedObj.end(); ++it){
+		if(*it) delete *it;
+	}
+
+	//四面体リストを元に，粒子毎にクラスタ作成
+	for(int i = 0; i < sm_particleNum; ++i){
+		//クラスタ初期化
+		m_orientedObj.push_back(new OrientedParticleBaseElasticObject(i));
+		m_orientedObj[i]->SetSimulationSpace(boundarySpaceLow, boundarySpaceHigh);
+		m_orientedObj[i]->SetTimeStep(timeStep);
+		m_orientedObj[i]->SetCollisionFunc(0);
+		m_orientedObj[i]->SetStiffness(1.0, 0.0);
+
+		//近傍粒子からクラスタを構成
+		//最初の一つ目は必ずpIndxとする
+		int pNum = m_orientedObj[i]->GetNumVertices();
+		float mass = 1.0f;
+
+		m_orientedObj[i]->AddParticle( Vec3(s_sphPrtPos[i*4+0], s_sphPrtPos[i*4+1], s_sphPrtPos[i*4+2]), mass, i);
+
+		//近傍粒子をクラスタに追加
+		for(unsigned id_np = 0; id_np < neights[i].size(); id_np++){
+			int np_pIndx = neights[i][id_np].Idx;
+			int pNum = m_orientedObj[i]->GetNumVertices();
+			double mass = 1.0;
+
+			if(i == np_pIndx){	continue;	}
+
+			m_orientedObj[i]->AddParticle( Vec3(s_sphPrtPos[np_pIndx*4+0], s_sphPrtPos[np_pIndx*4+1], s_sphPrtPos[np_pIndx*4+2]), mass, np_pIndx);
+		}
+	}
+
+	OrientedParticleBaseElasticObject::AllocateStaticMemory(s_sphPrtPos, s_sphPrtVel, sm_particleNum);
 
 //デバッグ
 	//DebugClusterInfo();
@@ -697,15 +732,157 @@ void IceObject::StepObjMoveCPU()
 
 void IceObject::StepObjMoveCPUNormal()
 {
-	//固体の運動計算
-	m_iceCalcMethod->StepObjMove();			RXTIMER("StepObjMove");
+	////固体の運動計算
+	//m_iceCalcMethod->StepObjMove();			RXTIMER("StepObjMove");
 
-	//固体の最終位置決定
-	m_iceConvolution->StepConvolution();	RXTIMER("StepConvolution");
+	////固体の最終位置決定
+	//m_iceConvolution->StepConvolution();	RXTIMER("StepConvolution");
 
-	//液体と固体の線形補間
-	StepInterPolation();					RXTIMER("StepInterPolation");
-	//StepInterPolationKenjya();
+	////液体と固体の線形補間
+	//StepInterPolation();					RXTIMER("StepInterPolation");
+	////StepInterPolationKenjya();
+
+	//OrientedParticleを用いた場合のテスト
+	TestOrientedParticle();
+}
+
+//OrientedParticleを用いた場合のテスト
+void IceObject::TestOrientedParticle()
+{
+	//本当はパーティクルとクラスタで定義を分けたほうがよい　けど実験なので，雑に作ってみた
+	OrientedParticleBaseElasticObject::CopyPrtToClstrPos();
+
+//初回
+{
+	OrientedParticleBaseElasticObject::IntegrateParticle();
+	//クラスタの更新
+	for(int i = 0; i < IceObject::GetParticleNum(); ++i){
+		//if(m_iceStrct->GetMotionCalcCluster(i) == 0)	continue;
+
+		m_orientedObj[i]->UpdateCluster();
+	}
+	
+	//最終位置決定
+	//現在はm_iceStrctを用いずにsm法のデータm_iceSMだけで計算している
+	unsigned pNum = IceObject::GetParticleNum();
+	vector<unsigned> addParticleNum(pNum, 0);
+
+	vector<Vec3>& sldXp = OrientedParticleBaseElasticObject::Xpes();
+
+	//単純な足しあわせ
+	for(int cIndx = 0; cIndx < pNum; cIndx++){
+		//if(m_iceStrct->GetMotionCalcCluster(cIndx) == 0)	continue;
+
+		//クラスタが含んでいる各粒子の位置・速度をstaticな最終位置に足す
+		Vec3 pos, vel;
+		int pIndx, dim;
+
+		for(int oIndx = 0; oIndx < m_orientedObj[cIndx]->GetIndxNum(); oIndx++){
+			int pIndx = m_orientedObj[cIndx]->GetParticleIndx(oIndx);
+			if(pIndx == MAXINT){	continue;	}
+
+			Vec3 pos = m_orientedObj[cIndx]->GetVertexPos(oIndx);
+			sldXp[pIndx] += pos;
+
+			//粒子数のカウント
+			addParticleNum[pIndx] += 1;
+		}
+	}
+
+	//平均値を固体位置に反映
+	for(int pIndx = 0; pIndx < pNum; pIndx++){
+		int smIndx = pIndx*SM_DIM;
+
+		//CtoPNum == PtoCNumより
+		float clusterNum = (float)addParticleNum[pIndx];
+		if(clusterNum <= 0.0f){	continue;	}
+
+		sldXp[pIndx] /= (clusterNum+1);
+	}
+
+	//速度，角速度，姿勢を更新
+	OrientedParticleBaseElasticObject::UpdateParticle();
+}
+
+////反復処理
+//	for(int i = 0; i < 3; i++){
+//		//パーティクルの更新
+//		OrientedParticleBaseElasticObject::IntegrateParticleItr();
+//
+//		//クラスタの更新
+//		for(int j = 0; j < IceObject::GetParticleNum(); ++j){
+//			//if(m_iceStrct->GetMotionCalcCluster(j) == 0)	continue;
+//
+//			m_orientedObj[j]->UpdateCluster();
+//		}
+//	
+//		//最終位置決定
+//		//現在はm_iceStrctを用いずにsm法のデータm_iceSMだけで計算している
+//		unsigned pNum = IceObject::GetParticleNum();
+//		vector<unsigned> addParticleNum(pNum, 0);
+//	
+//		vector<Vec3>& sldXp = OrientedParticleBaseElasticObject::Xpes();
+//	
+//		//単純な足しあわせ
+//		for(int cIndx = 0; cIndx < pNum; cIndx++){
+//
+//			//if(m_iceStrct->GetMotionCalcCluster(cIndx) == 0)	continue;
+//
+//			//クラスタが含んでいる各粒子の位置・速度をstaticな最終位置に足す
+//			Vec3 pos, vel;
+//			int pIndx, dim;
+//	
+//			for(int oIndx = 0; oIndx < m_orientedObj[cIndx]->GetIndxNum(); oIndx++){
+//				int pIndx = m_orientedObj[cIndx]->GetParticleIndx(oIndx);
+//				if(pIndx == MAXINT){	continue;	}
+//	
+//				Vec3 pos = m_orientedObj[cIndx]->GetVertexPos(oIndx);
+//				sldXp[pIndx] += pos;
+//	
+//				//粒子数のカウント
+//				addParticleNum[pIndx] += 1;
+//			}
+//		}
+//	
+//		//平均値を固体位置に反映
+//		for(int pIndx = 0; pIndx < pNum; pIndx++){
+//			int smIndx = pIndx*SM_DIM;
+//	
+//			//CtoPNum == PtoCNumより
+//			float clusterNum = (float)addParticleNum[pIndx];
+//			if(clusterNum <= 0.0f){	continue;	}
+//	
+//			sldXp[pIndx] /= (clusterNum+1);
+//		}
+//	
+//		//速度，角速度，姿勢を更新
+//		OrientedParticleBaseElasticObject::UpdateParticleItr();
+//	}
+//
+//
+//
+//	////速度，角速度，姿勢を更新
+//	//OrientedParticleBaseElasticObject::UpdateParticleVel();
+
+
+
+	//最終位置，速度決定
+	float* s_sphPrtPos = IceObject::GetSPHHostPosPointer();
+	float* s_sphPrtVel = IceObject::GetSPHHostVelPointer();
+
+	for(int pIndx = 0; pIndx < sm_particleNum; pIndx++){
+		int sphIndx = pIndx*4;
+		int sldIndx = pIndx*3;
+		double intrps = 1.0 - m_fInterPolationCoefficience[pIndx];	//補間係数
+	
+		float* sldVel = OrientedParticleBaseElasticObject::GetClstrVelPointer();
+		float* sldPos = OrientedParticleBaseElasticObject::GetClstrPosPointer();
+	
+		for(int i = 0; i < 3; i++){
+			s_sphPrtVel[sphIndx+i] = sldVel[sldIndx+i] * m_fInterPolationCoefficience[pIndx] + s_sphPrtVel[sphIndx+i] * intrps;
+			s_sphPrtPos[sphIndx+i] = sldPos[sldIndx+i] * m_fInterPolationCoefficience[pIndx] + s_sphPrtPos[sphIndx+i] * intrps;
+		}
+	}
 }
 
 void IceObject::StepObjMoveCPUDebug()
@@ -930,66 +1107,51 @@ void IceObject::StepHeatTransfer(const int* surfParticles, const vector<vector<r
 	m_heatTransfer->resetNeighborhoodsId();
 	m_heatTransfer->resetNeighborhoodsDist();
 
-	////近傍粒子の添え字と距離の設定
-	//for( int i = 0; i < sm_particleNum; i++ ){
-	//	//表面粒子判定情報　１ならば表面粒子，０なら内部粒子　その際の数値は近傍粒子総数を表す
-	//	//近傍粒子総数で表面積を近似
-	//	if( surfParticles[i] == 1 ){
+	//近傍粒子の添え字と距離の設定
+	for( int i = 0; i < sm_particleNum; i++ ){
+		//表面粒子判定情報　１ならば表面粒子，０なら内部粒子　その際の数値は近傍粒子総数を表す
+		//近傍粒子総数で表面積を近似
+		if( surfParticles[i] == 1 ){
 
-	//		////床に近く，圧力の高い粒子は，表面ではなく底面とする.粒子数によってパラメータを変えないといけない．
-	//		////表面粒子判定に不具合があるので修正が必要．0.75で下２段とれる //1331　下１段
-	//		//if(pos[i*4+1] < floor+effRadius*0.2){
-	//		//	if(dens[i] < 950.0){
-	//		//		m_heatTransfer->setSurfaceParticleNums(i, (int)( neights[i].size() ));		//表面扱い
-	//		//	}
-	//		//	else{
-	//		//		m_heatTransfer->setSurfaceParticleNums(i, -1);								//底面扱い
-	//		//	}
-	//		//}
-	//		//else{
-	//		//	m_heatTransfer->setSurfaceParticleNums(i, (int)( neights[i].size() ));
-	//		//}
+			////床に近く，圧力の高い粒子は，表面ではなく底面とする.粒子数によってパラメータを変えないといけない．
+			////表面粒子判定に不具合があるので修正が必要．0.75で下２段とれる //1331　下１段
+			//if(pos[i*4+1] < floor+effRadius*0.2){
+			//	if(dens[i] < 950.0){
+			//		m_heatTransfer->setSurfaceParticleNums(i, (int)( neights[i].size() ));		//表面扱い
+			//	}
+			//	else{
+			//		m_heatTransfer->setSurfaceParticleNums(i, -1);								//底面扱い
+			//	}
+			//}
+			//else{
+			//	m_heatTransfer->setSurfaceParticleNums(i, (int)( neights[i].size() ));
+			//}
 
-	//		m_heatTransfer->setSurfaceParticleNums(i, (int)( neights[i].size() ));		//表面扱い
-	//	}
-	//	else{
-	//		m_heatTransfer->setSurfaceParticleNums(i, -1);
-	//	}
-	//	
-	//	//初期化
-	//	ids.clear();
-	//	dists.clear();
-
-	//	for( unsigned j = 0; j < neights[i].size(); j++){
-	//		if( i == (int)( neights[i][j].Idx ) ) continue;							//自分自身を省く
-	//		ids.push_back( (int)( neights[i][j].Idx ) );
-	//		dists.push_back( (float)( neights[i][j].Dist ) );
-	//	}
-
-	//	m_heatTransfer->AddNeighborhoodsId( ids );
-	//	m_heatTransfer->AddNeighborhoodsDist( dists );
-	//}
+			m_heatTransfer->setSurfaceParticleNums(i, (int)( neights[i].size() ));		//表面扱い
+		}
+		else{
+			m_heatTransfer->setSurfaceParticleNums(i, -1);
+		}
 		
-	//	//初期化
-	//	ids.clear();
-	//	dists.clear();
+		//初期化
+		ids.clear();
+		dists.clear();
 
-	//	for( unsigned j = 0; j < neights[i].size(); j++)
-	//	{
-	//		if( i == (int)( neights[i][j].Idx ) ) continue;							//自分自身を省く
-	//		ids.push_back( (int)( neights[i][j].Idx ) );
-	//		dists.push_back( (float)( neights[i][j].Dist ) );
-	//	}
+		for( unsigned j = 0; j < neights[i].size(); j++){
+			if( i == (int)( neights[i][j].Idx ) ) continue;							//自分自身を省く
+			ids.push_back( (int)( neights[i][j].Idx ) );
+			dists.push_back( (float)( neights[i][j].Dist ) );
+		}
 
-	//	m_heatTransfer->AddNeighborhoodsId( ids );
-	//	m_heatTransfer->AddNeighborhoodsDist( dists );
-	//}
+		m_heatTransfer->AddNeighborhoodsId( ids );
+		m_heatTransfer->AddNeighborhoodsDist( dists );
+	}
 
 	//熱処理計算
-	//m_heatTransfer->heatAirAndParticle();						//熱処理　空気と粒子
+	m_heatTransfer->heatAirAndParticle();						//熱処理　空気と粒子
 	m_heatTransfer->heatObjAndParticle(objNeight);				//熱処理　オブジェクトと粒子
 	m_heatTransfer->heatParticleAndParticle(dens, effRadius);	//熱処理　粒子間
-	m_heatTransfer->calcTempAndHeat();													//熱量の温度変換，温度の熱量変換
+	m_heatTransfer->calcTempAndHeat();							//熱量の温度変換，温度の熱量変換
 
 //デバッグ
 	//for(int i = 0; i < sm_particleNum; i++)
@@ -999,19 +1161,32 @@ void IceObject::StepHeatTransfer(const int* surfParticles, const vector<vector<r
 }
 
 //GPUでの熱処理
-void IceObject::StepHeatTransferGPU(const int* surfacePrt)
+void IceObject::StepHeatTransferGPU(const int* surfacePrt, const int* neightsPrt, const float* densty, const int* meltPrtIndx, float radius)
 {
 	float* heat = m_heatTransfer->getHostHeats();
 	float* temp = m_heatTransfer->getHostTemps();
 	float* dtemp = m_heatTransfer->getHostDTemps();
 
 	int* phase = m_heatTransfer->getHostPhase();
-	int* phaseChangeF = m_heatTransfer->getHostPhaseChangeFlag();
+	int* phaseChangef = m_heatTransfer->getHostPhaseChangeFlag();
 
 	float airTemp = m_heatTransfer->getAirTemp();
 	float cffCnHt = m_heatTransfer->getCffCntHt();
+	float cffCnTd = m_heatTransfer->getCffCntTd();
+	float dt = m_heatTransfer->getTimeStep();
 
-	LaunchHeatTransferGPU(heat, temp, dtemp, surfacePrt, airTemp, cffCnHt, sm_particleNum);
+	int* sd_meltPrtIndx = m_heatTransfer->getHostMeltPrtIndx();
+	int meltPrtSize = meltPrtIndx[0];
+	cudaMemcpy(sd_meltPrtIndx, meltPrtIndx, sizeof(int) * 1000, cudaMemcpyHostToDevice);
+
+	LaunchHeatTransferGPU(
+		heat, temp, dtemp, surfacePrt, neightsPrt, densty, phase, phaseChangef, sd_meltPrtIndx,
+		radius, airTemp, cffCnHt, cffCnTd, dt, sm_particleNum
+	);
+
+	//GPU
+	//デバイスからホストへコピー
+	m_heatTransfer->CopyPhaseChangeData();
 }
 
 void IceObject::CopyTempDeviceToHost(float* h_temp)
@@ -1084,13 +1259,13 @@ void IceObject::StepFreezing()
 
 void IceObject::SearchMeltParticle(vector<unsigned>& pList)
 {
-	for(int i = 0; i < sm_particleNum; ++i)
-	{	
+	//CPU
+	for(int i = 0; i < sm_particleNum; ++i){	
 		if(m_iceSM[i]->GetNumVertices() == 0)			continue;	//クラスタを持っていない
-		if( m_heatTransfer->getPhaseChange(i) != 1 )	continue;	//相転移の条件を満たしている
-		if( m_heatTransfer->getPhase(i) != 2 )			continue;	//水へと相転移している
-		//if( m_iceStrct->GetPtoCNum(i) == 0 )			continue;	//クラスタに含まれていない
-		//if( m_iceStrct->GetPtoTNum(i) == 0 )			continue;	//四面体に含まれていない
+		if(m_heatTransfer->getPhaseChange(i) != 1)		continue;	//相転移の条件を満たしている
+		if(m_heatTransfer->getPhase(i) != 2 )			continue;	//水へと相転移している
+		//if( m_iceStrct->GetPtoCNum(i) == 0)			continue;	//クラスタに含まれていない
+		//if( m_iceStrct->GetPtoTNum(i) == 0)			continue;	//四面体に含まれていない
 
 		//if(pList.size() > 500){	break;	}							//融解粒子数の制限
 

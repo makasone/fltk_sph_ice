@@ -340,7 +340,6 @@ public:
 	int  GetPolygonsInCell(int gi, int gj, int gk, vector<int> &polys);
 	bool IsPolygonsInCell(int gi, int gj, int gk);
 
-	
 	// 表面パーティクル検出
 	void DetectSurfaceParticles(void);					// 表面パーティクルの検出
 	double CalDistToNormalizedMassCenter(const int i);	// 近傍パーティクルの重心までの距離計算
@@ -499,6 +498,9 @@ private:
 
 	uint *m_hSurf;			//!< 表面パーティクル
 	int* m_dSurf;			//追加：表面パーティクル
+
+	#define NEIGHT_MAX 30	//最大近傍数　適当
+	int* m_dNeighbors;		//追加：近傍パーティクル
 
 	// 表面生成用(Anisotropic kernel)
 	RXREAL *m_hUpPos;		//!< 平滑化パーティクル位置
@@ -680,13 +682,26 @@ public:
 	// 境界パーティクルの初期化
 	void InitBoundary(void);
 
-	//追加：：近傍粒子取得
+	//追加：近傍粒子取得
 	vector<vector<rxNeigh>>& GetNeights(void){ return m_vNeighs; }
+
+	//追加：CPU用の近傍粒子探索
+	void copyCellInfo();
+	void searchNeighbors(void);
+
+	//追加：GPUでの近傍パーティクル検出
+	void DetectNeighborParticlesGPU();
+	int* GetNeightsGPU(){ return m_dNeighbors;	}
+
+	void DebugNeighborParticlesCPUandGPU();
 
 	//追加：：セル情報取得
 	uint* GetCellStartInfo(void){ return m_hCellStart; }
 	uint* GetCellEndInfo(void){ return m_hCellEnd;	}
 	uint* GetSortedIndx(void){ return m_hSortedIndex;	}
+
+	//追加：密度
+	float* GetDenstyGPU(){ return m_dDens; }
 
 	//
 	// Anisotropic kernel
@@ -752,9 +767,9 @@ protected:
 	// ポリゴンを分割セルに格納
 	void setPolysToCell(RXREAL *vrts, int nv, int* tris, int nt);
 
-	// CPU用の近傍粒子探索
-	void searchNeighbors(void);
 	void getNeighborsInCell(Vec3 pos, RXREAL *p, int gi, int gj, int gk, vector<rxNeigh> &neighs, RXREAL h);
+
+	void calcGridPos(Vec3 p, int &x, int &y, int &z);
 };
 
 

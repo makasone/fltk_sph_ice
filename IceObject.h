@@ -8,6 +8,8 @@
 #include "rx_matrix.h"
 
 #include "Ice_SM.h"
+#include "Ice_OrientedParticle.h"
+
 #include "IceStructure.h"
 #include "IceTetrahedra.h"
 #include "HeatTransfar.h"
@@ -101,6 +103,7 @@ private:
 
 	//ŒÅ‘Ì‰^“®ŒvZƒNƒ‰ƒX
 	vector<Ice_SM*> m_iceSM;
+	vector<OrientedParticleBaseElasticObject*> m_orientedObj;
 
 	//‚‘¬ŒvZ—pƒNƒ‰ƒX
 	Surf_SM* m_SurfSm;
@@ -205,6 +208,7 @@ public:
 	float* GetTemps(){	return m_heatTransfer->getTemps();}
 
 	Ice_SM* GetMoveObj(int cIndx){	return m_iceSM[cIndx];	}
+	OrientedParticleBaseElasticObject* GetOrientedObj(int cIndx){ return m_orientedObj[cIndx];	}
 
 	Ice_Convolution* GetConvoObj(){	return m_iceConvolution;	}
 
@@ -229,7 +233,7 @@ public:
 
 	//‘Š•Ï‰»
 	void StepHeatTransfer(const int* surfParticles, const vector<vector<rxNeigh>>& neights, const vector<int>& objNeight, float floor, float effRadius, const float* pos, const float* dens);		//”Mˆ—
-	void StepHeatTransferGPU(const int* surfacePrt);
+	void StepHeatTransferGPU(const int* surfacePrt, const int* neightsPrt, const float* densty, const int* meltPrtIndx, float radius);
 
 	void StepIceStructure();								//‘Š•Ï‰»ˆ—
 	void StepMelting();										//—Z‰ğ
@@ -293,7 +297,7 @@ public:
 
 	void TestSimulationFromFile(string fileName);
 
-
+	void TestOrientedParticle();
 
 
 

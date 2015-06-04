@@ -398,16 +398,32 @@ void rxSPH_GPU::Allocate(int maxParticles)
 	CuAllocateArray((void**)&m_dPres,   mem_size1);
 	CuAllocateArray((void**)&m_dAttr,   size1*sizeof(int));
 
-	//追加
+	//追加:表面粒子
+	//正の数なら近傍に存在する粒子数を表し，負の数なら表面粒子ではない
 	//CuAllocateArray((void**)&m_dSurf,	mem_size);
 	cudaMalloc((void**)&m_dSurf, sizeof(int) * m_uMaxParticles);
 	int* surf = new int[m_uMaxParticles];
-	for(int i = 0; i < m_uMaxParticles; i++){
-		surf[i] = 4;
+	for(uint i = 0; i < m_uMaxParticles; i++){
+		surf[i] = 0;	//適当に初期化
 	}
 
-	cudaMemcpy(m_dSurf, surf,	sizeof(int) * m_uMaxParticles, cudaMemcpyHostToDevice);
+	cudaMemcpy(m_dSurf, surf, sizeof(int) * m_uMaxParticles, cudaMemcpyHostToDevice);
 	delete[] surf;
+
+	//追加：近傍粒子
+	//近傍に存在する粒子の添字を格納する 負の数は無効
+	cudaMalloc((void**)&m_dNeighbors, sizeof(int) * m_uMaxParticles * NEIGHT_MAX);
+	int* neight = new int[NEIGHT_MAX];
+	for(uint i = 0; i < NEIGHT_MAX; i++){
+		neight[i] = 0;	//適当に初期化
+	}
+
+	//デバイスデータの初期化
+	for(uint i = 0; i < m_uMaxParticles; i++){
+		int indx = i * NEIGHT_MAX;
+		cudaMemcpy(m_dNeighbors + indx, neight, sizeof(int) * NEIGHT_MAX, cudaMemcpyHostToDevice);
+	}
+	delete[] neight;
 
 	// ウェーブレット乱流
 	CuAllocateArray((void**)&m_dEt,     mem_size1);
@@ -676,6 +692,10 @@ void rxSPH_GPU::Finalize(void)
 	if(m_dCellDataB.dPolyCellEnd)   CuFreeArray(m_dCellDataB.dPolyCellEnd);
 
 	//追加：
+	CuFreeArray(m_dSurf);
+	CuFreeArray(m_dNeighbors);
+
+	//追加：
 	if(m_hSortedIndex) delete [] m_hSortedIndex;
 	if(m_hGridParticleHash) delete [] m_hGridParticleHash;
 	if(m_hCellStart) delete [] m_hCellStart;
@@ -878,9 +898,6 @@ bool rxSPH_GPU::Update(RXREAL dt, int step)
 		init = false;
 	}
 
-
-
-
 	if(m_bUseOpenGL){
 		CuUnmapGLBufferObject(m_pPosResource);
 		CuUnmapGLBufferObject(m_pSubPosResource);
@@ -894,8 +911,8 @@ bool rxSPH_GPU::Update(RXREAL dt, int step)
 
 	SetColorVBO(m_iColorType);
 
-	//追加：GPUからCPUにデータをコピー
-	searchNeighbors();		
+	//近傍粒子検出のデバッグ
+	//DebugNeighborParticlesCPUandGPU();
 
 	//RXTIMER("color(vbo)");
 
@@ -1067,7 +1084,10 @@ bool rxSPH_GPU::UpdateWithoutPosAndVel(RXREAL dt, int step)
 	SetColorVBO(m_iColorType);
 
 	//追加：GPUからCPUにデータをコピー
-	searchNeighbors();		
+	//searchNeighbors();
+
+	//追加：GPUで近傍粒子探索
+	//DetectNeighborParticlesGPU();
 
 	//RXTIMER("color(vbo)");
 
@@ -1077,19 +1097,34 @@ bool rxSPH_GPU::UpdateWithoutPosAndVel(RXREAL dt, int step)
 	return true;
 }
 
+inline void rxSPH_GPU::calcGridPos(Vec3 p, int &x, int &y, int &z)
+{
+	x = floor((p[0]-m_v3EnvMin[0])/m_params.CellWidth.x);
+	y = floor((p[1]-m_v3EnvMin[1])/m_params.CellWidth.y);
+	z = floor((p[2]-m_v3EnvMin[2])/m_params.CellWidth.z);
+
+	x = RX_MIN(RX_MAX(x, 0), (int)(m_params.GridSize.x-1));
+	y = RX_MIN(RX_MAX(y, 0), (int)(m_params.GridSize.y-1));
+	z = RX_MIN(RX_MAX(z, 0), (int)(m_params.GridSize.z-1));
+}
+
+void rxSPH_GPU::copyCellInfo()
+{
+	// GPU -> CPUへコピー
+	CuCopyArrayFromDevice(m_hSortedIndex, m_dCellData.dSortedIndex, 0, m_uNumParticles*sizeof(uint));
+	CuCopyArrayFromDevice(m_hGridParticleHash, m_dCellData.dGridParticleHash, 0, m_uNumParticles*sizeof(uint));
+	CuCopyArrayFromDevice(m_hCellStart, m_dCellData.dCellStart, 0, m_params.NumCells*sizeof(uint));
+	CuCopyArrayFromDevice(m_hCellEnd, m_dCellData.dCellEnd, 0, m_params.NumCells*sizeof(uint));
+}
+
 /*!
  * CPU用の近傍探索　追加：GPUからCPUにデータをコピーし，近傍探索を行っている．
  */
 void rxSPH_GPU::searchNeighbors(void)
 {
-	// GPU -> CPU
-	CuCopyArrayFromDevice(m_hSortedIndex, m_dCellData.dSortedIndex, 0, m_uNumParticles*sizeof(uint));
-	CuCopyArrayFromDevice(m_hGridParticleHash, m_dCellData.dGridParticleHash, 0, m_uNumParticles*sizeof(uint));
-	CuCopyArrayFromDevice(m_hCellStart, m_dCellData.dCellStart, 0, m_params.NumCells*sizeof(uint));
-	CuCopyArrayFromDevice(m_hCellEnd, m_dCellData.dCellEnd, 0, m_params.NumCells*sizeof(uint));
-
+	copyCellInfo();
+	
 	m_hPos = GetArrayVBO(RX_POSITION);
-	//CuCopyArrayFromDevice(m_hPos, m_dPos, 0, m_uNumParticles*DIM*sizeof(RXREAL));
 
 	RXREAL h = m_params.EffectiveRadius;
 
@@ -1098,17 +1133,27 @@ void rxSPH_GPU::searchNeighbors(void)
 		m_vNeighs[l].clear();
 
 		// 分割セルインデックスの算出
-		int x = (pos[0]-m_v3EnvMin[0])/m_params.CellWidth.x;
-		int y = (pos[1]-m_v3EnvMin[1])/m_params.CellWidth.y;
-		int z = (pos[2]-m_v3EnvMin[2])/m_params.CellWidth.z;
+		int x, y, z;
+		calcGridPos(pos, x, y, z);
+		//int x = (pos[0]-m_v3EnvMin[0])/m_params.CellWidth.x;
+		//int y = (pos[1]-m_v3EnvMin[1])/m_params.CellWidth.y;
+		//int z = (pos[2]-m_v3EnvMin[2])/m_params.CellWidth.z;
 
-		int numArdGrid = (int)(h/m_params.CellWidth.x+1);
-		for(int k = -numArdGrid; k <= numArdGrid; ++k){
-			for(int j = -numArdGrid; j <= numArdGrid; ++j){
-				for(int i = -numArdGrid; i <= numArdGrid; ++i){
-					int i1 = x+i;
-					int j1 = y+j;
-					int k1 = z+k;
+		// パーティクル周囲のグリッド
+		int x0, y0, z0, x1, y1, z1;
+		calcGridPos(pos-Vec3(h), x0, y0, z0);
+		calcGridPos(pos+Vec3(h), x1, y1, z1);
+
+		//int numArdGrid = (int)(h/m_params.CellWidth.x+1);
+		//for(int k = -numArdGrid; k <= numArdGrid; ++k){
+		//	for(int j = -numArdGrid; j <= numArdGrid; ++j){
+		//		for(int i = -numArdGrid; i <= numArdGrid; ++i){
+		for(int k1 = z0; k1 <= z1; ++k1){
+			for(int j1 = y0; j1 <= y1; ++j1){
+				for(int i1 = x0; i1 <= x1; ++i1){
+					//int i1 = x+i;
+					//int j1 = y+j;
+					//int k1 = z+k;
 					if(i1 < 0 || (unsigned)i1 >= m_params.GridSize.x || j1 < 0 || (unsigned)j1 >= m_params.GridSize.y || k1 < 0 || (unsigned)k1 >= m_params.GridSize.z){
 						continue;
 					}
@@ -1117,6 +1162,80 @@ void rxSPH_GPU::searchNeighbors(void)
 				}
 			}
 		}
+	}
+}
+
+//GPUでの近傍粒子探索
+void rxSPH_GPU::DetectNeighborParticlesGPU()
+{
+	//GPUでの近傍粒子取得
+	CuSphDetectNeighborParticles(m_dNeighbors, m_dCellData, m_params.EffectiveRadius, GetNumParticles());
+}
+
+//近傍取得のデバッグ
+void rxSPH_GPU::DebugNeighborParticlesCPUandGPU()
+{
+//もう一回セルデータを更新
+	// パーティクル座標配列をマッピング
+	RXREAL *dPos;
+	if(m_bUseOpenGL){
+		dPos = (RXREAL*)CuMapGLBufferObject(&m_pPosResource);
+	}
+	else{
+		dPos = (RXREAL*)m_dPos;
+	}
+
+	// 近傍探索高速化用グリッドデータの作成
+	// 分割セルのハッシュを計算
+	CuCalcHash(m_dCellData.dGridParticleHash, m_dCellData.dSortedIndex, dPos, m_dAttr, m_uNumParticles);
+
+	// ハッシュに基づきパーティクルをソート
+	CuSort(m_dCellData.dGridParticleHash, m_dCellData.dSortedIndex, m_uNumParticles);
+
+	// パーティクル配列をソートされた順番に並び替え，
+	// 各セルの始まりと終わりのインデックスを検索
+	CuReorderDataAndFindCellStart(m_dCellData, dPos, m_dVel);
+
+	if(m_bUseOpenGL){
+		CuUnmapGLBufferObject(m_pPosResource);
+	}
+
+	//GPUでの近傍粒子取得
+	CuSphDetectNeighborParticles(m_dNeighbors, m_dCellData, m_params.EffectiveRadius, GetNumParticles());
+
+	//CPUでの近傍粒子取得
+	searchNeighbors();
+
+//デバッグ
+	//GPU
+	int* neight = m_dNeighbors;
+	int neightsMax = 30;	//適当
+	int neightsNum = GetNumParticles() * neightsMax;
+	int* temp = new int[neightsNum];
+	cudaMemcpy(temp, neight, sizeof(int) * neightsNum, cudaMemcpyDeviceToHost);
+
+	ofstream ofsGPU( "result/data/neightListGPU.txt");
+	ofsGPU << "GPU" << endl;;
+	for(int i = 0; i < GetNumParticles(); i++){
+		ofsGPU << "Prt:" << i << endl;
+		for(int j = 0; j < 30; j++){
+			ofsGPU << j << ":" << temp[i*30+j] << " ";
+		}
+		ofsGPU << endl;
+	}
+
+	delete[] temp;
+
+	//CPU
+	vector<vector<rxNeigh>>& neights = GetNeights();
+	ofstream ofsCPU( "result/data/neightListCPU.txt");
+	ofsCPU << "CPU" << endl;
+	for(int i = 0; i < GetNumParticles(); i++){
+		ofsCPU << "Prt:" << i << endl;
+		for(unsigned j = 0; j < neights[i].size(); j++){
+			ofsCPU << j << ":" << neights[i][j].Idx << " ";
+		}
+		ofsCPU << endl;
 	}
 }
 
@@ -1761,7 +1880,7 @@ void rxSPH_GPU::DetectSurfaceParticles(void)
 	RXREAL h = m_params.EffectiveRadius;
 	RXREAL r = m_params.ParticleRadius;
 
-	//m_hPos = GetArrayVBO(RX_POSITION);
+	m_hPos = GetArrayVBO(RX_POSITION);
 
 	// 近傍粒子探索
 	SetParticlesToCell();
@@ -1797,7 +1916,30 @@ void rxSPH_GPU::DetectSurfaceParticles(void)
 
 void rxSPH_GPU::DetectSurfaceParticlesGPU()
 {
-	CuSphDetectSurfaceParticles();
+	RXREAL *dPos;
+	if(m_bUseOpenGL){
+		dPos = (RXREAL*)CuMapGLBufferObject(&m_pPosResource);
+	}
+
+	CuSphDetectSurfaceParticles(m_dNeighbors, m_dSurf, m_dCellData, dPos, m_params.ParticleRadius);
+
+	if(m_bUseOpenGL){
+		CuUnmapGLBufferObject(m_pPosResource);
+	}
+
+////デバッグ
+//	int* surf = m_dSurf;
+//	int* temp = new int[m_uNumParticles];
+//	cudaMemcpy(temp, surf, sizeof(int) * m_uNumParticles, cudaMemcpyDeviceToHost);
+//
+//	ofstream ofs( "result/data/surfList.txt");
+//	ofs << "Surface" << endl;
+//
+//	for(uint i = 0; i < m_uNumParticles; i++){
+//		ofs << "Prt:" << i << ":" << temp[i] << endl;
+//	}
+//
+//	delete[] temp;
 }
 
 /*!

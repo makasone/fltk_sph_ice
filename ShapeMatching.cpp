@@ -116,6 +116,8 @@ rxShapeMatching::rxShapeMatching(int obj, int prtNum)
 
 	m_iIndxNum = 0;
 
+	m_mtrxBeforeU.makeIdentity();
+
 	Clear();
 }
 

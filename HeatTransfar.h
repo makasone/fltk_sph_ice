@@ -8,6 +8,11 @@
 
 #include <vector>
 #include "Math2d\math2d.h"
+#include <stdio.h>
+#include <iostream>
+#include <fstream>
+
+using namespace std;
 
 //GPU処理
 extern void LaunchHeatTransferGPU
@@ -16,15 +21,17 @@ extern void LaunchHeatTransferGPU
 	float* temps,
 	float* dtemps,
 	const int* surfParticles,
+	const int* neightsParticles,
+	const float* densty, 
+	int* phase,
+	int* phaseChangef,
+	const int* meltPrtIndx,
+	float radius, 
 	float airTemp,
 	float cffCnHt,
+	float cffCnTd,
+	float dt,
 	int prtNum
-	//const vector<vector<rxNeigh>>& neights,
-	//const vector<int>& objNeight,
-	//float floor,
-	//float effRadius,
-	//const float* pos,
-	//const float* dens
 );
 
 class HeatTransfar
@@ -38,6 +45,8 @@ public:
 	void MeltParticle(int pIndx);
 	void WarmParticle(int pIndx, float temp, float heat);
 
+	void CopyPhaseChangeData();
+
 //----------------------------------------GPU----------------------------------------------
 	float* getHostHeats(){	return sd_Heats;	}
 	float* getHostTemps(){	return sd_Temps;	}
@@ -45,6 +54,7 @@ public:
 
 	int* getHostPhase(){	return sd_Phase;	}
 	int* getHostPhaseChangeFlag(){	return sd_PhaseChangeFlag;	}
+	int* getHostMeltPrtIndx(){	return sd_MeltPrtIndx;	}
 //----------------------------------------GPU----------------------------------------------
 
 	float* getTemps(){	return mTemps;	}								//各粒子の温度配列を取得
@@ -60,6 +70,8 @@ public:
 	float getCffCntTd(){ return mTD;	}
 
 	float getLatentHeat(){ return mLatentHeat; }						//融解潜熱を取得
+
+	float getTimeStep(){ return timeStep;	}
 
 	int getPhase(int i){		return mPhase[i];	}					//現在の状態を返す（水・氷）
 	int getPhaseChange(int i){	return mPhaseChange[i]; }
@@ -117,6 +129,7 @@ private:
 
 	static int* sd_Phase;
 	static int* sd_PhaseChangeFlag;
+	static int* sd_MeltPrtIndx;
 //----------------------------------------GPU----------------------------------------------
 
 	float timeStep;							//タイムステップ

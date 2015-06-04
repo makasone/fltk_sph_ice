@@ -177,7 +177,7 @@
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
-      <AdditionalIncludeDirectories>./;../../../common/shared/inc;$(CudaToolkitIncludeDir);../../../common/shared/inc/cuda;D:\CGAL\build\include;D:\CGAL\include;D:\CGAL\auxiliary\gmp\include;D:\boost_1_55_0</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>./;../../../common/shared/inc;$(CudaToolkitIncludeDir);../../../common/shared/inc/cuda;D:\CGAL\build\include;D:\CGAL\include;D:\CGAL\auxiliary\gmp\include;D:\boost_1_55_0;../../../common/shared/inc/eigen</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;RX_USE_BOUNDARY_PARTICLE;dDOUBLE;_CRT_SECURE_NO_DEPRECATE;GLS_DLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <PrecompiledHeader>
@@ -258,7 +258,9 @@
     <ClCompile Include="Ice_Convolution_Weight.cpp" />
     <ClCompile Include="Ice_JudgeMove_Normal.cpp" />
     <ClCompile Include="Ice_JudgeMove_Spears.cpp" />
+    <ClCompile Include="Ice_OrientedParticle.cpp" />
     <ClCompile Include="Ice_SM.cpp" />
+    <ClCompile Include="OrientedParticle.cpp" />
     <ClCompile Include="rx_fltk_glcanvas.cpp" />
     <ClCompile Include="rx_fltk_window.cpp" />
     <ClCompile Include="rx_mc_cpu.cpp" />
@@ -285,6 +287,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\common\shared\inc\rx_timer.h" />
+    <ClInclude Include="EigenLapper.h" />
     <ClInclude Include="gnuplot.h" />
     <ClInclude Include="HeatTransfar.h" />
     <ClInclude Include="Ice_CalcMethod.h" />
@@ -313,8 +316,10 @@
     <ClInclude Include="Ice_JudgeMove.h" />
     <ClInclude Include="Ice_JudgeMove_Normal.h" />
     <ClInclude Include="Ice_JudgeMove_Spears.h" />
+    <ClInclude Include="Ice_OrientedParticle.h" />
     <ClInclude Include="Ice_SM.h" />
     <ClInclude Include="mk_ArrayScript.h" />
+    <ClInclude Include="OrientedParticle.h" />
     <ClInclude Include="QueryCounter.h" />
     <ClInclude Include="rx_cuda_utils.h" />
     <ClInclude Include="rx_fltk_glcanvas.h" />
@@ -392,8 +397,6 @@
     <None Include="bin\sph_scene_10.cfg" />
     <None Include="bin\sph_scene_8.cfg" />
     <None Include="bin\sph_scene_9.cfg" />
-    <None Include="ClassDiagram1.cd" />
-    <None Include="ClassDiagram2.cd" />
     <None Include="Path_SM.cuh" />
     <None Include="rx_mc_kernel.cu">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>

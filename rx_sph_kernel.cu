@@ -1016,9 +1016,6 @@ float calDensityCellGIceMesh(int3 gridPos, float3 pos0, rxParticleCell cell, flo
 				if(r <= h){
 					uint pIndx = cell.dSortedIndex[j];
 					if( bIceCheck[pIndx] < 0.0f ) continue;		//氷でないならメッシュを作らない
-//					if( bIceCheck[j] < 0.0f ) continue;		//氷でないならメッシュを作らない
-//					printf("pIndx = %d\n", pIndx);
-//					printf("j = %d\n", j);
 					float q = h*h-r*r;
 					d += params.Mass*params.Wpoly6*q*q*q;
 				}
@@ -1125,7 +1122,171 @@ void sphCalDensityInGridIceMesh(float* GridD, rxParticleCell cell,
 
 }
 
+/*!
+ * 追加：与えられたセル内のパーティクルとの距離から近傍粒子を取得
+ * @param[in] neights 近傍粒子を格納する配列
+ * @param[in] gridPos グリッド位置
+ * @param[in] index パーティクルインデックス
+ * @param[in] pos 計算座標
+ * @param[in] cell パーティクルグリッドデータ
+ * @return セル内のパーティクルから計算した密度値
+ */
+__device__
+float calNeighborCell(int* neights, int3 gridPos, uint oIdx, float3 pos0, rxParticleCell cell, int nNum, int neightMax)
+{
+	uint gridHash = calcGridHash(gridPos);
+
+	// セル内のパーティクルのスタートインデックス
+	uint startIndex = FETCHC(dCellStart, gridHash);
+
+	float h = params.EffectiveRadius;
+	if(startIndex != 0xffffffff){	// セルが空でないかのチェック
+		// セル内のパーティクルで反復
+		uint endIndex = FETCHC(dCellEnd, gridHash);
+		for(uint j = startIndex; j < endIndex; ++j){
+			//if(j == i) continue;
+
+			float3 pos1 = make_float3(FETCHC(dSortedPos, j));
+
+			float3 rij = pos0-pos1;
+			float r = length(rij);
+
+			if(r <= h){
+				neights[oIdx * neightMax + nNum] = cell.dSortedIndex[j];
+				nNum++;
+				if(nNum > neightMax-1) return nNum;
+			}
+		}
+	}
+
+	return nNum;
+}
+
+//追加：近傍粒子検出
+__global__
+void detectNeighborParticles(int* neights, rxParticleCell cell, float radius, int neightMax)
+{
+	uint index =__umul24(blockIdx.x,blockDim.x)+threadIdx.x;
+	if(index >= cell.uNumParticles) return;	
+	uint oIdx = cell.dSortedIndex[index];
+
+	float3 gpos = make_float3(FETCHC(dSortedPos, index));	// パーティクル位置
+
+	float h = params.EffectiveRadius;
+
+	// パーティクル周囲のグリッド
+	int3 grid_pos0, grid_pos1;
+	grid_pos0 = calcGridPos(gpos-make_float3(h));
+	grid_pos1 = calcGridPos(gpos+make_float3(h));
+
+	// 周囲のグリッドも含めて近傍探索
+	int nNum = 0;
+	int maxNeight = 30;
+	for(int z = grid_pos0.z; z <= grid_pos1.z; ++z){
+		for(int y = grid_pos0.y; y <= grid_pos1.y; ++y){
+			for(int x = grid_pos0.x; x <= grid_pos1.x; ++x){
+				int3 n_grid_pos = make_int3(x, y, z);
+				nNum = calNeighborCell(neights, n_grid_pos, oIdx, gpos, cell, nNum, neightMax);
+
+				if(nNum > maxNeight-1){
+					//最後に近傍粒子数を格納しておく　なので最大近傍数はNEIGHT_MAX-1個
+					neights[(oIdx+1) * neightMax -1] = nNum;
+					return;
+				}
+			}
+		}
+	}
+
+	//更新されなかった部分を-1に
+	for(int i = nNum; i < neightMax-1; i++){
+		neights[oIdx * neightMax + i] = -1;
+	}
+
+	//最後に近傍粒子数を格納しておく　なので最大近傍数はneightMax-1個
+	neights[(oIdx+1) * neightMax -1] = nNum;
+	return;
+}
+
+/*!
+ * 近傍パーティクルの正規化重心までの距離を計算
+ * @param[in] i パーティクルインデックス
+ */
+__device__
+float CalDistToNormalizedMassCenter(const int index, int* neights, rxParticleCell cell, float4* pos, int neightMax)
+{
+	float3 sum_pos;
+	sum_pos.x = 0.0f;
+	sum_pos.y = 0.0f;
+	sum_pos.z = 0.0f;
+
+	float sum_mass = 0.0f;
+	uint oIdx = cell.dSortedIndex[index];
+	float3 pos0 = make_float3(pos[oIdx]);
+
+	int neightNum = neights[(oIdx+1) * neightMax -1];
+
+	for(int i = 0; i < neightNum-1; i++){
+		int j = neights[oIdx * neightMax + i];
+		if(j < 0 && i == j) continue;
+
+		//RXREAL r = sqrt(itr->Dist2);
+		float3 pos1 = make_float3(pos[j]);
+
+		sum_pos  += (pos0-pos1)*params.Mass;
+		sum_mass += params.Mass;
+	}
+
+	float dis = FLT_MIN;
+	if(sum_mass > 0.0f){
+		sum_pos /= sum_mass;
+		dis     = length(sum_pos);
+	}
+
+	return dis;
+}
+
+//追加：表面粒子検出
+__global__
+void detectSurfaceParticles(int* neights, int* surface, rxParticleCell cell, int neightMax, float4* pos, float radius)
+{
+	uint index = __umul24(blockIdx.x,blockDim.x)+threadIdx.x;
+	if(index >= cell.uNumParticles) return;	
+	uint oIdx = cell.dSortedIndex[index];
+
+	float r = radius;
+
+	float d = CalDistToNormalizedMassCenter(index, neights, cell, pos, neightMax);
+	int nn_num = neights[(oIdx+1) * neightMax -1];
+
+	if(nn_num <= 3){
+		// 近傍パーティクル数が3以下ならば表面
+		surface[oIdx] = nn_num;
+	}
+	else{
+		// 3より大きい場合は近傍重心までの距離で判断
+		if(surface[oIdx] > 0){
+			// 前ステップで表面だったら小さい閾値で判断
+			if(d < 0.25f * r){
+				surface[oIdx] = 0;
+			}
+			else{
+				surface[oIdx] = nn_num;
+			}
+		}
+		else{
+			if(d > 0.35f * r || d < 0.0f){
+				surface[oIdx] = nn_num;
+			}
+			else{
+				surface[oIdx] = 0;
+			}
+		}
+	}
+
+	// 密度を使って判断する場合
+	//if(m_hDens[2*i] < 0.7*m_fInitMaxDens){
+	//	m_hSurf[i] = 1;
+	//}
+}
+
 #endif // #ifndef _RX_CUSPH_KERNEL_CU_
-
-
-

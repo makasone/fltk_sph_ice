@@ -92,7 +92,10 @@ void CuIceMeshMake(float *dGridD, rxParticleCell cell,
 					  int nx, int ny, int nz, float x0, float y0, float z0, float dx, float dy, float dz, float *bIceFlag);
 
 //追加：表面粒子検出
-void CuSphDetectSurfaceParticles();
+void CuSphDetectSurfaceParticles(int* neights, int* surface, rxParticleCell celldata, float* pos, float radius);
+
+//追加：近傍粒子検出
+void CuSphDetectNeighborParticles(int* neights, rxParticleCell celldata, float radius, int prtNum);
 
 //-----------------------------------------------------------------------------
 // PBDSPH

@@ -7,7 +7,6 @@
   @author Ryo Nakasone
   @date 2014-7
 */
-
 #include "Ice_SM.h"
 
 const float* Ice_SM::s_pfPrtPos;
@@ -566,14 +565,6 @@ int	Ice_SM::SearchIndx(int pIndx) const
 
 	//if(last == result) return MAXINT;
 	//return *result;
-}
-
-/*
- *	添字が穴かどうかのチェック
- */
-bool Ice_SM::CheckHole(int oIndx) const
-{
-	return (m_iPIndxes[oIndx] == MAXINT);
 }
 
 void Ice_SM::ResetFinalParamPointer(unsigned clusterNum)
@@ -1195,9 +1186,8 @@ void Ice_SM::ShapeMatchingIteration()
 	}
 
 	//Apqの行列式を求め，反転するかを判定
-	//不安定な場合が多いので×
-	if( Apq.Determinant() < 0.0 && m_iNumVertices >= 10)
-	{
+	//TODO:不安定な場合が多いので×
+	if(Apq.Determinant() < 0.0 && m_iNumVertices >= 10){
 		//１　符号を反転
 		Apq(0,2) = -Apq(0,2);
 		Apq(1,2) = -Apq(1,2);
@@ -1223,7 +1213,7 @@ void Ice_SM::ShapeMatchingIteration()
 		//	}
 		//}
 
-		m_fDefAmount = 0.0f;
+		//m_fDefAmount = 0.0f;
 
 		// 目標座標を計算し，現在の頂点座標を移動
 		for(int i = 0; i < m_iIndxNum; ++i)

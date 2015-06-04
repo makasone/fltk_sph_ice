@@ -186,6 +186,7 @@ public:
 	void ReleaseMemory();
 	void Copy(const Ice_SM& copy);
 
+	//アクセッサ---------------------------------------------------------
 	static void Ice_SM::InitGPU(const vector<Ice_SM*>& sm, float* d_pos, float* d_vel, int prtNum, int maxprtNum);
 
 	static void SetPrtPointerPosAndVel(const float* pos, const float* vel){	s_pfPrtPos = pos;	s_pfPrtVel = vel;	}
@@ -206,6 +207,7 @@ public:
 
 	static int* GetDeviceIndexesPointer(){	return d_PIndxes;	}
 	static int* GetDeviceIndexSetPointer(){	return d_IndxSet;	}
+	//-------------------------------------------------------------------
 
 	void InitGPU_Instance();
 	static void InitFinalParamPointer(int vrtxNum);
@@ -315,7 +317,6 @@ public:
 	int GetLinerFlags(int indx){	return m_iLinearDeformation[indx]; }
 	int GetVolumeFlags(int indx){	return m_iVolumeConservation[indx]; }
 
-	bool CheckHole(int oIndx) const;
 	bool CheckIndx(int pIndx) const;
 	int	 SearchIndx(int pIndx) const;
 

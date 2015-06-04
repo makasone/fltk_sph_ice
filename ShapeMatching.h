@@ -11,7 +11,6 @@
 #ifndef _RX_SHAPE_MATCHING_H_
 #define _RX_SHAPE_MATCHING_H_
 
-
 //-----------------------------------------------------------------------------
 // インクルードファイル
 //-----------------------------------------------------------------------------
@@ -176,12 +175,14 @@ public:
 	int GetNumVertices() const { return m_iNumVertices; }
 	unsigned GetIndxNum() const {	return m_iIndxNum;	}
 	
-	const Vec3& GetVertexPos(int i) const { return Vec3(m_pCurPos[i*SM_DIM+0], m_pCurPos[i*SM_DIM+1], m_pCurPos[i*SM_DIM+2]); }
+	const Vec3 GetVertexPos(int i) const { return Vec3(m_pCurPos[i*SM_DIM+0], m_pCurPos[i*SM_DIM+1], m_pCurPos[i*SM_DIM+2]); }
 	const Vec3 GetNewPos(int i) const { return Vec3(m_pNewPos[i*SM_DIM+0], m_pNewPos[i*SM_DIM+1], m_pNewPos[i*SM_DIM+2]); }
 	const Vec3 GetOrgPos(int i) const { return Vec3(m_pOrgPos[i*SM_DIM+0], m_pOrgPos[i*SM_DIM+1], m_pOrgPos[i*SM_DIM+2]); }
 	const Vec3 GetGoalPos(int i) const { return Vec3(m_pGoalPos[i*SM_DIM+0], m_pGoalPos[i*SM_DIM+1], m_pGoalPos[i*SM_DIM+2]); }
-	const Vec3& GetVertexVel(int i) const { return Vec3(m_pVel[i*SM_DIM+0], m_pVel[i*SM_DIM+1], m_pVel[i*SM_DIM+2]); }
+	const Vec3 GetVertexVel(int i) const { return Vec3(m_pVel[i*SM_DIM+0], m_pVel[i*SM_DIM+1], m_pVel[i*SM_DIM+2]); }
 	double GetMass(int i) const { return m_pMass[i]; }
+
+	bool CheckHole(int oIndx) const { return (m_iPIndxes[oIndx] == MAXINT); }
 
 	void SetParticleIndx(int oIndx, int pIndx){	m_iPIndxes[oIndx] = pIndx;	}
 	int GetParticleIndx(int indx) const { return m_iPIndxes[indx]; }

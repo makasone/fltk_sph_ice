@@ -64,6 +64,9 @@
     <Filter Include="IceObject\CalcStiffnessData">
       <UniqueIdentifier>{895eab8e-2076-4004-8f8d-c1797b790863}</UniqueIdentifier>
     </Filter>
+    <Filter Include="IceObject\SM Files\OP_SM">
+      <UniqueIdentifier>{88346a04-bbdd-4a5a-ab19-c7b4b3184d2a}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="rx_sph_solid.cpp">
@@ -200,6 +203,12 @@
     </ClCompile>
     <ClCompile Include="Ice_CalcStiffData_Average.cpp">
       <Filter>IceObject\CalcStiffnessData</Filter>
+    </ClCompile>
+    <ClCompile Include="Ice_OrientedParticle.cpp">
+      <Filter>IceObject\SM Files\OP_SM</Filter>
+    </ClCompile>
+    <ClCompile Include="OrientedParticle.cpp">
+      <Filter>IceObject\SM Files\OP_SM</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -389,6 +398,15 @@
     <ClInclude Include="Ice_CalcStiffData_Average.h">
       <Filter>IceObject\CalcStiffnessData</Filter>
     </ClInclude>
+    <ClInclude Include="EigenLapper.h">
+      <Filter>IceObject\SM Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Ice_OrientedParticle.h">
+      <Filter>IceObject\SM Files\OP_SM</Filter>
+    </ClInclude>
+    <ClInclude Include="OrientedParticle.h">
+      <Filter>IceObject\SM Files\OP_SM</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="bin\sph_scene_1.cfg">
@@ -436,11 +454,9 @@
     <None Include="rx_mc_kernel.cu">
       <Filter>CUDA %28Surface%29</Filter>
     </None>
-    <None Include="ClassDiagram1.cd" />
     <None Include="Path_SM.cuh">
       <Filter>IceObject\SM Files</Filter>
     </None>
-    <None Include="ClassDiagram2.cd" />
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="rx_sph.cu">

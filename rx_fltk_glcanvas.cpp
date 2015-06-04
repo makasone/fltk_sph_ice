@@ -779,6 +779,7 @@ void rxFlGLWindow::ClearPick(void)
 			}
 
 			m_iceObj->GetMoveObj(cIndx)->UnFixVertex(oIndx);	//粒子を非選択に
+			m_iceObj->GetOrientedObj(cIndx)->UnFixVertex(oIndx);
 		}
 
 		m_iPickedParticle = -1;
@@ -854,7 +855,7 @@ void rxFlGLWindow::Motion(int x, int y)
 
 			Vec3 dir = Unit(ray_to-ray_from);	// 視点からマウス位置へのベクトル
 			Vec3 new_pos = ray_from+dir*g_fPickDist;
-			//int v = g_vSelectedVertices[0];
+			int v = g_vSelectedVertices[0];
 
 			//粒子が属するクラスタの数値を更新
 			for( int i = 0; i < m_iceObj->GetPtoCIndx(m_iPickedParticle); i++ )
@@ -865,6 +866,10 @@ void rxFlGLWindow::Motion(int x, int y)
 	
 				m_iceObj->GetMoveObj(cIndx)->FixVertex(oIndx, new_pos);
 				m_iceObj->GetMoveObj(cIndx)->SetCurrentPos(oIndx, new_pos);
+
+				//楕円体の実験のために追加
+				m_iceObj->GetOrientedObj(cIndx)->FixVertex(oIndx, new_pos);
+				m_iceObj->GetOrientedObj(cIndx)->SetCurrentPos(oIndx, new_pos);
 			}
 
 			//粒子の移動
@@ -2656,8 +2661,9 @@ void rxFlGLWindow::InitIceObj(void)
 
 	//近傍粒子
 	float radius = ((RXSPH*)m_pPS)->GetEffectiveRadius();
-	((RXSPH*)m_pPS)->SetEffectiveRadius(radius * 1.0f);
+	((RXSPH*)m_pPS)->SetEffectiveRadius(radius * 1.2f);
 	StepPS(m_fDt*0.0);														//一度タイムステップを勧めないと，近傍粒子が取得されないみたい
+	((RXSPH*)m_pPS)->searchNeighbors();
 	vector<vector<rxNeigh>>& neights = ((RXSPH*)m_pPS)->GetNeights();
 	((RXSPH*)m_pPS)->SetEffectiveRadius(radius);
 
@@ -2996,10 +3002,23 @@ void rxFlGLWindow::StepHeatTransfer()
 	//RXREAL *d  = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_DENSITY);		//各粒子の密度
 	//RXREAL *p  = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);		//各粒子の位置
 
+	//((RXSPH*)m_pPS)->searchNeighbors();
 	//((RXSPH*)m_pPS)->DetectSurfaceParticles();								//表面粒子検出
 
 	//int* surfaceParticles = (int *)( ((RXSPH*)m_pPS)->GetArraySurf() );		//表面粒子
 	//vector<vector<rxNeigh>>& neights = ((RXSPH*)m_pPS)->GetNeights();
+
+	////ofstream ofs( "result/data/neightsDistance.txt");
+	////ofs << "distance" << endl;
+	////for(int i = 0; i < m_iIcePrtNum; i++){
+	////	ofs << i << ":";
+	////	for(int j = 0; j < neights[i].size(); j++){
+	////		rxNeigh n = neights[i][j];
+	////		int indx = n.Idx;
+	////		double distance = n.Dist;
+	////		ofs << " " << indx << ":" << distance << endl;
+	////	}
+	////}
 
 	//float floor = -m_Scene.GetSphEnv().boundary_ext[2];
 	//float radius = ((RXSPH*)m_pPS)->GetEffectiveRadius();
@@ -3064,13 +3083,84 @@ void rxFlGLWindow::StepHeatTransfer()
 	//m_iceObj->StepHeatTransfer(surfaceParticles, neights, nhs, floor, radius, p, d);
 
 //GPU
-	//近傍粒子探索
-	((RXSPH*)m_pPS)->DetectSurfaceParticlesGPU();							//表面粒子検出
+	((RXSPH*)m_pPS)->DetectNeighborParticlesGPU();			//近傍粒子探索
+	((RXSPH*)m_pPS)->DetectSurfaceParticlesGPU();			//表面粒子検出
 
+	int* neight = ((RXSPH*)m_pPS)->GetNeightsGPU();
 	int* surfPrt = ((RXSPH*)m_pPS)->GetArraySurfGPU();
-	m_iceObj->StepHeatTransferGPU(surfPrt);
-}
+	float* densty = ((RXSPH*)m_pPS)->GetDenstyGPU();
+	float radius = ((RXSPH*)m_pPS)->GetEffectiveRadius();
 
+	//オブジェクトの近傍粒子
+	RXREAL *p  = m_pPS->GetArrayVBO(rxParticleSystemBase::RX_POSITION);		//各粒子の位置
+	((RXSPH*)m_pPS)->copyCellInfo();
+
+	int* nhs = new int[1000];
+	int nhsIndx = 1;
+	for(int i = 0; i < 1000; i++){	nhs[i] = -1;	}
+	nhs[0] = 0;
+
+	RXREAL h = radius * 3.0f;	//TODO: パラメータ化
+	Vec3 pos = m_pPS->GetSphereObstaclePos();
+
+	Vec3 min = ((RXSPH*)m_pPS)->GetMin();
+	rxSimParams param = ((RXSPH*)m_pPS)->GetParams();
+
+	uint* cellStart = ((RXSPH*)m_pPS)->GetCellStartInfo();
+	uint* cellEnd = ((RXSPH*)m_pPS)->GetCellEndInfo();
+	uint* sortedIndx = ((RXSPH*)m_pPS)->GetSortedIndx();
+
+	// 分割セルインデックスの算出
+	int x = (pos[0]-min[0])/param.CellWidth.x;
+	int y = (pos[1]-min[1])/param.CellWidth.y;
+	int z = (pos[2]-min[2])/param.CellWidth.z;
+
+	int numArdGrid = (int)(h/param.CellWidth.x+1);
+	for(int k = -numArdGrid; k <= numArdGrid; ++k){
+		for(int j = -numArdGrid; j <= numArdGrid; ++j){
+			for(int i = -numArdGrid; i <= numArdGrid; ++i){
+				int i1 = x+i;
+				int j1 = y+j;
+				int k1 = z+k;
+				if(i1 < 0 || (unsigned)i1 >= param.GridSize.x || j1 < 0 || (unsigned)j1 >= param.GridSize.y || k1 < 0 || (unsigned)k1 >= param.GridSize.z){
+					continue;
+				}
+
+				RXREAL h2 = h*h;
+
+				uint grid_hash = k1*param.GridSize.y*param.GridSize.x+j1*param.GridSize.x+i1;
+
+				uint start_index = cellStart[grid_hash];
+				if(start_index != 0xffffffff){	// セルが空でないかのチェック
+					uint end_index = cellEnd[grid_hash];
+					for(uint j = start_index; j < end_index; ++j){
+						uint idx = sortedIndx[j];
+
+						Vec3 xij;
+						xij[0] = pos[0]-p[DIM*idx+0];
+						xij[1] = pos[1]-p[DIM*idx+1];
+						xij[2] = pos[2]-p[DIM*idx+2];
+
+						float dist = norm2(xij);
+
+						if(dist <= h2){
+							if(nhsIndx >= 1000){ break; }
+							nhs[nhsIndx++] = idx;
+						}
+					}
+				}
+
+
+			}
+		}
+	}
+	
+	nhs[0] = nhsIndx-1;	//近傍粒子数
+
+	m_iceObj->StepHeatTransferGPU(surfPrt, neight, densty, nhs, radius);
+
+	delete[] nhs;
+}
 
 //相変化処理
 void rxFlGLWindow::StepIceStructure()
@@ -3805,7 +3895,8 @@ void rxFlGLWindow::StepParticleColor()
 	if( m_iColorType == rxParticleSystemBase::RX_TEMP )
 	{
 		//真っ黒では見えにくかったので，ちょっと青いのがデフォルトとした．
-		//CPU
+
+		////CPU
 		//float* tempColor = new float[m_pPS->GetNumParticles()];
 		//for( int i = 0; i < m_pPS->GetNumParticles(); i++ ){
 		//	tempColor[i] = m_iceObj->GetTemps()[i] + 100.0f;
@@ -3828,27 +3919,48 @@ void rxFlGLWindow::StepParticleColor()
 	//表面粒子
 	else if(m_iColorType == rxParticleSystemBase::RX_SURFACE)
 	{
-		((RXSPH*)m_pPS)->DetectSurfaceParticles();								//表面粒子検出
+		////CPU
+		//((RXSPH*)m_pPS)->DetectSurfaceParticles();								//表面粒子検出
 
-		int* surfaceParticles = (int *)( ((RXSPH*)m_pPS)->GetArraySurf() );		//表面粒子
-		vector<vector<rxNeigh>>& neights = ((RXSPH*)m_pPS)->GetNeights();
+		//int* surfaceParticles = (int *)( ((RXSPH*)m_pPS)->GetArraySurf() );		//表面粒子
+		//vector<vector<rxNeigh>>& neights = ((RXSPH*)m_pPS)->GetNeights();
+
+		//float* tempColor = new float[m_pPS->GetNumParticles()];
+
+		//for( int i = 0; i < m_pPS->GetNumParticles(); i++ ){
+		//	if(surfaceParticles[i] == 1){
+		//		tempColor[i] = /*(float)neights[i].size()*/ 90.0f;
+		//	}
+		//	else{
+		//		tempColor[i] = 0.0f;
+		//	}
+		//}
+
+		//m_pPS->SetColorVBOFromArray( tempColor, 1, false, 100.0f );
+		//delete[] tempColor;
+
+		//GPU
+		//((RXSPH*)m_pPS)->DetectSurfaceParticlesGPU();		//表面粒子検出
+		int* dSurfPrt = ((RXSPH*)m_pPS)->GetArraySurfGPU();
+		int* hSurfPrt = new int[m_pPS->GetNumParticles()];
+		
+		cudaMemcpy(hSurfPrt, dSurfPrt, sizeof(int) * m_pPS->GetNumParticles(), cudaMemcpyDeviceToHost);
 
 		float* tempColor = new float[m_pPS->GetNumParticles()];
 
-		for( int i = 0; i < m_pPS->GetNumParticles(); i++ )
-		{
-			if(surfaceParticles[i] == 1)
-			{
-				tempColor[i] = /*(float)neights[i].size()*/ 90.0f;
+		for(int i = 0; i < m_pPS->GetNumParticles(); i++){
+			if(hSurfPrt[i] == 1){
+				tempColor[i] = 90.0f;
 			}
-			else
-			{
+			else{
 				tempColor[i] = 0.0f;
 			}
 		}
 
-		m_pPS->SetColorVBOFromArray( tempColor, 1, false, 100.0f );
+		m_pPS->SetColorVBOFromArray(tempColor, 1, false, 100.0f);
+
 		delete[] tempColor;
+		delete[] hSurfPrt;
 	}
 	//四面体情報
 	//TODO::いずれGUIから入力して操作できるようにする
@@ -4655,7 +4767,7 @@ void rxFlGLWindow::RenderSphScene(void)
 			}
 		}
 	}
-	
+
 	// 
 	// パーティクル
 	// 

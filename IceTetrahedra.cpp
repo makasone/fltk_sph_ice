@@ -14,8 +14,8 @@ void IceTetrahedra::InitTetra(float* pos, int vertexNum)
 
 	//Load_ELE_File(ELE_FILE);					//うまくいかない　eleファイルを読み込みリスト作成
 	//Load_obj_File(OBJ_NAME, pos);				//objファイルを読み込みリスト作成
+	
 	Load_NODE_File(NODE_FILE, pos);			//バニーモデルを用いる場合に使う
-
 	//MakeTetrahedraFromCube(pos, vertexNum);
 }
 
@@ -651,9 +651,9 @@ void IceTetrahedra::Load_NODE_File(const string name, float* p)
 			if(int(da) > 6525)	break;
 			int pIndx = (int(da)-1)*4;	//ファイルによっては-1することもある
 			
-			double radius = 0.75f;
+			double radius = 0.875f;
 			p[pIndx+0] = db * radius;
-			p[pIndx+1] = dc * radius - 0.25;	//TODO:ここで初期位置を調整しないといけない…
+			p[pIndx+1] = dc * radius - 0.6;	//TODO:最悪なことに，ここで初期位置を調整しないといけない…
 			p[pIndx+2] = dd * radius;
 		}
 	}

@@ -2,10 +2,6 @@
 // インクルードファイル
 //-----------------------------------------------------------------------------
 #include "HeatTransfar.h"
-#include <stdio.h>
-#include <iostream>
-
-using namespace std;
 
 #define RX_PI          (double)(3.1415926535897932384626433832795)
 
@@ -14,6 +10,7 @@ float* HeatTransfar::sd_Temps;
 float* HeatTransfar::sd_DTemps;
 int* HeatTransfar::sd_Phase;
 int* HeatTransfar::sd_PhaseChangeFlag;
+int* HeatTransfar::sd_MeltPrtIndx;
 
 HeatTransfar::HeatTransfar(int num)
 {	
@@ -66,6 +63,7 @@ void HeatTransfar::InitGPU()
 	cudaMalloc((void**)&sd_Phase,			sizeof(int) * mNumVertices);
 	cudaMalloc((void**)&sd_PhaseChangeFlag, sizeof(int) * mNumVertices);
 
+
 	float* heats = new float[mNumVertices];
 	float* temps = new float[mNumVertices];
 	float* dtemps = new float[mNumVertices];
@@ -99,6 +97,16 @@ void HeatTransfar::InitGPU()
 	delete[] dtemps;
 	delete[] phase;
 	delete[] phaseChangeFlag;
+
+	cudaMalloc((void**)&sd_MeltPrtIndx,		sizeof(int) * 1000);	//1000は適当
+
+	int* meltPrtIndx = new int[1000];
+	for(int i = 0; i < 1000; i++){
+		meltPrtIndx[i] = -1;
+	}
+
+	cudaMemcpy(sd_MeltPrtIndx, meltPrtIndx, sizeof(int) * 1000, cudaMemcpyHostToDevice);
+	delete[] meltPrtIndx;
 }
 
 //TODO: コンストラクタの中身をこっちに移す
@@ -107,14 +115,16 @@ void HeatTransfar::initState()
 
 }
 
+//相変化の情報をデバイスからホストへコピー
+void HeatTransfar::CopyPhaseChangeData()
+{
+	cudaMemcpy(mPhase, sd_Phase, sizeof(int) * mNumVertices, cudaMemcpyDeviceToHost);
+	cudaMemcpy(mPhaseChange, sd_PhaseChangeFlag, sizeof(int) * mNumVertices, cudaMemcpyDeviceToHost);
+}
+
 void HeatTransfar::MeltParticle(int pIndx)
 {
 	//顕熱変化終了
-	setTemps(pIndx, 1000);
-	setHeats(pIndx, 1000);
-	calcTempAndHeat(pIndx);						//熱量の温度変換，温度の熱量変換
-
-	//潜熱変化終了
 	setTemps(pIndx, 1000);
 	setHeats(pIndx, 1000);
 	calcTempAndHeat(pIndx);						//熱量の温度変換，温度の熱量変換
@@ -291,8 +301,6 @@ void HeatTransfar::calcTempAndHeat(int i)
 		float spcfHt = 2.1f + (2.1f * mHeats[i] / mLatentHeat);	//比熱　含有熱量で水と氷の比熱を補間
 		mHeats[i]	+= mTempsDelta[i] * spcfHt * 1.0f;			//温度変化を熱量に換算　質量は１で固定
 
-//		cout << "mHeats[" << i << "] = " << mHeats[i] << "mPhase[i] = " << mPhase[i] << endl;1
-
 		//潜熱変化から顕熱変化へ戻る判定
 		if( mPhase[i] == -1 && mHeats[i] < -mLatentHeat/300.0f )//改善　<0　にすると，溶けなくなる
 		{
@@ -300,7 +308,6 @@ void HeatTransfar::calcTempAndHeat(int i)
 			mPhase[i] = -2;										//氷への相変化
 			mTemps[i] = 249.0f;
 			mHeats[i] = 0;										//熱（ポテンシャルエネルギー）を放出
-//			cout << "こおりへ戻った  i= " << i << endl;
 		}
 		else if( mPhase[i] == 1 && mHeats[i] > mLatentHeat )
 		{
@@ -308,7 +315,6 @@ void HeatTransfar::calcTempAndHeat(int i)
 			mPhase[i] = 2;										//水への相変化
 			mTemps[i] = 251.0f;
 			mHeats[i] = 0;										//熱（ポテンシャルエネルギー）を吸収
-//			cout << "みずへ戻った i = " << i << endl;
 		}
 
 		//相変化判定
@@ -318,7 +324,6 @@ void HeatTransfar::calcTempAndHeat(int i)
 			mTemps[i] = 251.0f;
 			mHeats[i] = 0;										//熱（ポテンシャルエネルギー）を吸収
 			mPhaseChange[i] = 1;
-//			cout << "みずへ i = " << i << endl;
 		}
 		else if( mPhase[i] == 1 && mHeats[i] < 0.0f )			//含有熱量が凝固潜熱を使い切る
 		{
@@ -326,7 +331,6 @@ void HeatTransfar::calcTempAndHeat(int i)
 			mTemps[i] = 249.0f;
 			mHeats[i] = 0;										//熱（ポテンシャルエネルギー）を放出
 			mPhaseChange[i] = 1;
-//			cout << "こおりへ  i= " << i << endl;
 		}
 	}
 	else
@@ -347,8 +351,7 @@ void HeatTransfar::calcTempAndHeat(int i)
 //温度と熱量の処理　顕熱・潜熱の計算，相変化判定
 void HeatTransfar::calcTempAndHeat()
 {
-	for( int i = 0; i < mNumVertices; i++)
-	{
+	for( int i = 0; i < mNumVertices; i++){
 		//中間状態への変化検出
 		if( mPhase[i] == -2 && mTemps[i] > 250.0f )					//氷の場合
 		{
@@ -371,8 +374,6 @@ void HeatTransfar::calcTempAndHeat()
 			float spcfHt = 2.1f + (2.1f * mHeats[i] / mLatentHeat);	//比熱　含有熱量で水と氷の比熱を補間
 			mHeats[i]	+= mTempsDelta[i] * spcfHt * 1.0f;			//温度変化を熱量に換算　質量は１で固定
 
-//			cout << "mHeats[" << i << "] = " << mHeats[i] << "mPhase[i] = " << mPhase[i] << endl;1
-
 			//潜熱変化から顕熱変化へ戻る判定
 			if( mPhase[i] == -1 && mHeats[i] < -mLatentHeat/300.0f )//改善　<0　にすると，溶けなくなる
 			{
@@ -380,7 +381,6 @@ void HeatTransfar::calcTempAndHeat()
 				mPhase[i] = -2;										//氷への相変化
 				mTemps[i] = 249.0f;
 				mHeats[i] = 0;										//熱（ポテンシャルエネルギー）を放出
-//				cout << "こおりへ戻った  i= " << i << endl;
 			}
 			else if( mPhase[i] == 1 && mHeats[i] > mLatentHeat )
 			{
@@ -388,7 +388,6 @@ void HeatTransfar::calcTempAndHeat()
 				mPhase[i] = 2;										//水への相変化
 				mTemps[i] = 251.0f;
 				mHeats[i] = 0;										//熱（ポテンシャルエネルギー）を吸収
-//				cout << "みずへ戻った i = " << i << endl;
 			}
 
 			//相変化判定
@@ -398,7 +397,6 @@ void HeatTransfar::calcTempAndHeat()
 				mTemps[i] = 251.0f;
 				mHeats[i] = 0;										//熱（ポテンシャルエネルギー）を吸収
 				mPhaseChange[i] = 1;
-//				cout << "みずへ i = " << i << endl;
 			}
 			else if( mPhase[i] == 1 && mHeats[i] < 0.0f )			//含有熱量が凝固潜熱を使い切る
 			{
@@ -406,15 +404,13 @@ void HeatTransfar::calcTempAndHeat()
 				mTemps[i] = 249.0f;
 				mHeats[i] = 0;										//熱（ポテンシャルエネルギー）を放出
 				mPhaseChange[i] = 1;
-//				cout << "こおりへ  i= " << i << endl;
 			}
 		}
-		else
-		{	
+		else{	
 			//顕熱計算
 			//変化熱量の適用
 			float spcfHt = (mTemps[i] > 250.0f)? 4.2f : 2.1f;		//比熱　水と氷で比熱を変動　水4.2　氷2.1
-			mTemps[i] =	mTemps[i] + mHeats[i] / (spcfHt * 1.0f);	//熱量を温度に換算　質量は固定している
+			mTemps[i] += mHeats[i] / (spcfHt * 1.0f);	//熱量を温度に換算　質量は固定している
 			mHeats[i] = 0.0f;										//初期化　フレームごとに熱量（顕熱）は蓄積されない
 
 			//変化温度を適用
@@ -459,24 +455,26 @@ void HeatTransfar::heatObjAndParticle(const std::vector<int>& neight)
 //粒子同士の熱処理
 void HeatTransfar::heatParticleAndParticle(const float* d, double h)	//d:密度配列　h:影響半径
 {
-	double tmp = 0.0;
-
-	for( unsigned i = 0; i < mNeighborhoodsId.size(); i++)
-	{
-		tmp = 0.0;
+	for( unsigned i = 0; i < mNeighborhoodsId.size(); i++){
+		double tmp = 0.0;
 
 		//近傍粒子の数だけまわす
-		for( unsigned j = 0; j < mNeighborhoodsId[i].size(); j++)
-		{
+		for( unsigned j = 0; j < mNeighborhoodsId[i].size(); j++){
 			int id = mNeighborhoodsId[i][j];
 			double dis = mNeighborhoodsDis[i][j];
 			if( i == id )	continue;							//近傍粒子に自分が含まれることがあるため
 			float densty = d[id];
-			if( densty < 0.05f ) densty = 0.05f;				//密度が小さすぎるor０の場合があるので調整
-			tmp += timeStep * 1.0 * (mTemps[id] - mTemps[i]) / densty * KernelSpline(dis, h);	//論文を参考に　とりあえず質量１で一定
+			if( densty < 0.1f ) densty = 0.1f;				//密度が小さすぎるor０の場合があるので調整
+			double dtmp = timeStep * 1.0 * (mTemps[id] - mTemps[i]) / densty * KernelSpline(dis, h);	//論文を参考に　とりあえず質量１で一定
+			tmp += dtmp;
 		}
 
 		mTempsDelta[i] = tmp * mTD;		//熱拡散係数
 	}
 
+	//ofstream ofs("result/data/tempsdelta.txt");
+	//ofs << "temps" << endl;
+	//for(int i = 0; i < mNumVertices; i++){
+	//	ofs << i << ":" << mTempsDelta[i] << endl;;
+	//}
 }
