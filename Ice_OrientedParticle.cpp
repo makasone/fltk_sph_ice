@@ -8,12 +8,6 @@
   @author Ryo Nakasone
   @date 2015-4
 */
-
-//TODO: なぜかここに置かないとエラーが出る
-#include <Eigen\Dense>
-#include <Eigen\Geometry>
-using namespace Eigen;
-
 #include "Ice_OrientedParticle.h"
 
 typedef OrientedParticleBaseElasticObject OrientedPrtObj;
@@ -24,36 +18,6 @@ const float* OrientedPrtObj::s_pfPrtVel = 0;
 float* OrientedPrtObj::s_pfClstrPos = 0;
 float* OrientedPrtObj::s_pfClstrVel = 0;
 
-vector<OrientedPrtObj::mk_Quaternion> OrientedPrtObj::s_vQuatOrgOrientation;
-vector<OrientedPrtObj::mk_Quaternion> OrientedPrtObj::s_vQuatCurOrientation;
-vector<OrientedPrtObj::mk_Quaternion> OrientedPrtObj::s_vQuatPrdOrientation;
-vector<Vec3> OrientedPrtObj::s_vvec3AngularVel;
-vector<rxMatrix3> OrientedPrtObj::s_vmtrx3PrtAe;		
-vector<rxMatrix3> OrientedPrtObj::s_vmtrx3PrtMomentMtrx;
-vector<Vec3> OrientedPrtObj::s_vvec3X0;
-vector<Vec3> OrientedPrtObj::s_vvec3Xp;	
-vector<Vec3> OrientedPrtObj::s_vvec3Force;
-vector<rxMatrix3> OrientedPrtObj::s_vmtrx3Rotation;
-
-//-------------------------------------------------------------------------------------------------------------------
-//うまくEigenをインクルードできなかったために作った変換関数
-Quaternionf ConvertQuaternion(OrientedPrtObj::mk_Quaternion mk_q)
-{
-	return Quaternionf(mk_q.w, mk_q.x, mk_q.y, mk_q.z);
-}
-
-//なぜか，参照で渡さないと "error C2719: 'q': __declspec(align('16')) の仮引数は配置されません。" というエラーが出る
-OrientedPrtObj::mk_Quaternion ConvertQuaternion(const Quaternionf& q)
-{
-	return OrientedPrtObj::mk_Quaternion(q.x(), q.y(), q.z(), q.w());
-}
-//--------------------------------------------------------------------------------------------------------------------
-
-//OrientedParticleBaseElasticObject::OrientedPrtObj() : rxShapeMatching()
-//{
-//
-//}
-
 /*!
  * コンストラクタ
  */
@@ -62,10 +26,6 @@ OrientedParticleBaseElasticObject::OrientedParticleBaseElasticObject(int obj) : 
 	m_mtrx3Apq = rxMatrix3(0.0);
 
 	m_fDefAmount = 0.0f;
-
-	m_vec3AngularVel = Vec3(0.0f);
-
-	m_vec3ElipsoidRadius = Vec3(1.0f);
 
 	//AllocateMemory(prtNum);
 }
@@ -135,25 +95,18 @@ void OrientedPrtObj::AllocateStaticMemory(const float* prtPos, const float* prtV
 			s_pfClstrPos[cIndx+j] = s_pfPrtPos[pIndx+j];
 			s_pfClstrVel[cIndx+j] = s_pfPrtVel[pIndx+j];
 		}
-
-		//角速度
-		s_vvec3AngularVel.push_back(Vec3(0.0));
-	
-		//姿勢
-		s_vQuatCurOrientation.push_back(ConvertQuaternion(Quaternionf::Identity()));
-		s_vQuatOrgOrientation.push_back(ConvertQuaternion(Quaternionf::Identity()));
-		s_vQuatPrdOrientation.push_back(ConvertQuaternion(Quaternionf::Identity()));
-		
-		//行列
-		s_vmtrx3PrtAe.push_back(rxMatrix3::Identity());
-		s_vmtrx3PrtMomentMtrx.push_back(rxMatrix3::Identity());
-		s_vmtrx3Rotation.push_back(rxMatrix3::Identity());
-
-		//
-		s_vvec3Force.push_back(Vec3(0.0f));
-		s_vvec3X0.push_back(Vec3(s_pfClstrPos[cIndx+0], s_pfClstrPos[cIndx+1], s_pfClstrPos[cIndx+2]));
-		s_vvec3Xp.push_back(Vec3(s_pfClstrPos[cIndx+0], s_pfClstrPos[cIndx+1], s_pfClstrPos[cIndx+2]));
 	}
+}
+
+void OrientedPrtObj::AddParticle(OrientedParticle* orientedPrt)
+{
+	Vec3 pos = orientedPrt->OrgPos();
+	double mass = orientedPrt->Mass();
+	int id = orientedPrt->Id();
+
+	m_vOrientedPrtes.push_back(orientedPrt);
+
+	AddParticle(pos, mass, id);
 }
 
 void OrientedPrtObj::AddParticle(const Vec3 &pos, double mass, int pIndx)
@@ -177,177 +130,6 @@ void OrientedPrtObj::ClearParticle()
 	int indx = m_iIndxNum;
 
 	rxShapeMatching::Clear();
-}
-
-//パーティクル情報の更新
-void OrientedPrtObj::IntegrateParticle()
-{
-	CalcEstimatedPos();
-	CalcEstimatedOrientation();
-	CalcAe();
-	CalcMomentMatrix();
-}
-
-void OrientedPrtObj::IntegrateParticleItr()
-{
-	CalcEstimatedPosItr();
-	CalcEstimatedOrientation();
-	CalcAe();
-	CalcMomentMatrix();
-}
-
-void OrientedPrtObj::UpdateParticle()
-{
-	for(unsigned pIndx = 0; pIndx < s_vQuatOrgOrientation.size(); pIndx++){
-		//姿勢
-		rxMatrix3 rotateMtrx = s_vmtrx3Rotation[pIndx];
-		Matrix<float, 3, 3, RowMajor> tmp_r;
-		tmp_r <<	rotateMtrx(0, 0), rotateMtrx(0, 1), rotateMtrx(0, 2), 
-					rotateMtrx(1, 0), rotateMtrx(1, 1), rotateMtrx(1, 2), 
-					rotateMtrx(2, 0), rotateMtrx(2, 1), rotateMtrx(2, 2);
-
-		Quaternionf rotate(tmp_r);
-		s_vQuatPrdOrientation[pIndx] = ConvertQuaternion(rotate * ConvertQuaternion(s_vQuatOrgOrientation[pIndx]));
-
-		//速度算出，位置更新
-		float dt1 = 1.0f/0.01f;
-		for(int j = 0; j < SM_DIM; j++){
-			int cIndx = pIndx*SM_DIM+j;
-			s_pfClstrVel[cIndx] = (s_vvec3Xp[pIndx][j] - s_pfClstrPos[cIndx]) * dt1;
-			s_pfClstrPos[cIndx] = s_vvec3Xp[pIndx][j];
-		}
-
-		//角速度
-		Quaternionf qp = ConvertQuaternion(s_vQuatPrdOrientation[pIndx]);
-		Quaternionf q_inv = ConvertQuaternion(s_vQuatCurOrientation[pIndx]).inverse();
-
-		Quaternionf r = qp * q_inv;
-
-		if(r.w() < 0.0f){
-			r.x() = -r.x();
-			r.y() = -r.y();
-			r.z() = -r.z();
-			r.w() = -r.w();
-		}
-
-		//axis
-		Vec3 axis;
-		Vec3 vec(r.x(), r.y(), r.z());
-		float len = norm(vec);
-		if(len <= 0.0001f){
-			axis = Vec3(1.0f, 0.0f, 0.0f);
-		}
-		else{
-			axis = vec/len;
-		}
-
-		//angle
-		float angle;
-		Quaternionf normlized = r;
-		normlized.normalize();
-
-		float w = abs(normlized.w());
-		if(w < 1.0f){
-			angle = abs(acos(w) * 2.0f);
-		}
-		else{
-			angle = 0.0f;
-		}
-
-		//angular vel
-		if(angle < 0.0001f){
-			s_vvec3AngularVel[pIndx] = Vec3(0.0f);
-		}
-		else{
-			s_vvec3AngularVel[pIndx] = axis * angle * dt1;
-		}
-
-		Quaternionf qp_norm = ConvertQuaternion(s_vQuatPrdOrientation[pIndx]);
-		s_vQuatCurOrientation[pIndx] = ConvertQuaternion(qp_norm.normalized());
-	}
-}
-
-void OrientedPrtObj::UpdateParticleItr()
-{
-	for(unsigned pIndx = 0; pIndx < s_vQuatOrgOrientation.size(); pIndx++){
-		//速度算出，位置更新
-		float dt1 = 1.0f/0.01f;
-		for(int j = 0; j < SM_DIM; j++){
-			int cIndx = pIndx*SM_DIM+j;
-			s_pfClstrPos[cIndx] = s_vvec3Xp[pIndx][j];
-		}
-
-		//姿勢
-		rxMatrix3 rotateMtrx = s_vmtrx3Rotation[pIndx];
-		Matrix<float, 3, 3, RowMajor> tmp_r;
-		tmp_r <<	rotateMtrx(0, 0), rotateMtrx(0, 1), rotateMtrx(0, 2), 
-					rotateMtrx(1, 0), rotateMtrx(1, 1), rotateMtrx(1, 2), 
-					rotateMtrx(2, 0), rotateMtrx(2, 1), rotateMtrx(2, 2);
-
-		Quaternionf rotate(tmp_r);
-		s_vQuatPrdOrientation[pIndx] = ConvertQuaternion(rotate * ConvertQuaternion(s_vQuatOrgOrientation[pIndx]));
-
-		//角速度
-		Quaternionf qp = ConvertQuaternion(s_vQuatPrdOrientation[pIndx]);
-		Quaternionf q_inv = ConvertQuaternion(s_vQuatCurOrientation[pIndx]).inverse();
-
-		Quaternionf r = qp * q_inv;
-
-		if(r.w() < 0.0f){
-			r.x() = -r.x();
-			r.y() = -r.y();
-			r.z() = -r.z();
-			r.w() = -r.w();
-		}
-
-		//axis
-		Vec3 axis;
-		Vec3 vec(r.x(), r.y(), r.z());
-		float len = norm(vec);
-		if(len <= 0.0001f){
-			axis = Vec3(1.0f, 0.0f, 0.0f);
-		}
-		else{
-			axis = vec/len;
-		}
-
-		//angle
-		float angle;
-		Quaternionf normlized = r;
-		normlized.normalize();
-
-		float w = abs(normlized.w());
-		if(w < 1.0f){
-			angle = abs(acos(w) * 2.0f);
-		}
-		else{
-			angle = 0.0f;
-		}
-
-		//angular vel
-		if(angle < 0.0001f){
-			s_vvec3AngularVel[pIndx] = Vec3(0.0f);
-		}
-		else{
-			s_vvec3AngularVel[pIndx] = axis * angle * dt1;
-		}
-
-		//姿勢
-		Quaternionf qp_norm = ConvertQuaternion(s_vQuatPrdOrientation[pIndx]);
-		s_vQuatCurOrientation[pIndx] = ConvertQuaternion(qp_norm.normalized());
-	}
-}
-
-void OrientedPrtObj::UpdateParticleVel()
-{
-	for(unsigned pIndx = 0; pIndx < s_vQuatOrgOrientation.size(); pIndx++){
-		//速度算出，位置更新
-		float dt1 = 1.0f/0.01f;
-		for(int j = 0; j < SM_DIM; j++){
-			int cIndx = pIndx*SM_DIM+j;
-			s_pfClstrVel[cIndx] = (s_pfPrtPos[pIndx*4+j] - s_pfClstrPos[cIndx]) * dt1;
-		}
-	}
 }
 
 void OrientedPrtObj::UpdateCluster()
@@ -407,60 +189,6 @@ void OrientedPrtObj::CalcNowCm()
 	}
 
 	m_vec3NowCm /= massSum;
-}
-
-//楕円の回転を考慮したMomentMatrix
-//論文の式(9)
-void OrientedPrtObj::CalcAe()
-{
-	//各パーティクルの回転を計算
-	for(unsigned i = 0; i < s_vQuatOrgOrientation.size(); i++){
-		//case1
-		Quaternionf q0 = ConvertQuaternion(s_vQuatOrgOrientation[i]);
-		Quaternionf qp = ConvertQuaternion(s_vQuatPrdOrientation[i]);
-
-		Quaternionf r = qp * q0.inverse();
-
-		Matrix<float, 3, 3, RowMajor> tmp_r = r.matrix();
-		rxMatrix3 R(
-			tmp_r(0, 0), tmp_r(0, 1), tmp_r(0, 2), 
-			tmp_r(1, 0), tmp_r(1, 1), tmp_r(1, 2), 
-			tmp_r(2, 0), tmp_r(2, 1), tmp_r(2, 2)
-		);
-
-		float m = 1.0f * 0.2f;
-
-		rxMatrix3 tmp = rxMatrix3::Identity();
-		tmp(0, 0) = m * 1.0f;
-		tmp(1, 1) = m * 1.0f;
-		tmp(2, 2) = m * 1.0f;
-
-		rxMatrix3 Ae = tmp * R;
-		s_vmtrx3PrtAe[i] = Ae;
-	}
-}
-
-//頂点位置からのMomentMatrix
-void OrientedPrtObj::CalcMomentMatrix()
-{
-	for(unsigned i = 0; i < s_vmtrx3PrtMomentMtrx.size(); i++){
-		Vec3 orgPos = s_vvec3X0[i];
-		Vec3 curPos = s_vvec3Xp[i];
-
-		rxMatrix3 momentMtrx;
-
-		momentMtrx(0,0) = curPos[0] * orgPos[0];
-		momentMtrx(0,1)	= curPos[0] * orgPos[1];
-		momentMtrx(0,2)	= curPos[0] * orgPos[2];
-		momentMtrx(1,0)	= curPos[1] * orgPos[0];
-		momentMtrx(1,1)	= curPos[1] * orgPos[1];
-		momentMtrx(1,2)	= curPos[1] * orgPos[2];
-		momentMtrx(2,0)	= curPos[2] * orgPos[0];
-		momentMtrx(2,1)	= curPos[2] * orgPos[1];
-		momentMtrx(2,2)	= curPos[2] * orgPos[2];
-
-		s_vmtrx3PrtMomentMtrx[i] = momentMtrx;
-	}
 }
 
 //シェイプマッチングのテスト
@@ -645,9 +373,9 @@ void OrientedPrtObj::DampVelocity(float dt)
 }
 
 //マウスによるドラッグを反映させるために，無理やり値を更新
-void OrientedPrtObj::CopyPrtToClstrPos()
+void OrientedPrtObj::CopyPrtToClstrPos(unsigned prtNum)
 {
-	for(unsigned i = 0; i < s_vQuatPrdOrientation.size(); i++){
+	for(unsigned i = 0; i < prtNum; i++){
 		int pIndx = i * SM_DIM;
 
 		for(unsigned j = 0; j < SM_DIM; j++){
@@ -657,70 +385,15 @@ void OrientedPrtObj::CopyPrtToClstrPos()
 	}
 }
 
-//位置更新，推定
-void OrientedPrtObj::CalcEstimatedPos()
-{
-	Vec3 gravity(0.0f, -9.81f, 0.0f);
-
-	for(unsigned i = 0; i < s_vQuatPrdOrientation.size(); i++){
-		int pIndx = i * SM_DIM;
-
-		for(unsigned j = 0; j < SM_DIM; j++){
-			s_vvec3Xp[i][j] = s_pfClstrPos[pIndx+j] + (s_pfClstrVel[pIndx+j] + (gravity[j] * 0.01f)) * 0.01f;
-		}
-	}
-}
-
-//反復用の位置更新
-void OrientedPrtObj::CalcEstimatedPosItr()
-{
-	for(unsigned i = 0; i < s_vQuatPrdOrientation.size(); i++){
-		int pIndx = i * SM_DIM;
-
-		for(unsigned j = 0; j < SM_DIM; j++){
-			s_vvec3Xp[i][j] = s_pfClstrPos[pIndx+j];
-		}
-	}
-}
-
-//姿勢推定
-void OrientedPrtObj::CalcEstimatedOrientation()
-{
-	for(unsigned i = 0; i < s_vQuatPrdOrientation.size(); i++){
-		Vec3 angularVel = s_vvec3AngularVel[i];
-		float len = length(angularVel);
-		Quaternionf qCurrent = ConvertQuaternion(s_vQuatCurOrientation[i]);
-		Quaternionf qPredict = Quaternionf::Identity();
-		
-		if(len <= 0.0001f){
-			qPredict = qCurrent;
-		}
-		else{
-			Vec3 dir = angularVel / len;
-			float ang = len * 0.01f;
-			
-			//クォータニオン同士の掛け算で回転
-			float halfAng = ang * 0.5f;
-			Vec3 vec = sin(halfAng) * dir;
-			Quaternionf dq(cos(halfAng), vec[0], vec[1], vec[2]);
-			
-			qPredict = dq * qCurrent;
-		}
-
-		s_vQuatPrdOrientation[i] = ConvertQuaternion(qPredict);
-		//s_vQuatPrdOrientation[i] = ConvertQuaternion(qCurrent); //角速度を無視する場合
-	}
-}
-
 void OrientedPrtObj::CalcClusterMomentMatrix(rxMatrix3& Apq, rxMatrix3& Aqq)
 {
 	rxMatrix3 Asum = rxMatrix3(0.0f);
 	for(int i = 0; i < m_iIndxNum; ++i){
 		if( CheckHole(i) ){	continue;	}
 
-		int prtIndx = m_iPIndxes[i];
-		Asum += s_vmtrx3PrtAe[prtIndx];	//回転を考慮するとおかしくなる
-		Asum += s_vmtrx3PrtMomentMtrx[prtIndx];
+		OrientedParticle* prt = m_vOrientedPrtes[i];
+		Asum += prt->A_elipsoid();
+		Asum += prt->MomentMatrix();
 	}
 
 	rxMatrix3 MccT;
@@ -742,14 +415,16 @@ void OrientedPrtObj::CalcClusterMomentMatrix(rxMatrix3& Apq, rxMatrix3& Aqq)
 
 void OrientedPrtObj::ProjectConstraint(float dt)
 {
-	//最終位置・速度をクラスタの各粒子に反映　各クラスタの各粒子は統一される
+	//更新位置をクラスタの各粒子に反映　各クラスタの各粒子は統一される
 	for(int i = 0; i < m_iIndxNum; ++i){
 		if( CheckHole(i) ){	continue;	}
 
 		int pIndx = m_iPIndxes[i];
 		int cIndx = i * SM_DIM;
+		Vec3 prdPos = m_vOrientedPrtes[i]->PrdPos();
+
 		for(int j = 0; j < SM_DIM; j++){
-			m_pCurPos[cIndx+j] = s_vvec3Xp[pIndx][j];
+			m_pCurPos[cIndx+j] = prdPos[j];
 		}
 	}
 
@@ -762,23 +437,24 @@ void OrientedPrtObj::ProjectConstraint(float dt)
 
 		int pIndx = m_iPIndxes[i];
 		int cIndx = i*SM_DIM;
+		Vec3 prdPos = m_vOrientedPrtes[i]->PrdPos();
 
 		if(m_pCurPos[cIndx+0] < m_v3Min[0] || m_pCurPos[cIndx+0] > m_v3Max[0]){
-			m_pCurPos[cIndx+0] = s_vvec3Xp[pIndx][0] - (s_pfClstrVel[cIndx+0] + (m_v3Gravity[0] * dt))*dt*res;
-			m_pCurPos[cIndx+1] = s_vvec3Xp[pIndx][1];
-			m_pCurPos[cIndx+2] = s_vvec3Xp[pIndx][2];
+			m_pCurPos[cIndx+0] = prdPos[0] - (s_pfClstrVel[cIndx+0] + (m_v3Gravity[0] * dt))*dt*res;
+			m_pCurPos[cIndx+1] = prdPos[1];
+			m_pCurPos[cIndx+2] = prdPos[2];
 		}
 
 		if(m_pCurPos[cIndx+1] < m_v3Min[1] || m_pCurPos[cIndx+1] > m_v3Max[1]){
-			m_pCurPos[cIndx+1] = s_vvec3Xp[pIndx][1] - (s_pfClstrVel[cIndx+1] + (m_v3Gravity[1] * dt))*dt*res;
-			m_pCurPos[cIndx+0] = s_vvec3Xp[pIndx][0] ;
-			m_pCurPos[cIndx+2] = s_vvec3Xp[pIndx][2];
+			m_pCurPos[cIndx+1] = prdPos[1] - (s_pfClstrVel[cIndx+1] + (m_v3Gravity[1] * dt))*dt*res;
+			m_pCurPos[cIndx+0] = prdPos[0] ;
+			m_pCurPos[cIndx+2] = prdPos[2];
 		}
 
 		if(m_pCurPos[cIndx+2] < m_v3Min[2] || m_pCurPos[cIndx+2] > m_v3Max[2]){
-			m_pCurPos[cIndx+2] = s_vvec3Xp[pIndx][2] - (s_pfClstrVel[cIndx+2] + (m_v3Gravity[2] * dt))*dt*res;
-			m_pCurPos[cIndx+0] = s_vvec3Xp[pIndx][0];
-			m_pCurPos[cIndx+1] = s_vvec3Xp[pIndx][1];
+			m_pCurPos[cIndx+2] = prdPos[2] - (s_pfClstrVel[cIndx+2] + (m_v3Gravity[2] * dt))*dt*res;
+			m_pCurPos[cIndx+0] = prdPos[0];
+			m_pCurPos[cIndx+1] = prdPos[1];
 		}
 
 		clamp(m_pCurPos, cIndx);
@@ -820,7 +496,8 @@ void OrientedPrtObj::ProjectConstraint(float dt)
 		}
 	}
 
-	s_vmtrx3Rotation[m_iPIndxes[0]] = R;
+	//姿勢のために回転行列を保存
+	m_vOrientedPrtes[0]->Rotation(R);
 }
 
 void OrientedPrtObj::ApplyEstimatedPosition(float dt)

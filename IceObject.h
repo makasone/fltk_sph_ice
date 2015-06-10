@@ -9,6 +9,7 @@
 
 #include "Ice_SM.h"
 #include "Ice_OrientedParticle.h"
+#include "OrientedParticle.h"
 
 #include "IceStructure.h"
 #include "IceTetrahedra.h"
@@ -104,6 +105,7 @@ private:
 	//固体運動計算クラス
 	vector<Ice_SM*> m_iceSM;
 	vector<OrientedParticleBaseElasticObject*> m_orientedObj;
+	vector<OrientedParticle*> m_vOrientedPrtes;
 
 	//高速計算用クラス
 	Surf_SM* m_SurfSm;
@@ -297,8 +299,11 @@ public:
 
 	void TestSimulationFromFile(string fileName);
 
-	void TestOrientedParticle();
-
+	void TestOrientedParticleInit(Vec3 boundarySpaceLow, Vec3 boundarySpaceHigh, float timeStep, const vector<vector<rxNeigh>>& neights);
+	void TestOrientedParticleStep();
+	void TestOrientedParticleWeightStep();
+	void TestOrientedParticleItrStep();
+	void TestOrientedParticleItrWeightStep();
 
 
 	//--------------IceStructureと同じ動きをするために一時的に作った関数__----------------------------------
