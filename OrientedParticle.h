@@ -52,6 +52,8 @@ private:
 	Vec3 m_vec3OrgPos;									//èâä˙à íu
 	Vec3 m_vec3PrdPos;									//êÑíËà íu
 
+	Vec3 m_vec3Vel;										//ë¨ìx
+
 	Vec3 m_vec3Force;									//óÕ
 
 	float m_fMass;										//éøó 
@@ -70,6 +72,8 @@ public:
 
 	void Integrate();
 	void Integrate_Itr();
+	void Integrate_Sampling();
+	void Integrate_Sampling_Itr();
 
 	void Update();
 	void Update_Itr();
@@ -79,11 +83,13 @@ public:
 	int Id() const {		return m_iId;	}
 	float Mass() const {	return m_fMass;	}
 	Vec3 OrgPos() const {	return m_vec3OrgPos;	}
-	Vec3& PrdPos(){	return m_vec3PrdPos;	}
+	Vec3 PrdPos() const {	return m_vec3PrdPos;	}
+	void PrdPos(Vec3 pos){	m_vec3PrdPos = pos;		}
 
 	rxMatrix3 A_elipsoid() const {		return m_mtrx3PrtA_elipsoid;	}
 	rxMatrix3 MomentMatrix() const {	return m_mtrx3PrdMomentMtrx;	}
 
+	void ElipsoidRadius(Vec3 radius){	m_vec3ElipsoidRadius = radius;	}
 	void Rotation(rxMatrix3 rotation){	m_mtrx3Rotation = rotation;	}
 
 	void CurOrientation(mk_Quaternion orientation){	m_QuatCurOrientation = orientation;	}

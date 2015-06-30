@@ -12,11 +12,14 @@ IceTetrahedra &IceTetrahedra::GetInstance() {
 void IceTetrahedra::InitTetra(float* pos, int vertexNum)
 {	cout << __FUNCTION__ << endl;
 
-	//Load_ELE_File(ELE_FILE);					//うまくいかない　eleファイルを読み込みリスト作成
-	//Load_obj_File(OBJ_NAME, pos);				//objファイルを読み込みリスト作成
+	////Load_ELE_File(ELE_FILE);					//うまくいかない　eleファイルを読み込みリスト作成
+	////Load_obj_File(OBJ_NAME, pos);				//objファイルを読み込みリスト作成
 	
 	Load_NODE_File(NODE_FILE, pos);			//バニーモデルを用いる場合に使う
-	//MakeTetrahedraFromCube(pos, vertexNum);
+	//Load_NODE_File("obj/rope.node", pos);				//ロープ
+	//Load_NODE_File("obj/plane.node", pos);			//平面
+
+	//MakeTetrahedraFromCube(pos, vertexNum);	//立方体を用いて四面体を作成する場合に使う」
 }
 
 /*!
@@ -600,7 +603,6 @@ void IceTetrahedra::Load_ELE_File(const string name)
 }
 
 /*!
- * tetgenで得られたファイルを読み込み，初期状態を作成．四面体情報．
  * ファイルは src/fltk_sph_turb/bin　から読み込む．
  */
 void IceTetrahedra::Load_NODE_File(const string name, float* p)
@@ -652,6 +654,7 @@ void IceTetrahedra::Load_NODE_File(const string name, float* p)
 			int pIndx = (int(da)-1)*4;	//ファイルによっては-1することもある
 			
 			double radius = 0.875f;
+			//double radius = 1.0f;
 			p[pIndx+0] = db * radius;
 			p[pIndx+1] = dc * radius - 0.6;	//TODO:最悪なことに，ここで初期位置を調整しないといけない…
 			p[pIndx+2] = dd * radius;

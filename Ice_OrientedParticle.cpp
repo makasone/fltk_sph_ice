@@ -8,6 +8,13 @@
   @author Ryo Nakasone
   @date 2015-4
 */
+//数値計算ライブラリ
+//TODO: なぜかここに置かないとエラーが出る　他のヘッダをincludeする前に置かないといけないみたい？
+#include <Eigen\Core>
+#include <Eigen\Dense>
+#include <Eigen\Geometry>
+using namespace Eigen;
+
 #include "Ice_OrientedParticle.h"
 
 typedef OrientedParticleBaseElasticObject OrientedPrtObj;
@@ -17,6 +24,10 @@ const float* OrientedPrtObj::s_pfPrtVel = 0;
 
 float* OrientedPrtObj::s_pfClstrPos = 0;
 float* OrientedPrtObj::s_pfClstrVel = 0;
+
+const unsigned X = 0;
+const unsigned Y = 1;
+const unsigned Z = 2;
 
 /*!
  * コンストラクタ
@@ -132,6 +143,112 @@ void OrientedPrtObj::ClearParticle()
 	rxShapeMatching::Clear();
 }
 
+//主成分分析を行い，クラスタを構成する粒子配置から初期姿勢を決定
+void OrientedPrtObj::InitOrientation()
+{
+	CalcOrgCm();
+	Vector3f ave = Vector3f(m_vec3OrgCm[X], m_vec3OrgCm[Y], m_vec3OrgCm[Z]);
+	Matrix3f covarianceMtrx = Matrix3f::Zero();
+
+	for(int i = 0; i < m_iIndxNum; i++){
+		if(CheckHole(i)){	continue;	}
+
+		int pIndx = i * SM_DIM;
+		Vector3f pos = Vector3f(m_pOrgPos[pIndx+X], m_pOrgPos[pIndx+Y], m_pOrgPos[pIndx+Z]);
+		Vector3f tmp = pos - ave;
+
+		covarianceMtrx.row(0) += tmp(0) * tmp;
+		covarianceMtrx.row(1) += tmp(1) * tmp;
+		covarianceMtrx.row(2) += tmp(2) * tmp;
+	}
+
+	//EigenSolverだとコンパイルで内部エラーが出る
+	//EigenSolver<Matrix3f> es;
+	//es.compute(covarianceMtrx, true);
+
+	SelfAdjointEigenSolver<Matrix3f> es;
+	es.compute(covarianceMtrx);
+
+	//computeの結果はソートされていないので，固有値の大きい順にソート
+	//eigenのVectorはstlと相性が悪いみたい
+	//なぜかvector<pair>に入ったVector3dを出力しようとするとコンパイルが通らない
+	vector<pair<float, int>> eigenValVec;
+	eigenValVec.push_back(pair<float, int>(es.eigenvalues()[0], 0));
+	eigenValVec.push_back(pair<float, int>(es.eigenvalues()[1], 1));
+	eigenValVec.push_back(pair<float, int>(es.eigenvalues()[2], 2));
+
+	sort(eigenValVec.begin(), eigenValVec.end());
+
+	//固有値，固有ベクトルで楕円の大きさと姿勢を決定
+	//ソートした結果から，固有値の小さい順に固有ベクトルを取り出す
+	//楕円の各軸の径は固有値から求める
+
+	//本当はeigenのvector3dを使いたいが，OrientedParticleでは先生のVec3を使っているので仕方ない
+	//一応，(1.0, 1.0, 1.0)の時に少しでも合わせるために正規化して√3倍してみた
+	Vec3 radius = Vec3(0.0);
+	Vec3 norm_eigenVal = Vec3(eigenValVec[X].first, eigenValVec[Y].first, eigenValVec[Z].first);
+	radius = Unit(norm_eigenVal) * sqrt(3.0f);
+
+	m_vOrientedPrtes[0]->ElipsoidRadius(radius);
+
+	//最大固有値の方向が初期姿勢となる
+	int indx = eigenValVec[Z].second;
+	Vector3f orientedVec = es.eigenvectors().row(indx);
+
+	//１	複数のベクトルから姿勢を定義する方法がわからない．行列に直せる？
+	//２	仕方ないので，座標系が回転したと考える．
+	//		(1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0)の正規直交基底が
+	//		固有ベクトルとなるような回転行列を最小二乗法を用いて求める
+
+
+
+	////Test
+	//Matrix3d testMatrix;
+	//testMatrix <<	1.0,0.446,-0.56,
+
+	//				0.446,1.0,-0.239,
+
+	//				-0.56,0.239,1.0;
+
+	//SelfAdjointEigenSolver<Matrix3d> es;
+	//es.compute(testMatrix);
+
+	//cout << "Input matrix:" << endl
+
+ //      << testMatrix << endl
+
+ //      << endl
+
+ //      << "Eigenvalues:" << endl
+
+ //      << es.eigenvalues() << endl
+
+ //      << endl
+
+ //      << "Eigenvectors:"<< endl
+
+ //      << es.eigenvectors() << endl;
+
+	//vector<pair<float, int>> eigenValVec;
+	//eigenValVec.push_back(pair<float, int>(es.eigenvalues()[1], 1));
+	//eigenValVec.push_back(pair<float, int>(es.eigenvalues()[2], 2));
+	//eigenValVec.push_back(pair<float, int>(es.eigenvalues()[0], 0));
+
+	//sort(eigenValVec.begin(), eigenValVec.end());
+
+	////テスト
+	//Vector3f testVector = Vector3f::Zero();
+	//testVector << 1, 2, 3;
+	//Matrix3f testMatrix = Matrix3f::Zero();
+
+	//testMatrix.row(0) += testVector(0) * testVector;
+	//testMatrix.row(1) += testVector(1) * testVector;
+	//testMatrix.row(2) += testVector(2) * testVector;
+
+	//cout << "Test" << endl;
+	//cout << testMatrix << endl;
+}
+
 void OrientedPrtObj::UpdateCluster()
 {
 	float dt = m_dDt;
@@ -140,6 +257,7 @@ void OrientedPrtObj::UpdateCluster()
 	////CalcVelocity(dt);
 	////DampVelocity(dt);
 	ProjectConstraint(dt);
+	DistanceConstraint(dt);
 	////ApplyEstimatedPosition(dt);
 	////CorrectVelocity(dt);
 
@@ -375,13 +493,23 @@ void OrientedPrtObj::DampVelocity(float dt)
 //マウスによるドラッグを反映させるために，無理やり値を更新
 void OrientedPrtObj::CopyPrtToClstrPos(unsigned prtNum)
 {
-	for(unsigned i = 0; i < prtNum; i++){
-		int pIndx = i * SM_DIM;
+	int cIndx = 0;
+	int pIndx = 0;
+	int num = prtNum;
 
-		for(unsigned j = 0; j < SM_DIM; j++){
-			s_pfClstrPos[pIndx+j] = s_pfPrtPos[i*4+j];
-			s_pfClstrVel[pIndx+j] = s_pfPrtVel[i*4+j];
-		}
+	//#pragma omp parallel for private(cIndx, pIndx)
+	for(int i = 0; i < num; i++){
+		cIndx = i * SM_DIM;
+		pIndx = i * 4;
+
+		s_pfClstrPos[cIndx+X] = s_pfPrtPos[pIndx+X];
+		s_pfClstrVel[cIndx+X] = s_pfPrtVel[pIndx+X];
+
+		s_pfClstrPos[cIndx+Y] = s_pfPrtPos[pIndx+Y];
+		s_pfClstrVel[cIndx+Y] = s_pfPrtVel[pIndx+Y];
+
+		s_pfClstrPos[cIndx+Z] = s_pfPrtPos[pIndx+Z];
+		s_pfClstrVel[cIndx+Z] = s_pfPrtVel[pIndx+Z];
 	}
 }
 
@@ -411,6 +539,27 @@ void OrientedPrtObj::CalcClusterMomentMatrix(rxMatrix3& Apq, rxMatrix3& Aqq)
 	float massSum = (float)m_iIndxNum;
 
 	Apq = Asum - massSum * MccT;
+
+	//Aqq
+	Vec3 q(0.0f);
+
+	for(int i = 0; i < m_iIndxNum; ++i){
+		if( CheckHole(i) ){	continue;	}
+		Vec3 op(m_pOrgPos[i*SM_DIM+0], m_pOrgPos[i*SM_DIM+1], m_pOrgPos[i*SM_DIM+2]);
+
+		q = op - m_vec3OrgCm;
+		double m = m_pMass[i];
+
+		Aqq(0,0) += m*q[0]*q[0];
+		Aqq(0,1) += m*q[0]*q[1];
+		Aqq(0,2) += m*q[0]*q[2];
+		Aqq(1,0) += m*q[1]*q[0];
+		Aqq(1,1) += m*q[1]*q[1];
+		Aqq(1,2) += m*q[1]*q[2];
+		Aqq(2,0) += m*q[2]*q[0];
+		Aqq(2,1) += m*q[2]*q[1];
+		Aqq(2,2) += m*q[2]*q[2];
+	}
 }
 
 void OrientedPrtObj::ProjectConstraint(float dt)
@@ -472,8 +621,16 @@ void OrientedPrtObj::ProjectConstraint(float dt)
 		R = -1.0f * R;
 	}
 
+	rxMatrix3 A(0.0);
+	A = Apq*Aqq.Inverse();	// A = Apq*Aqq^-1
+
 	// 目標座標を計算し，現在の頂点座標を移動
 	m_fDefAmount = 0.0f;
+
+	float alpha = 0.1f;
+	float beta = 0.2f;
+
+	rxMatrix3 RL = beta*A+(1.0f-beta)*R;
 
 	for(int i = 0; i < m_iIndxNum; ++i){
 		if( CheckHole(i) ){	continue;	}
@@ -487,8 +644,10 @@ void OrientedPrtObj::ProjectConstraint(float dt)
 		}
 
 		Vec3 gp(R*q+m_vec3NowCm);
+		//Vec3 gp(RL*q+m_vec3NowCm);
 
 		for(int j = 0; j < SM_DIM; j++){
+			//float defAmount = (gp[j]-m_pCurPos[cIndx+j]) * alpha;
 			float defAmount = (gp[j]-m_pCurPos[cIndx+j]);
 			m_pCurPos[cIndx+j] += defAmount;
 
@@ -498,6 +657,12 @@ void OrientedPrtObj::ProjectConstraint(float dt)
 
 	//姿勢のために回転行列を保存
 	m_vOrientedPrtes[0]->Rotation(R);
+}
+
+//距離制約
+void OrientedPrtObj::DistanceConstraint(float dt)
+{
+
 }
 
 void OrientedPrtObj::ApplyEstimatedPosition(float dt)

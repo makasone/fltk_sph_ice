@@ -723,6 +723,7 @@ void Ice_SM::calExternalForces()
 			int jpIndx = pIndx+j;
 			int jcIndx = cIndx+j;
 			
+			//‚æ‚­‚È‚¢‚±‚Æ‚¾‚¯‚ÇCprtPos‚ÆprtVel‚©‚çî•ñ‚ğæ‚Á‚Ä‚«‚Ä‚¢‚é‚Ì‚É’ˆÓ
 			m_pCurPos[jcIndx] = s_pfPrtPos[jpIndx] + (s_pfPrtVel[jpIndx] + (m_v3Gravity[j] * dt)) *dt;
 		}
 	}

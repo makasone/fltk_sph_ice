@@ -2673,7 +2673,8 @@ void rxFlGLWindow::InitIceObj(void)
 		-sph_env.boundary_ext,
 		sph_env.smTimeStep,
 		m_iIceItr,
-		neights
+		neights,
+		surfaceParticles
 	);
 
 	m_iceObj->InitStrct();										//粒子とクラスタの関係情報を初期化

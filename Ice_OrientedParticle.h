@@ -67,6 +67,8 @@ public:
 	void AddParticle(OrientedParticle* orientedPrt);
 	void AddParticle(const Vec3 &pos, double mass, int pIndx);
 
+	void InitOrientation();
+
 	void RemoveParticle(int pIndx);
 	void ClearParticle();
 
@@ -84,6 +86,7 @@ private:
 	void CalcVelocity(float dt);
 	void DampVelocity(float dt);	
 	void ProjectConstraint(float dt);
+	void DistanceConstraint(float dt);
 	void ApplyEstimatedPosition(float dt);
 	void CorrectVelocity(float dt);
 

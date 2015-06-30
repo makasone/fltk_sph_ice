@@ -69,6 +69,8 @@ void OrientedParticle::Init()
 	m_QuatCurOrientation = ConvertQuaternion(Quaternionf::Identity());
 	m_QuatPrdOrientation = ConvertQuaternion(Quaternionf::Identity());
 
+	m_vec3Vel = Vec3(0.0);
+
 	m_mtrx3PrtA_elipsoid = rxMatrix3::Identity();
 	m_mtrx3PrdMomentMtrx = rxMatrix3::Identity();
 	m_mtrx3Rotation = rxMatrix3::Identity();
@@ -88,6 +90,21 @@ void OrientedParticle::Integrate_Itr()
 {
 	IntegrateA_elipsoid_Itr();
 	IntegrateMomentMatrix_Itr();
+}
+
+void OrientedParticle::Integrate_Sampling()
+{
+	IntegrateEstimatedPos();
+	IntegrateMomentMatrix();
+
+	m_mtrx3PrtA_elipsoid = rxMatrix3(0.0);
+}
+
+void OrientedParticle::Integrate_Sampling_Itr()
+{
+	IntegrateMomentMatrix_Itr();
+
+	m_mtrx3PrtA_elipsoid = rxMatrix3(0.0);
 }
 
 void OrientedParticle::Update()
@@ -134,7 +151,7 @@ void OrientedParticle::IntegrateEstimatedOrientation()
 	Quaternionf qCurrent = ConvertQuaternion(m_QuatCurOrientation);
 	Quaternionf qPredict = Quaternionf::Identity();
 	
-	if(len <= 0.0001f){
+	if(len <= 0.01f){
 		qPredict = qCurrent;
 	}
 	else{
@@ -173,9 +190,9 @@ void OrientedParticle::IntegrateA_elipsoid()
 	float m = 1.0f * 0.2f;
 
 	rxMatrix3 tmp = rxMatrix3::Identity();
-	tmp(0, 0) = m * 1.0f;
-	tmp(1, 1) = m * 1.0f;
-	tmp(2, 2) = m * 1.0f;
+	tmp(0, 0) = m * m_vec3ElipsoidRadius[X] * m_vec3ElipsoidRadius[X];
+	tmp(1, 1) = m * m_vec3ElipsoidRadius[Y] * m_vec3ElipsoidRadius[Y];
+	tmp(2, 2) = m * m_vec3ElipsoidRadius[Z] * m_vec3ElipsoidRadius[Z];
 
 	rxMatrix3 Ae = tmp * R;
 	m_mtrx3PrtA_elipsoid = Ae;
@@ -223,9 +240,9 @@ void OrientedParticle::IntegrateA_elipsoid_Itr()
 	float m = 1.0f * 0.2f;
 
 	rxMatrix3 tmp = rxMatrix3::Identity();
-	tmp(0, 0) = m * 1.0f;
-	tmp(1, 1) = m * 1.0f;
-	tmp(2, 2) = m * 1.0f;
+	tmp(0, 0) = m * m_vec3ElipsoidRadius[X] * m_vec3ElipsoidRadius[X];
+	tmp(1, 1) = m * m_vec3ElipsoidRadius[Y] * m_vec3ElipsoidRadius[Y];
+	tmp(2, 2) = m * m_vec3ElipsoidRadius[Z] * m_vec3ElipsoidRadius[Z];
 
 	rxMatrix3 Ae = tmp * R;
 	m_mtrx3PrtA_elipsoid = Ae;
@@ -272,7 +289,7 @@ void OrientedParticle::UpdatePosAndVel()
 	clstrPos[cIndx+Z] = m_vec3PrdPos[Z];
 }
 
-//Žp¨‚ÌXV
+//„’èŽp¨‚ÌXV
 void OrientedParticle::UpdateOrientation()
 {
 	rxMatrix3 rotateMtrx = m_mtrx3Rotation;
@@ -286,7 +303,7 @@ void OrientedParticle::UpdateOrientation()
 	m_QuatPrdOrientation = ConvertQuaternion(rotate * ConvertQuaternion(m_QuatOrgOrientation));
 }
 
-//Šp‘¬“x‚ÌXV
+//Šp‘¬“xCŽp¨‚ÌXV
 void OrientedParticle::UpdateAngularVel()
 {
 	//Šp‘¬“x
@@ -306,8 +323,8 @@ void OrientedParticle::UpdateAngularVel()
 	Vec3 axis;
 	Vec3 vec(r.x(), r.y(), r.z());
 	float len = norm(vec);
-	if(len <= 0.0001f){
-		axis = Vec3(1.0f, 0.0f, 0.0f);
+	if(len <= 0.01f){
+		axis = Vec3(0.0f, 0.0f, 0.0f);
 	}
 	else{
 		axis = vec/len;
@@ -329,13 +346,14 @@ void OrientedParticle::UpdateAngularVel()
 	//angular vel
 	float dt1 = 1.0f / m_smCluster->dt();
 
-	if(angle < 0.0001f){
+	if(angle < 0.01f){
 		m_vec3AngularVel = Vec3(0.0f);
 	}
 	else{
 		m_vec3AngularVel = axis * angle * dt1;
 	}
 
+	//orientation
 	Quaternionf qp_norm = ConvertQuaternion(m_QuatPrdOrientation);
 	m_QuatCurOrientation = ConvertQuaternion(qp_norm.normalized());
 }

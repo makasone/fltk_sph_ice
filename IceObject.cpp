@@ -116,7 +116,7 @@ cout << __FUNCTION__ << " check7" << endl;
 }
 
 //クラスタの初期化
-void IceObject::InitCluster(Vec3 boundarySpaceHigh, Vec3 boundarySpaceLow, float timeStep, int itr, const vector<vector<rxNeigh>>& neights)
+void IceObject::InitCluster(Vec3 boundarySpaceHigh, Vec3 boundarySpaceLow, float timeStep, int itr, const vector<vector<rxNeigh>>& neights, const int* surfacePrtIndx)
 {	cout << __FUNCTION__ << endl;
 
 	//変数の初期化
@@ -162,14 +162,14 @@ cout << __FUNCTION__ << ", check2" << endl;
 	Ice_SM::InitFinalParamPointer(sm_clusterNum);
 
 //OrientedParticle版の初期化
-	TestOrientedParticleInit(boundarySpaceLow, boundarySpaceHigh, timeStep, neights);
+	TestOrientedParticleInit(boundarySpaceLow, boundarySpaceHigh, timeStep, neights, surfacePrtIndx);
 
 //デバッグ
 	//DebugClusterInfo();
 	//DebugNeights(neights);
 }
 
-void IceObject::TestOrientedParticleInit(Vec3 boundarySpaceLow, Vec3 boundarySpaceHigh, float timeStep, const vector<vector<rxNeigh>>& neights)
+void IceObject::TestOrientedParticleInit(Vec3 boundarySpaceLow, Vec3 boundarySpaceHigh, float timeStep, const vector<vector<rxNeigh>>& neights, const int* surfacePrtIndxes)
 {
 	//変数の初期化
 	for(vector<OrientedParticleBaseElasticObject*>::iterator it = m_orientedObj.begin(); it != m_orientedObj.end(); ++it){
@@ -217,6 +217,15 @@ void IceObject::TestOrientedParticleInit(Vec3 boundarySpaceLow, Vec3 boundarySpa
 	}
 
 	OrientedParticleBaseElasticObject::AllocateStaticMemory(s_sphPrtPos, s_sphPrtVel, sm_particleNum);
+
+	//主成分分析で楕円の初期姿勢を決定
+	//表面粒子に限定した方がよい？
+	for(int i = 0; i < sm_particleNum; i++){
+		if(surfacePrtIndxes[i] == 0){	continue;	}
+		m_orientedObj[i]->InitOrientation();
+	}
+	//cout << "InitOrientation Test" << endl;
+	//m_orientedObj[0]->InitOrientation();
 }
 
 //オブジェクトの構造の初期化
@@ -742,7 +751,7 @@ void IceObject::Display()
 //処理内容は別クラスに記述
 void IceObject::StepObjMoveCPU()
 {
-	//CPUNormalかCPUDebug
+	//CPUNormalかCPUDebug 関数ポインタを使ってみたが，思ったより分かりにくい
 	(this->*m_fpStepObjMove)();
 }
 
@@ -761,6 +770,7 @@ void IceObject::StepObjMoveCPUNormal()
 	//OrientedParticleを用いた場合のテスト
 	//TestOrientedParticleStep();
 	//TestOrientedParticleWeightStep();
+	
 	//TestOrientedParticleItrStep();
 	TestOrientedParticleItrWeightStep();
 }
@@ -774,11 +784,13 @@ void IceObject::TestOrientedParticleStep()
 	OrientedParticleBaseElasticObject::CopyPrtToClstrPos(pNum);
 
 	//粒子を更新
+	#pragma omp parallel for
 	for(int i = 0; i < pNum; i++){
 		m_vOrientedPrtes[i]->Integrate();
 	}
 
 	//クラスタの更新
+	#pragma omp parallel for
 	for(int i = 0; i < pNum; ++i){
 		m_orientedObj[i]->UpdateCluster();
 	}
@@ -817,6 +829,7 @@ void IceObject::TestOrientedParticleStep()
 	}
 
 	//速度，角速度，姿勢を更新
+	#pragma omp parallel for
 	for(int i = 0; i < pNum; i++){
 		m_vOrientedPrtes[i]->Update();
 	}
@@ -876,6 +889,7 @@ void IceObject::TestOrientedParticleWeightStep()
 
 			Vec3 pos = m_orientedObj[cIndx]->GetVertexPos(oIndx);
 			float defAmount = m_orientedObj[cIndx]->DefAmount();
+			//float defAmount = m_orientedObj[cIndx]->DefAmount() * m_orientedObj[cIndx]->DefAmount();
 			prtPoses[pIndx] += pos * defAmount;
 
 			//総変形量をカウント
@@ -928,34 +942,55 @@ void IceObject::TestOrientedParticleItrStep()
 
 //初回
 {
+	////粒子を更新
+	//#pragma omp parallel for
+	//for(int i = 0; i < pNum; i++){
+	//	m_vOrientedPrtes[i]->Integrate();
+	//}
+
 	//粒子を更新
+	#pragma omp parallel for
 	for(int i = 0; i < pNum; i++){
+		//サンプリング粒子の情報を更新
+		if(m_iceStrct->GetMotionCalcCluster(i) == 0){	continue;	}
+
 		m_vOrientedPrtes[i]->Integrate();
 	}
 
+	#pragma omp parallel for
+	for(int i = 0; i < pNum; i++){
+		//非サンプリング粒子の情報を更新
+		if(m_iceStrct->GetMotionCalcCluster(i) != 0){	continue;	}
+
+		m_vOrientedPrtes[i]->Integrate_Sampling();
+	}
+
 	//クラスタの更新
+	#pragma omp parallel for
 	for(int i = 0; i < pNum; ++i){
+		//サンプリングされていないクラスタの情報は反映しない
+		if(m_iceStrct->GetMotionCalcCluster(i) == 0){	continue;	}
+
 		m_orientedObj[i]->UpdateCluster();
 	}
 	
 	//最終位置決定
 	//現在はm_iceStrctを用いずにsm法のデータm_iceSMだけで計算している
 	vector<unsigned> addParticleNum(pNum, 0);
+	vector<Vec3> prtPoses(pNum, Vec3(0.0f));
 
 	//単純な足しあわせ
 	for(int cIndx = 0; cIndx < pNum; cIndx++){
-		if(m_iceStrct->GetMotionCalcCluster(cIndx) == 0){	continue;	}
 
-		//クラスタが含んでいる各粒子の位置・速度をstaticな最終位置に足す
-		Vec3 pos, vel;
-		int pIndx, dim;
+		//サンプリングされていないクラスタの情報は反映しない
+		if(m_iceStrct->GetMotionCalcCluster(cIndx) == 0){	continue;	}
 
 		for(int oIndx = 0; oIndx < m_orientedObj[cIndx]->GetIndxNum(); oIndx++){
 			int pIndx = m_orientedObj[cIndx]->GetParticleIndx(oIndx);
 			if(pIndx == MAXINT){	continue;	}
 
 			Vec3 pos = m_orientedObj[cIndx]->GetVertexPos(oIndx);
-			m_vOrientedPrtes[pIndx]->PrdPos() += pos;
+			prtPoses[pIndx] += pos;
 
 			//粒子数のカウント
 			addParticleNum[pIndx] += 1;
@@ -970,10 +1005,12 @@ void IceObject::TestOrientedParticleItrStep()
 		float clusterNum = (float)addParticleNum[pIndx];
 		if(clusterNum <= 0.0f){	continue;	}
 
-		m_vOrientedPrtes[pIndx]->PrdPos() /= (clusterNum+1);
+		Vec3 pos = prtPoses[pIndx] / clusterNum;
+		m_vOrientedPrtes[pIndx]->PrdPos(pos);
 	}
 
 	//速度，角速度，姿勢を更新
+	#pragma omp parallel for
 	for(int i = 0; i < pNum; i++){
 		m_vOrientedPrtes[i]->Update_Itr();	//Itrなのに注意
 	}
@@ -981,37 +1018,54 @@ void IceObject::TestOrientedParticleItrStep()
 
 //反復処理
 	for(unsigned itr = 0; itr < Ice_SM::GetIteration(); itr++){
+		////粒子を更新
+		//#pragma omp parallel for
+		//for(int i = 0; i < pNum; i++){
+		//	m_vOrientedPrtes[i]->Integrate_Itr();
+		//}
+
 		//粒子を更新
+		#pragma omp parallel for
 		for(int i = 0; i < pNum; i++){
+			//サンプリング粒子の情報を更新
+			if(m_iceStrct->GetMotionCalcCluster(i) == 0){	continue;	}
+	
 			m_vOrientedPrtes[i]->Integrate_Itr();
+		}
+	
+		#pragma omp parallel for
+		for(int i = 0; i < pNum; i++){
+			//非サンプリング粒子の情報を更新
+			if(m_iceStrct->GetMotionCalcCluster(i) != 0){	continue;	}
+	
+			m_vOrientedPrtes[i]->Integrate_Sampling_Itr();
 		}
 
 		//クラスタの更新
+		#pragma omp parallel for
 		for(int i = 0; i < pNum; ++i){
+			//サンプリングされていないクラスタの情報は反映しない
 			if(m_iceStrct->GetMotionCalcCluster(i) == 0){	continue;	}
 
 			m_orientedObj[i]->UpdateCluster();
 		}
 		
 		//最終位置決定
-		//現在はm_iceStrctを用いずにsm法のデータm_iceSMだけで計算している
 		vector<unsigned> addParticleNum(pNum, 0);
+		vector<Vec3> prtPoses(pNum, Vec3(0.0f));
 
-		//クラスタの運動計算結果を粒子へ		
+		//クラスタの運動計算結果を粒子へ	単純な足しあわせ	
 		for(int cIndx = 0; cIndx < pNum; cIndx++){
 
+			//サンプリングされていないクラスタの情報は反映しない
 			if(m_iceStrct->GetMotionCalcCluster(cIndx) == 0){	continue;	}
-
-			//単純な足しあわせ
-			Vec3 pos, vel;
-			int pIndx, dim;
 
 			for(int oIndx = 0; oIndx < m_orientedObj[cIndx]->GetIndxNum(); oIndx++){
 				int pIndx = m_orientedObj[cIndx]->GetParticleIndx(oIndx);
 				if(pIndx == MAXINT){	continue;	}
 
 				Vec3 pos = m_orientedObj[cIndx]->GetVertexPos(oIndx);
-				m_vOrientedPrtes[pIndx]->PrdPos() += pos;
+				prtPoses[pIndx] += pos;
 
 				//粒子数のカウント
 				addParticleNum[pIndx] += 1;
@@ -1026,16 +1080,23 @@ void IceObject::TestOrientedParticleItrStep()
 			float clusterNum = (float)addParticleNum[pIndx];
 			if(clusterNum <= 0.0f){	continue;	}
 
-			m_vOrientedPrtes[pIndx]->PrdPos() /= (clusterNum+1);
+			Vec3 pos = prtPoses[pIndx] / clusterNum;
+			m_vOrientedPrtes[pIndx]->PrdPos(pos);
 		}
 
 		//姿勢を更新
+		//TODO: これはミスでは？ サンプリングのせいでUpdateClusterされていないクラスタ・粒子は回転行列が更新されないはず
+		#pragma omp parallel for
 		for(int i = 0; i < pNum; i++){
+			//サンプリングされていないクラスタの情報は反映しない
+			if(m_iceStrct->GetMotionCalcCluster(i) == 0){	continue;	}
+
 			m_vOrientedPrtes[i]->Update_Itr();
 		}
 	}
 
-	//速度，角速度を更新
+	//粒子位置，速度，角速度，姿勢を更新
+	#pragma omp parallel for
 	for(int i = 0; i < pNum; i++){
 		m_vOrientedPrtes[i]->Update_ItrEnd();
 	}
@@ -1059,6 +1120,7 @@ void IceObject::TestOrientedParticleItrStep()
 	}
 }
 
+//重み付き＋反復
 void IceObject::TestOrientedParticleItrWeightStep()
 {
 	unsigned pNum = IceObject::GetParticleNum();
@@ -1068,52 +1130,73 @@ void IceObject::TestOrientedParticleItrWeightStep()
 
 //初回
 {
+	////粒子を更新
+	//#pragma omp parallel for
+	//for(int i = 0; i < pNum; i++){
+	//	m_vOrientedPrtes[i]->Integrate();
+	//}
+
 	//粒子を更新
+	#pragma omp parallel for
 	for(int i = 0; i < pNum; i++){
+		//サンプリング粒子の情報を更新
+		if(m_iceStrct->GetMotionCalcCluster(i) == 0){	continue;	}
+
 		m_vOrientedPrtes[i]->Integrate();
 	}
 
+	#pragma omp parallel for
+	for(int i = 0; i < pNum; i++){
+		//非サンプリング粒子の情報を更新
+		if(m_iceStrct->GetMotionCalcCluster(i) != 0){	continue;	}
+
+		m_vOrientedPrtes[i]->Integrate_Sampling();
+	}
+
 	//クラスタの更新
+	#pragma omp parallel for
 	for(int i = 0; i < pNum; ++i){
 		m_orientedObj[i]->UpdateCluster();
 	}
-	
-	//最終位置決定
-	//現在はm_iceStrctを用いずにsm法のデータm_iceSMだけで計算している
-	vector<unsigned> addParticleNum(pNum, 0);
 
+	//最終位置決定
+	vector<unsigned> addParticleNum(pNum, 0);
+	vector<float> defSum(pNum, 0.0f);
+	vector<Vec3> prtPoses(pNum, Vec3(0.0f));
+	
 	//単純な足しあわせ
 	for(int cIndx = 0; cIndx < pNum; cIndx++){
+		//サンプリングされていないクラスタの情報は反映しない
 		if(m_iceStrct->GetMotionCalcCluster(cIndx) == 0){	continue;	}
-
-		//クラスタが含んでいる各粒子の位置・速度をstaticな最終位置に足す
-		Vec3 pos, vel;
-		int pIndx, dim;
-
+	
 		for(int oIndx = 0; oIndx < m_orientedObj[cIndx]->GetIndxNum(); oIndx++){
 			int pIndx = m_orientedObj[cIndx]->GetParticleIndx(oIndx);
 			if(pIndx == MAXINT){	continue;	}
-
+	
 			Vec3 pos = m_orientedObj[cIndx]->GetVertexPos(oIndx);
-			m_vOrientedPrtes[pIndx]->PrdPos() += pos;
-
-			//粒子数のカウント
-			addParticleNum[pIndx] += 1;
+			//float defAmount = m_orientedObj[cIndx]->DefAmount() * m_orientedObj[cIndx]->DefAmount();
+			float defAmount = m_orientedObj[cIndx]->DefAmount();
+			prtPoses[pIndx] += pos * defAmount;
+	
+			//総変形量をカウント
+			defSum[pIndx] += defAmount;
 		}
 	}
-
+	
 	//平均値を固体位置に反映
 	for(int pIndx = 0; pIndx < pNum; pIndx++){
 		int smIndx = pIndx*SM_DIM;
-
+	
 		//CtoPNum == PtoCNumより
-		float clusterNum = (float)addParticleNum[pIndx];
-		if(clusterNum <= 0.0f){	continue;	}
-
-		m_vOrientedPrtes[pIndx]->PrdPos() /= (clusterNum+1);
+		float defAmount = defSum[pIndx];
+		if(defAmount <= 0.0f){	continue;	}
+		
+		Vec3 pos = prtPoses[pIndx] / defAmount;
+		m_vOrientedPrtes[pIndx]->PrdPos(pos);
 	}
 
 	//速度，角速度，姿勢を更新
+	#pragma omp parallel for
 	for(int i = 0; i < pNum; i++){
 		m_vOrientedPrtes[i]->Update_Itr();	//Itrなのに注意
 	}
@@ -1121,9 +1204,26 @@ void IceObject::TestOrientedParticleItrWeightStep()
 
 //反復処理
 	for(unsigned itr = 0; itr < Ice_SM::GetIteration(); itr++){
+		////粒子を更新
+		//for(int i = 0; i < pNum; i++){
+		//	m_vOrientedPrtes[i]->Integrate_Itr();
+		//}
+
 		//粒子を更新
+		#pragma omp parallel for
 		for(int i = 0; i < pNum; i++){
+			//サンプリング粒子の情報を更新
+			if(m_iceStrct->GetMotionCalcCluster(i) == 0){	continue;	}
+	
 			m_vOrientedPrtes[i]->Integrate_Itr();
+		}
+	
+		#pragma omp parallel for
+		for(int i = 0; i < pNum; i++){
+			//非サンプリング粒子の情報を更新
+			if(m_iceStrct->GetMotionCalcCluster(i) != 0){	continue;	}
+	
+			m_vOrientedPrtes[i]->Integrate_Sampling_Itr();
 		}
 
 		//クラスタの更新
@@ -1140,15 +1240,15 @@ void IceObject::TestOrientedParticleItrWeightStep()
 	
 		//単純な足しあわせ
 		for(int cIndx = 0; cIndx < pNum; cIndx++){
-			//クラスタが含んでいる各粒子の位置・速度をstaticな最終位置に足す
-			Vec3 pos, vel;
-			int pIndx, dim;
+			//サンプリングされていないクラスタの情報は反映しない
+			if(m_iceStrct->GetMotionCalcCluster(cIndx) == 0){	continue;	}
 	
 			for(int oIndx = 0; oIndx < m_orientedObj[cIndx]->GetIndxNum(); oIndx++){
 				int pIndx = m_orientedObj[cIndx]->GetParticleIndx(oIndx);
 				if(pIndx == MAXINT){	continue;	}
 	
 				Vec3 pos = m_orientedObj[cIndx]->GetVertexPos(oIndx);
+				//float defAmount = m_orientedObj[cIndx]->DefAmount() * m_orientedObj[cIndx]->DefAmount();
 				float defAmount = m_orientedObj[cIndx]->DefAmount();
 				prtPoses[pIndx] += pos * defAmount;
 	
@@ -1164,47 +1264,16 @@ void IceObject::TestOrientedParticleItrWeightStep()
 			//CtoPNum == PtoCNumより
 			float defAmount = defSum[pIndx];
 			if(defAmount <= 0.0f){	continue;	}
-	
-			m_vOrientedPrtes[pIndx]->PrdPos() = prtPoses[pIndx] / defAmount;
+			
+			Vec3 pos = prtPoses[pIndx] / defAmount;
+			m_vOrientedPrtes[pIndx]->PrdPos(pos);
 		}
-
-		////現在はm_iceStrctを用いずにsm法のデータm_iceSMだけで計算している
-		//vector<unsigned> addParticleNum(pNum, 0);
-
-		////クラスタの運動計算結果を粒子へ		
-		//for(int cIndx = 0; cIndx < pNum; cIndx++){
-
-		//	if(m_iceStrct->GetMotionCalcCluster(cIndx) == 0){	continue;	}
-
-		//	//単純な足しあわせ
-		//	Vec3 pos, vel;
-		//	int pIndx, dim;
-
-		//	for(int oIndx = 0; oIndx < m_orientedObj[cIndx]->GetIndxNum(); oIndx++){
-		//		int pIndx = m_orientedObj[cIndx]->GetParticleIndx(oIndx);
-		//		if(pIndx == MAXINT){	continue;	}
-
-		//		Vec3 pos = m_orientedObj[cIndx]->GetVertexPos(oIndx);
-		//		m_vOrientedPrtes[pIndx]->PrdPos() += pos;
-
-		//		//粒子数のカウント
-		//		addParticleNum[pIndx] += 1;
-		//	}
-		//}
-
-		////平均値を粒子位置に反映
-		//for(int pIndx = 0; pIndx < pNum; pIndx++){
-		//	int smIndx = pIndx*SM_DIM;
-
-		//	//CtoPNum == PtoCNumより
-		//	float clusterNum = (float)addParticleNum[pIndx];
-		//	if(clusterNum <= 0.0f){	continue;	}
-
-		//	m_vOrientedPrtes[pIndx]->PrdPos() /= (clusterNum+1);
-		//}
 
 		//姿勢を更新
 		for(int i = 0; i < pNum; i++){
+			//サンプリングされていないクラスタの情報は反映しない
+			if(m_iceStrct->GetMotionCalcCluster(i) == 0){	continue;	}
+
 			m_vOrientedPrtes[i]->Update_Itr();
 		}
 	}
@@ -1232,7 +1301,6 @@ void IceObject::TestOrientedParticleItrWeightStep()
 		}
 	}
 }
-
 
 void IceObject::StepObjMoveCPUDebug()
 {

@@ -145,7 +145,7 @@ public:
 	void InitIceObj(int pMaxNum, int cMaxNum, int tMaxNum);
 	void InitIceObjGPU();
 	void InitTetra();
-	void InitCluster(Vec3 boundarySpaceHigh, Vec3 boundarySpaceLow, float timeStep, int itr, const vector<vector<rxNeigh>>& neights);
+	void InitCluster(Vec3 boundarySpaceHigh, Vec3 boundarySpaceLow, float timeStep, int itr, const vector<vector<rxNeigh>>& neights, const int* surfacePrtIndxes);
 	void InitStrct();
 	void InitMoveMethod();
 	void InitSelectCluster(float radius);
@@ -299,7 +299,7 @@ public:
 
 	void TestSimulationFromFile(string fileName);
 
-	void TestOrientedParticleInit(Vec3 boundarySpaceLow, Vec3 boundarySpaceHigh, float timeStep, const vector<vector<rxNeigh>>& neights);
+	void TestOrientedParticleInit(Vec3 boundarySpaceLow, Vec3 boundarySpaceHigh, float timeStep, const vector<vector<rxNeigh>>& neights, const int* surfacePrtIndxes);
 	void TestOrientedParticleStep();
 	void TestOrientedParticleWeightStep();
 	void TestOrientedParticleItrStep();
