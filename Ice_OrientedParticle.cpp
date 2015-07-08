@@ -257,12 +257,122 @@ void OrientedPrtObj::UpdateCluster()
 	////CalcVelocity(dt);
 	////DampVelocity(dt);
 	ProjectConstraint(dt);
-	DistanceConstraint(dt);
+	//DistanceConstraint(dt);
 	////ApplyEstimatedPosition(dt);
 	////CorrectVelocity(dt);
 
 	////従来のシェイプマッチング
 	//ShapeMatchingNormal();
+}
+
+void OrientedPrtObj::UpdateCluster_Sampling(const IceStructure* ice_struct)
+{
+	float dt = m_dDt;
+
+	//更新位置をクラスタの各粒子に反映　各クラスタの各粒子は統一される
+	for(int i = 0; i < m_iIndxNum; ++i){
+		if( CheckHole(i) ){	continue;	}
+
+		int pIndx = m_iPIndxes[i];
+		int cIndx = i * SM_DIM;
+		Vec3 prdPos = m_vOrientedPrtes[i]->PrdPos();
+
+		for(int j = 0; j < SM_DIM; j++){
+			m_pCurPos[cIndx+j] = prdPos[j];
+		}
+	}
+
+	// 境界壁の影響
+	//処理がかなり重くなるが，安定はするみたい
+	double res = 0.9;	// 反発係数
+	for(int i = 0; i < m_iIndxNum; ++i){
+		if( CheckHole(i) ){	continue;	}
+		if(m_pFix[i]) continue;
+
+		int pIndx = m_iPIndxes[i];
+		int cIndx = i*SM_DIM;
+		Vec3 prdPos = m_vOrientedPrtes[i]->PrdPos();
+
+		if(m_pCurPos[cIndx+0] < m_v3Min[0] || m_pCurPos[cIndx+0] > m_v3Max[0]){
+			m_pCurPos[cIndx+0] = prdPos[0] - (s_pfClstrVel[cIndx+0] + (m_v3Gravity[0] * dt))*dt*res;
+			m_pCurPos[cIndx+1] = prdPos[1];
+			m_pCurPos[cIndx+2] = prdPos[2];
+		}
+
+		if(m_pCurPos[cIndx+1] < m_v3Min[1] || m_pCurPos[cIndx+1] > m_v3Max[1]){
+			m_pCurPos[cIndx+1] = prdPos[1] - (s_pfClstrVel[cIndx+1] + (m_v3Gravity[1] * dt))*dt*res;
+			m_pCurPos[cIndx+0] = prdPos[0] ;
+			m_pCurPos[cIndx+2] = prdPos[2];
+		}
+
+		if(m_pCurPos[cIndx+2] < m_v3Min[2] || m_pCurPos[cIndx+2] > m_v3Max[2]){
+			m_pCurPos[cIndx+2] = prdPos[2] - (s_pfClstrVel[cIndx+2] + (m_v3Gravity[2] * dt))*dt*res;
+			m_pCurPos[cIndx+0] = prdPos[0];
+			m_pCurPos[cIndx+1] = prdPos[1];
+		}
+
+		clamp(m_pCurPos, cIndx);
+	}
+
+	//弾性体の制約　シェイプマッチング計算
+	CalcNowCm();							//クラスタの重心を更新
+	
+	////近傍クラスタの回転行列を補間して自身の回転行列を求める
+	//rxMatrix3 R_intrp = InterpolateRotation(ice_struct);
+
+	//rxMatrix3 Apq(0.0), Aqq(0.0);
+	//CalcClusterMomentMatrix(Apq, Aqq);		//パーティクルの姿勢を考慮したモーメントマトリックス
+
+	//rxMatrix3 R_polor, S;
+	//PolarDecomposition(Apq, R_polor, S);
+
+	////if(m_iObjectNo < 5){
+	////	cout << m_iObjectNo << endl;
+	////	cout << "R_intrp:\n" << R_intrp << endl;
+	////	cout << "R_polor:\n" << R_polor << endl;
+	////}
+
+	//rxMatrix3 R = R_intrp;
+
+	//近傍クラスタの変形勾配テンソルからApqを近似
+	rxMatrix3 Apq = InterpolateApq(ice_struct);
+	rxMatrix3 R = Apq;
+
+	//rxMatrix3 R_polor, S;
+	//PolarDecomposition(Apq, R_polor, S);
+	//rxMatrix3 R = R_polor;
+
+	//補間した回転行列を用いて運動計算
+	if(R.Determinant() < 0.0f){
+		R = -1.0f * R;
+	}
+
+	// 目標座標を計算し，現在の頂点座標を移動
+	m_fDefAmount = 0.0f;
+
+	for(int i = 0; i < m_iIndxNum; ++i){
+		if( CheckHole(i) ){	continue;	}
+		if(m_pFix[i]) continue;
+
+		int cIndx = i*SM_DIM;
+
+		Vec3 q;
+		for(int j = 0; j < SM_DIM; j++){
+			q[j] = m_pOrgPos[cIndx+j]-m_vec3OrgCm[j];
+		}
+
+		Vec3 gp(R*q+m_vec3NowCm);
+
+		for(int j = 0; j < SM_DIM; j++){
+			float defAmount = (gp[j]-m_pCurPos[cIndx+j]);
+			m_pCurPos[cIndx+j] += defAmount;
+
+			m_fDefAmount += abs(defAmount);
+		}
+	}
+
+	//姿勢のために回転行列を保存
+	m_vOrientedPrtes[0]->Rotation(R);
 }
 
 //初期重心位置
@@ -308,6 +418,131 @@ void OrientedPrtObj::CalcNowCm()
 
 	m_vec3NowCm /= massSum;
 }
+
+//クラスタに含まれている粒子の姿勢・回転行列から自身の回転行列を補間
+//姿勢を補間するだけでよいかもしれないが，一応回転行列で求める
+rxMatrix3 OrientedPrtObj::InterpolateRotation(const IceStructure* ice_struct)
+{
+	float weight = 0.5f;	//まずは平均
+	mk_Quaternion tmp_q = m_vOrientedPrtes[0]->CurOrientation();
+	Quaternionf myQuat = Quaternionf(tmp_q.w, tmp_q.x, tmp_q.y, tmp_q.z);
+	//Quaternionf myQuat = Quaternionf::Identity();
+	rxMatrix3 R = rxMatrix3::Identity();
+
+	//i = 0は自分なので除く
+	for(int i = 1; i < m_iIndxNum; i++){
+		if(CheckHole(i)){	continue;	}
+		int pIndx = m_iPIndxes[i];
+		if(ice_struct->GetMotionCalcCluster(pIndx) == 0){	continue;	}
+
+		rxMatrix3 rotateMtrx = m_vOrientedPrtes[i]->Rotation();
+
+		//回転行列→クォータニオン
+		Matrix<float, 3, 3, RowMajor> tmp_r1;
+		tmp_r1 <<	rotateMtrx(0, 0), rotateMtrx(0, 1), rotateMtrx(0, 2), 
+					rotateMtrx(1, 0), rotateMtrx(1, 1), rotateMtrx(1, 2), 
+					rotateMtrx(2, 0), rotateMtrx(2, 1), rotateMtrx(2, 2);
+
+		Quaternionf rotateQuat(tmp_r1);
+
+		//クォータニオン同士で球面線形補間
+		Quaternionf rotateSlerp = myQuat.slerp(weight, rotateQuat);
+
+		//クォータニオン→回転行列
+		Matrix<float, 3, 3, RowMajor> tmp_r2 = rotateSlerp.matrix();
+		rxMatrix3 R_Slerp(
+			tmp_r2(0, 0), tmp_r2(0, 1), tmp_r2(0, 2), 
+			tmp_r2(1, 0), tmp_r2(1, 1), tmp_r2(1, 2), 
+			tmp_r2(2, 0), tmp_r2(2, 1), tmp_r2(2, 2)
+		);
+
+		//総積計算
+		R *= R_Slerp;
+	}
+
+	return R;
+}
+
+//近傍クラスタの変形勾配テンソルを用いてこのクラスタの変形勾配テンソルを近似
+rxMatrix3 OrientedPrtObj::InterpolateApq(const IceStructure* ice_struct)
+{
+	float weight = 0.5f;	//てきとうに平均
+
+	//回転成分
+	rxMatrix3 R = rxMatrix3::Identity();
+
+	mk_Quaternion tmp_q = m_vOrientedPrtes[0]->CurOrientation();
+	//Quaternionf myQuat = Quaternionf(tmp_q.w, tmp_q.x, tmp_q.y, tmp_q.z);
+
+	Quaternionf myQuat = Quaternionf::Identity();
+
+	//i = 0は自分なので除く
+	for(int i = 1; i < m_iIndxNum; i++){
+		if(CheckHole(i)){	continue;	}
+		int pIndx = m_iPIndxes[i];
+		if(ice_struct->GetMotionCalcCluster(pIndx) == 0){	continue;	}
+
+		rxMatrix3 rotateMtrx = m_vOrientedPrtes[i]->Rotation();
+
+		//回転行列→クォータニオン
+		Matrix<float, 3, 3, RowMajor> tmp_r1;
+		tmp_r1 <<	rotateMtrx(0, 0), rotateMtrx(0, 1), rotateMtrx(0, 2), 
+					rotateMtrx(1, 0), rotateMtrx(1, 1), rotateMtrx(1, 2), 
+					rotateMtrx(2, 0), rotateMtrx(2, 1), rotateMtrx(2, 2);
+		
+		Quaternionf rotateQuat(tmp_r1);
+
+		//クォータニオン同士で球面線形補間
+		Quaternionf rotateSlerp = myQuat.slerp(weight, rotateQuat);
+
+		//クォータニオン→回転行列
+		Matrix<float, 3, 3, RowMajor> tmp_r2 = rotateSlerp.matrix();
+		rxMatrix3 R_Slerp(
+			tmp_r2(0, 0), tmp_r2(0, 1), tmp_r2(0, 2), 
+			tmp_r2(1, 0), tmp_r2(1, 1), tmp_r2(1, 2), 
+			tmp_r2(2, 0), tmp_r2(2, 1), tmp_r2(2, 2)
+		);
+
+		//総積計算
+		R *= R_Slerp;
+	}
+
+	//回転以外の成分
+	Matrix<float, 3, 3, RowMajor> S_temp;
+	S_temp <<	0.0f, 0.0f, 0.0f,
+				0.0f, 0.0f, 0.0f,
+				0.0f, 0.0f, 0.0f;
+
+	for(int i = 1; i < m_iIndxNum; i++){
+		if(CheckHole(i)){	continue;	}
+		int pIndx = m_iPIndxes[i];
+		if(ice_struct->GetMotionCalcCluster(pIndx) == 0){	continue;	}
+
+		rxMatrix3 sym = m_vOrientedPrtes[i]->Symmetric();
+		
+		Matrix<float, 3, 3, RowMajor> eigen_Sim;
+		eigen_Sim <<	sym(0, 0), sym(0, 1), sym(0, 2), 
+						sym(1, 0), sym(1, 1), sym(1, 2), 
+						sym(2, 0), sym(2, 1), sym(2, 2);
+
+		//指数行列ってこれでいいのか？
+		Matrix<float, 3, 3, RowMajor> log_sim = eigen_Sim.array().log();
+		S_temp += weight * log_sim;
+	}
+	//対数行列ってこれでいいのか？
+	S_temp = S_temp.array().exp();
+
+	rxMatrix3 S(
+			S_temp(0, 0), S_temp(0, 1), S_temp(0, 2), 
+			S_temp(1, 0), S_temp(1, 1), S_temp(1, 2), 
+			S_temp(2, 0), S_temp(2, 1), S_temp(2, 2)
+	);
+
+	rxMatrix3 Apq =R * S;
+
+	return Apq;
+}
+
 
 //シェイプマッチングのテスト
 void OrientedPrtObj::ShapeMatchingNormal()
@@ -657,6 +892,9 @@ void OrientedPrtObj::ProjectConstraint(float dt)
 
 	//姿勢のために回転行列を保存
 	m_vOrientedPrtes[0]->Rotation(R);
+
+	//補間のために回転以外の部分を含む行列を保存
+	m_vOrientedPrtes[0]->Symmetric(S);
 }
 
 //距離制約

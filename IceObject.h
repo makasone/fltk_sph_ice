@@ -303,8 +303,10 @@ public:
 	void TestOrientedParticleStep();
 	void TestOrientedParticleWeightStep();
 	void TestOrientedParticleItrStep();
+	void TestOrientedParticleItrStep2();
 	void TestOrientedParticleItrWeightStep();
 
+	void TestInterPolationForSPH();
 
 	//--------------IceStructure‚Æ“¯‚¶“®‚«‚ğ‚·‚é‚½‚ß‚Éˆê“I‚Éì‚Á‚½ŠÖ”__----------------------------------
 	//‚¿‚á‚ñ‚ÆÀ‘•‚·‚ê‚Î‘S•”Á‚¹‚é

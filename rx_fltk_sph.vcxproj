@@ -287,7 +287,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\common\shared\inc\rx_timer.h" />
-    <ClInclude Include="EigenLapper.h" />
     <ClInclude Include="gnuplot.h" />
     <ClInclude Include="HeatTransfar.h" />
     <ClInclude Include="Ice_CalcMethod.h" />
@@ -319,6 +318,7 @@
     <ClInclude Include="Ice_OrientedParticle.h" />
     <ClInclude Include="Ice_SM.h" />
     <ClInclude Include="mk_ArrayScript.h" />
+    <ClInclude Include="mk_Quaternion.h" />
     <ClInclude Include="OrientedParticle.h" />
     <ClInclude Include="QueryCounter.h" />
     <ClInclude Include="rx_cuda_utils.h" />

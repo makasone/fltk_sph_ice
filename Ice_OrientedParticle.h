@@ -14,6 +14,8 @@
 #include <math.h>
 #include <time.h>
 
+#include "IceStructure.h"
+#include "mk_Quaternion.h"
 #include "ShapeMatching.h"
 #include "OrientedParticle.h"
 
@@ -39,6 +41,7 @@ private:
 	static float* s_pfClstrVel;							//各クラスタの最終的な速度
 
 	vector<OrientedParticle*> m_vOrientedPrtes;			//楕円粒子
+	//IceStructure* m_pIceStructure;						//物体に関する構造の情報　正直試作品なので使いづらい
 
 public:
 	//コンストラクタ
@@ -64,6 +67,8 @@ public:
 
 	float DefAmount() const { return m_fDefAmount;	}
 
+	OrientedParticle* Particle(int i) const{ return m_vOrientedPrtes.at(i);	}
+
 	void AddParticle(OrientedParticle* orientedPrt);
 	void AddParticle(const Vec3 &pos, double mass, int pIndx);
 
@@ -75,6 +80,7 @@ public:
 	void CalcOrgCm();
 
 	void UpdateCluster();
+	void UpdateCluster_Sampling(const IceStructure* ice_struct);
 
 	static void CopyPrtToClstrPos(unsigned prtNum);
 
@@ -84,6 +90,10 @@ private:
 
 	void CalcForce(float dt);
 	void CalcVelocity(float dt);
+
+	rxMatrix3 InterpolateRotation(const IceStructure* ice_struct);
+	rxMatrix3 InterpolateApq(const IceStructure* ice_struct);
+
 	void DampVelocity(float dt);	
 	void ProjectConstraint(float dt);
 	void DistanceConstraint(float dt);

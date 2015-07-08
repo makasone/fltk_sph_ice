@@ -13,26 +13,17 @@
 
 #include <math.h>
 
+#include "IceStructure.h"
+#include "mk_Quaternion.h"
+
 #include "rx_utility.h"
 #include "rx_matrix.h"
 
 #include "rx_nnsearch.h"
 
-class rxShapeMatching;
+class OrientedParticleBaseElasticObject;
 
 using namespace std;
-
-struct mk_Quaternion{
-	float	w, x, y, z;
-
-	mk_Quaternion(){
-		mk_Quaternion(1.0f, 0.0f, 0.0f, 0.0f);
-	}
-
-	mk_Quaternion(float xx, float yy, float zz, float ww){
-		x = xx; y = yy; z = zz; w = ww;
-	}
-};
 
 class OrientedParticle
 {
@@ -48,6 +39,7 @@ private:
 	rxMatrix3 m_mtrx3PrdMomentMtrx;						//モーメントマトリックス
 
 	rxMatrix3 m_mtrx3Rotation;							//回転行列
+	rxMatrix3 m_mtrx3Symmetric;							//回転以外の成分を含む行列　拡大縮小行列？
 
 	Vec3 m_vec3OrgPos;									//初期位置
 	Vec3 m_vec3PrdPos;									//推定位置
@@ -59,7 +51,7 @@ private:
 	float m_fMass;										//質量
 	int m_iId;											//粒子番号
 
-	rxShapeMatching* m_smCluster;						//粒子に対応するクラスタ
+	OrientedParticleBaseElasticObject* m_smCluster;		//粒子に対応するクラスタ
 
 public:
 //コンストラクタ
@@ -72,8 +64,10 @@ public:
 
 	void Integrate();
 	void Integrate_Itr();
-	void Integrate_Sampling();
-	void Integrate_Sampling_Itr();
+	void Integrate_NotSampled();
+	void Integrate_NotSampled2(const IceStructure* iceStrct);
+	void Integrate_NotSampled_Itr();
+	void Integrate_NotSampled2_Itr(const IceStructure* iceStrct);
 
 	void Update();
 	void Update_Itr();
@@ -82,7 +76,9 @@ public:
 //アクセッサ
 	int Id() const {		return m_iId;	}
 	float Mass() const {	return m_fMass;	}
+
 	Vec3 OrgPos() const {	return m_vec3OrgPos;	}
+
 	Vec3 PrdPos() const {	return m_vec3PrdPos;	}
 	void PrdPos(Vec3 pos){	m_vec3PrdPos = pos;		}
 
@@ -90,25 +86,33 @@ public:
 	rxMatrix3 MomentMatrix() const {	return m_mtrx3PrdMomentMtrx;	}
 
 	void ElipsoidRadius(Vec3 radius){	m_vec3ElipsoidRadius = radius;	}
+
 	void Rotation(rxMatrix3 rotation){	m_mtrx3Rotation = rotation;	}
+	rxMatrix3 Rotation() const { return m_mtrx3Rotation;	}
+
+	void Symmetric(rxMatrix3 sym){	m_mtrx3Symmetric = sym;	}
+	rxMatrix3 Symmetric(){		return m_mtrx3Symmetric;	}
 
 	void CurOrientation(mk_Quaternion orientation){	m_QuatCurOrientation = orientation;	}
+	mk_Quaternion CurOrientation() const {	return m_QuatCurOrientation;	}
+
+	void PrdOrientation(mk_Quaternion orientation){	m_QuatPrdOrientation = orientation;	}
+	const mk_Quaternion& PrdOrientation() const {	return m_QuatPrdOrientation;	}
 
 	Vec3 AngularVel() const {	return m_vec3AngularVel;	}
 	void AngularVel(Vec3 angl){	m_vec3AngularVel = angl;	}
 
-	void Cluster(rxShapeMatching* cluster){	m_smCluster = cluster;	}
+	void Cluster(OrientedParticleBaseElasticObject* cluster){	m_smCluster = cluster;	}
 
 private:
-	
 	void IntegrateEstimatedPos();
 	void IntegrateEstimatedOrientation();
+	void InterpolateOrientation(const IceStructure* iceStrct);
 	void IntegrateA_elipsoid();
 	void IntegrateMomentMatrix();
 
 	void IntegrateA_elipsoid_Itr();
 	void IntegrateMomentMatrix_Itr();
-
 
 	void UpdatePosAndVel();
 	void UpdateOrientation();

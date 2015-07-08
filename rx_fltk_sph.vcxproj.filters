@@ -398,14 +398,14 @@
     <ClInclude Include="Ice_CalcStiffData_Average.h">
       <Filter>IceObject\CalcStiffnessData</Filter>
     </ClInclude>
-    <ClInclude Include="EigenLapper.h">
-      <Filter>IceObject\SM Files</Filter>
-    </ClInclude>
     <ClInclude Include="Ice_OrientedParticle.h">
       <Filter>IceObject\SM Files\OP_SM</Filter>
     </ClInclude>
     <ClInclude Include="OrientedParticle.h">
       <Filter>IceObject\SM Files\OP_SM</Filter>
+    </ClInclude>
+    <ClInclude Include="mk_Quaternion.h">
+      <Filter>UnilityScript</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

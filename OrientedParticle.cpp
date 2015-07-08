@@ -38,7 +38,10 @@ mk_Quaternion ConvertQuaternion(const Quaternionf& q)
 //--------------------------------------------------------------------------------------------------------------------
 
 
-
+//Quaternionf OrientedParticle::CurOrientation()
+//{
+//	
+//}
 
 OrientedParticle::OrientedParticle()
 {
@@ -74,6 +77,7 @@ void OrientedParticle::Init()
 	m_mtrx3PrtA_elipsoid = rxMatrix3::Identity();
 	m_mtrx3PrdMomentMtrx = rxMatrix3::Identity();
 	m_mtrx3Rotation = rxMatrix3::Identity();
+	m_mtrx3Symmetric = rxMatrix3::Identity();
 
 	m_smCluster = 0;
 }
@@ -92,7 +96,7 @@ void OrientedParticle::Integrate_Itr()
 	IntegrateMomentMatrix_Itr();
 }
 
-void OrientedParticle::Integrate_Sampling()
+void OrientedParticle::Integrate_NotSampled()
 {
 	IntegrateEstimatedPos();
 	IntegrateMomentMatrix();
@@ -100,11 +104,27 @@ void OrientedParticle::Integrate_Sampling()
 	m_mtrx3PrtA_elipsoid = rxMatrix3(0.0);
 }
 
-void OrientedParticle::Integrate_Sampling_Itr()
+//周りのクラスタから姿勢を補間するタイプ
+void OrientedParticle::Integrate_NotSampled2(const IceStructure* iceStrct)
+{
+	IntegrateEstimatedPos();
+	InterpolateOrientation(iceStrct);	//姿勢を補間
+	IntegrateA_elipsoid();		//補間した姿勢を利用
+	IntegrateMomentMatrix();
+}
+
+void OrientedParticle::Integrate_NotSampled_Itr()
 {
 	IntegrateMomentMatrix_Itr();
 
 	m_mtrx3PrtA_elipsoid = rxMatrix3(0.0);
+}
+
+void OrientedParticle::Integrate_NotSampled2_Itr(const IceStructure* iceStrct)
+{
+	InterpolateOrientation(iceStrct);	//姿勢を補間
+	IntegrateA_elipsoid();		//補間した姿勢を利用
+	IntegrateMomentMatrix();
 }
 
 void OrientedParticle::Update()
@@ -170,6 +190,41 @@ void OrientedParticle::IntegrateEstimatedOrientation()
 	//m_QuatPrdOrientation = ConvertQuaternion(qCurrent); //角速度を無視する場合　ただし姿勢が一定になってしまう　反復処理で使う？
 }
 
+//姿勢の補間
+void OrientedParticle::InterpolateOrientation(const IceStructure* iceStrct)
+{
+	unsigned prtNum = m_smCluster->GetIndxNum();
+
+	//サンプリングされた粒子の姿勢を取得
+	vector<mk_ExpMap> exps;
+	exps.resize(prtNum);
+	int expNum = 0;
+
+	for(unsigned i = 0;  i < prtNum; i++){
+
+		if(m_smCluster->CheckHole(i)){	continue;	}
+
+		int pIndx = m_smCluster->GetParticleIndx(i);
+		if(iceStrct->GetMotionCalcCluster(pIndx) == 0){	continue;	}
+
+		exps[expNum++] = QuaternionToExpMap(m_smCluster->Particle(i)->PrdOrientation());
+	}
+
+	//補間に用いる重み　とりあえず平均
+	vector<float> weights;
+	weights.resize(expNum);
+
+	for(unsigned i = 0; i < expNum; i++){
+		float w = 1.0f/(float)expNum;
+		weights[i] = w;
+	}
+
+	//mk_ExpMap exp_q = mk_ExpMap().ExpLinerInterpolation(exps, weights, expNum);
+	//m_QuatCurOrientation = ExpMapToQuaterinon(exp_q);
+	//m_QuatPrdOrientation = ExpMapToQuaterinon(exp_q);
+	m_QuatPrdOrientation = ExpMapToQuaterinon(mk_ExpMap().ExpLinerInterpolation(exps, weights, expNum));
+}
+
 //楕円の変形勾配の線形近似
 //論文の式(9)
 void OrientedParticle::IntegrateA_elipsoid()
@@ -198,25 +253,18 @@ void OrientedParticle::IntegrateA_elipsoid()
 	m_mtrx3PrtA_elipsoid = Ae;
 }
 
-//最小二乗法で求めた正規方程式（の一部）高速化のためにばらしている
+//最小二乗法で求めた正規方程式（の一部）高速化のために分解している
 void OrientedParticle::IntegrateMomentMatrix()
 {
-	Vec3 orgPos = m_vec3OrgPos;
-	Vec3 curPos = m_vec3PrdPos;
-
-	rxMatrix3 momentMtrx;
-
-	momentMtrx(0,0) = curPos[X] * orgPos[X];
-	momentMtrx(0,1)	= curPos[X] * orgPos[Y];
-	momentMtrx(0,2)	= curPos[X] * orgPos[Z];
-	momentMtrx(1,0)	= curPos[Y] * orgPos[X];
-	momentMtrx(1,1)	= curPos[Y] * orgPos[Y];
-	momentMtrx(1,2)	= curPos[Y] * orgPos[Z];
-	momentMtrx(2,0)	= curPos[Z] * orgPos[X];
-	momentMtrx(2,1)	= curPos[Z] * orgPos[Y];
-	momentMtrx(2,2)	= curPos[Z] * orgPos[Z];
-
-	m_mtrx3PrdMomentMtrx = momentMtrx;
+	m_mtrx3PrdMomentMtrx(0,0) = m_vec3PrdPos[X] * m_vec3OrgPos[X];
+	m_mtrx3PrdMomentMtrx(0,1) = m_vec3PrdPos[X] * m_vec3OrgPos[Y];
+	m_mtrx3PrdMomentMtrx(0,2) = m_vec3PrdPos[X] * m_vec3OrgPos[Z];
+	m_mtrx3PrdMomentMtrx(1,0) = m_vec3PrdPos[Y] * m_vec3OrgPos[X];
+	m_mtrx3PrdMomentMtrx(1,1) = m_vec3PrdPos[Y] * m_vec3OrgPos[Y];
+	m_mtrx3PrdMomentMtrx(1,2) = m_vec3PrdPos[Y] * m_vec3OrgPos[Z];
+	m_mtrx3PrdMomentMtrx(2,0) = m_vec3PrdPos[Z] * m_vec3OrgPos[X];
+	m_mtrx3PrdMomentMtrx(2,1) = m_vec3PrdPos[Z] * m_vec3OrgPos[Y];
+	m_mtrx3PrdMomentMtrx(2,2) = m_vec3PrdPos[Z] * m_vec3OrgPos[Z];
 }
 
 //反復処理--------------------------------------------------------------------------------------------------------------------------
@@ -230,6 +278,7 @@ void OrientedParticle::IntegrateA_elipsoid_Itr()
 
 	Quaternionf r = qp * q0.inverse();
 
+	//クォータニオン→行列
 	Matrix<float, 3, 3, RowMajor> tmp_r = r.matrix();
 	rxMatrix3 R(
 		tmp_r(0, 0), tmp_r(0, 1), tmp_r(0, 2), 
@@ -294,6 +343,7 @@ void OrientedParticle::UpdateOrientation()
 {
 	rxMatrix3 rotateMtrx = m_mtrx3Rotation;
 
+	//行列→クォータニオン
 	Matrix<float, 3, 3, RowMajor> tmp_r;
 	tmp_r <<	rotateMtrx(0, 0), rotateMtrx(0, 1), rotateMtrx(0, 2), 
 				rotateMtrx(1, 0), rotateMtrx(1, 1), rotateMtrx(1, 2), 
