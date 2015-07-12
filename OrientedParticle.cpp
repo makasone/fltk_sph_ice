@@ -21,8 +21,6 @@ const unsigned X = 0;
 const unsigned Y = 1;
 const unsigned Z = 2;
 
-
-
 //-------------------------------------------------------------------------------------------------------------------
 //うまくEigenをインクルードできなかったために作った変換関数
 Quaternionf ConvertQuaternion(mk_Quaternion mk_q)
@@ -73,6 +71,7 @@ void OrientedParticle::Init()
 	m_QuatPrdOrientation = ConvertQuaternion(Quaternionf::Identity());
 
 	m_vec3Vel = Vec3(0.0);
+	m_vec3Axis = Vec3(0.0);
 
 	m_mtrx3PrtA_elipsoid = rxMatrix3::Identity();
 	m_mtrx3PrdMomentMtrx = rxMatrix3::Identity();
@@ -109,7 +108,7 @@ void OrientedParticle::Integrate_NotSampled2(const IceStructure* iceStrct)
 {
 	IntegrateEstimatedPos();
 	InterpolateOrientation(iceStrct);	//姿勢を補間
-	IntegrateA_elipsoid();		//補間した姿勢を利用
+	IntegrateA_elipsoid();				//補間した姿勢を利用
 	IntegrateMomentMatrix();
 }
 
@@ -147,6 +146,11 @@ void OrientedParticle::Update_ItrEnd()
 	UpdateAngularVel();
 }
 
+void OrientedParticle::Update_Itr_NotSampled(const IceStructure* iceStrct)
+{
+	InterpolateOrientation(iceStrct);	//姿勢を補間
+}
+
 //前フレームの速度から現フレームの位置を推定
 void OrientedParticle::IntegrateEstimatedPos()
 {
@@ -171,7 +175,7 @@ void OrientedParticle::IntegrateEstimatedOrientation()
 	Quaternionf qCurrent = ConvertQuaternion(m_QuatCurOrientation);
 	Quaternionf qPredict = Quaternionf::Identity();
 	
-	if(len <= 0.01f){
+	if(len <= 0.0001f){
 		qPredict = qCurrent;
 	}
 	else{
@@ -200,6 +204,9 @@ void OrientedParticle::InterpolateOrientation(const IceStructure* iceStrct)
 	exps.resize(prtNum);
 	int expNum = 0;
 
+	mk_Quaternion pre_q = m_QuatPrdOrientation;
+	//Quaternionf q = Quaternionf(0.0f, 0.0f, 0.0f, 0.0f);	//IdentityではなくZero
+
 	for(unsigned i = 0;  i < prtNum; i++){
 
 		if(m_smCluster->CheckHole(i)){	continue;	}
@@ -207,8 +214,24 @@ void OrientedParticle::InterpolateOrientation(const IceStructure* iceStrct)
 		int pIndx = m_smCluster->GetParticleIndx(i);
 		if(iceStrct->GetMotionCalcCluster(pIndx) == 0){	continue;	}
 
-		exps[expNum++] = QuaternionToExpMap(m_smCluster->Particle(i)->PrdOrientation());
+		//内積を取ると安定した
+		mk_Quaternion quat = m_smCluster->Particle(i)->PrdOrientation();
+		float dot = pre_q.x * quat.x + pre_q.y * quat.y + pre_q.z * quat.z + pre_q.w * quat.w;
+		
+		if(dot < 0.0f){
+			quat.x = -quat.x; quat.y = -quat.y; quat.z = -quat.z; quat.w = -quat.w;
+		}
+		exps[expNum++] = QuaternionToExpMap(quat);
+
+		//exps[expNum++] = QuaternionToExpMap(m_smCluster->Particle(i)->PrdOrientation());
+
+		//Qslerp
+		//q.coeffs() += ConvertQuaternion(m_smCluster->Particle(i)->PrdOrientation()).coeffs();
+		//expNum++;
 	}
+
+	//q.coeffs() /= expNum;
+	//q.normalize();
 
 	//補間に用いる重み　とりあえず平均
 	vector<float> weights;
@@ -219,9 +242,14 @@ void OrientedParticle::InterpolateOrientation(const IceStructure* iceStrct)
 		weights[i] = w;
 	}
 
-	//mk_ExpMap exp_q = mk_ExpMap().ExpLinerInterpolation(exps, weights, expNum);
-	//m_QuatCurOrientation = ExpMapToQuaterinon(exp_q);
-	//m_QuatPrdOrientation = ExpMapToQuaterinon(exp_q);
+	//mk_Quaternion prd = ExpMapToQuaterinon(mk_ExpMap().ExpLinerInterpolation(exps, weights, expNum));
+	//float dot = prd.x * m_QuatPrdOrientation.x + prd.y * m_QuatPrdOrientation.y + prd.z * m_QuatPrdOrientation.z + prd.w * m_QuatPrdOrientation.w;
+	//if(dot < 0.0){
+	//	prd.x = -prd.x;	prd.y = -prd.y;	prd.z = -prd.z;	prd.w = -prd.w;
+	//}
+
+	//m_QuatPrdOrientation = prd;
+
 	m_QuatPrdOrientation = ExpMapToQuaterinon(mk_ExpMap().ExpLinerInterpolation(exps, weights, expNum));
 }
 
@@ -360,25 +388,31 @@ void OrientedParticle::UpdateAngularVel()
 	Quaternionf qp = ConvertQuaternion(m_QuatPrdOrientation);
 	Quaternionf q_inv = ConvertQuaternion(m_QuatCurOrientation).inverse();
 
-	Quaternionf r = qp * q_inv;
+	//これを入れると回転に制限がかかる？
+	//float dot = qp.dot(q_inv);
 
-	if(r.w() < 0.0f){
-		r.x() = -r.x();
-		r.y() = -r.y();
-		r.z() = -r.z();
-		r.w() = -r.w();
-	}
+	//if(dot < 0.0f){
+	//	qp.coeffs() = -qp.coeffs();
+	//}
+
+	//if(qp.w() < 0.0f){
+	//	qp.coeffs() = -qp.coeffs();
+	//}
+
+	Quaternionf r = qp * q_inv;
 
 	//axis
 	Vec3 axis;
 	Vec3 vec(r.x(), r.y(), r.z());
 	float len = norm(vec);
-	if(len <= 0.01f){
+	if(len <= 0.00000001f){
 		axis = Vec3(0.0f, 0.0f, 0.0f);
 	}
 	else{
 		axis = vec/len;
 	}
+
+	m_vec3Axis = axis;
 
 	//angle
 	float angle;
@@ -396,8 +430,8 @@ void OrientedParticle::UpdateAngularVel()
 	//angular vel
 	float dt1 = 1.0f / m_smCluster->dt();
 
-	if(angle < 0.01f){
-		m_vec3AngularVel = Vec3(0.0f);
+	if(angle < 0.000001f){
+		m_vec3AngularVel = Vec3(0.0f); //Vec3(1.0f, 0.0f, 0.0f)
 	}
 	else{
 		m_vec3AngularVel = axis * angle * dt1;
@@ -407,6 +441,5 @@ void OrientedParticle::UpdateAngularVel()
 	Quaternionf qp_norm = ConvertQuaternion(m_QuatPrdOrientation);
 	m_QuatCurOrientation = ConvertQuaternion(qp_norm.normalized());
 }
-
 
 #endif

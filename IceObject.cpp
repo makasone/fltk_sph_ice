@@ -728,6 +728,9 @@ void IceObject::InitIceObjGPU()
 //デバッグ情報の描画
 void IceObject::Display()
 {
+	//クォータニオンの情報を描画
+	TestDisplayOrientedInfo();
+
 	//テスト
 	//現在のCalcMethodのモード確認
 	const char* calcMethodName1 = typeid(Ice_CalcMethod_Itr_Stiffness).name();
@@ -776,6 +779,45 @@ void IceObject::StepObjMoveCPUNormal()
 	//TestOrientedParticleItrWeightStep();
 }
 
+//orientedParticleの情報を描画
+void IceObject::TestDisplayOrientedInfo()
+{
+	return;
+
+	//クォータニオンの方向ベクトルとその大きさを可視化
+	glLineWidth(3.0);
+	glColor3f(0.0f,1.0f,0.0f);	//
+	glBegin(GL_LINES);
+
+	for(unsigned pIndx = 0; pIndx < IceObject::GetParticleNum(); pIndx++){
+		Vec3 pos = m_vOrientedPrtes[pIndx]->PrdPos();
+		Vec3 axis = m_vOrientedPrtes[pIndx]->Axis();
+
+		Vec3 arrow = pos + axis / norm(axis) * 0.25f;
+
+		Vec3 colorStart, colorEnd; 
+
+		if(m_iceStrct->GetMotionCalcCluster(pIndx) != 0){
+			//サンプリング粒子：青
+			colorStart = Vec3(0.8, 0.8, 1.0);
+			colorEnd = Vec3(0.0, 0.0, 1.0);
+		}
+		else{
+			//非サンプリング粒子：赤
+			colorStart = Vec3(1.0, 0.8, 0.8);
+			colorEnd = Vec3(1.0, 0.0, 0.0);
+		}
+
+		glColor3dv(colorStart.data);
+		glVertex3d(pos[0], pos[1], pos[2]);
+		
+		glColor3dv(colorEnd.data);
+		glVertex3d(arrow[0], arrow[1], arrow[2]);
+	}
+
+	glEnd();
+}
+
 void IceObject::TestInterPolationForSPH()
 {
 	//最終位置，速度決定
@@ -819,6 +861,7 @@ void IceObject::TestOrientedParticleStep()
 	
 	//最終位置決定
 	//現在はm_iceStrctを用いずにsm法のデータm_iceSMだけで計算している
+	vector<Vec3> prtPoses(pNum, Vec3(0.0f));
 	vector<unsigned> addParticleNum(pNum, 0);
 
 	//単純な足しあわせ
@@ -832,7 +875,7 @@ void IceObject::TestOrientedParticleStep()
 			if(pIndx == MAXINT){	continue;	}
 
 			Vec3 pos = m_orientedObj[cIndx]->GetVertexPos(oIndx);
-			m_vOrientedPrtes[pIndx]->PrdPos() += pos;
+			prtPoses[pIndx] += pos;
 
 			//粒子数のカウント
 			addParticleNum[pIndx] += 1;
@@ -847,7 +890,8 @@ void IceObject::TestOrientedParticleStep()
 		float clusterNum = (float)addParticleNum[pIndx];
 		if(clusterNum <= 0.0f){	continue;	}
 
-		m_vOrientedPrtes[pIndx]->PrdPos() /= (clusterNum+1);
+		Vec3 pos = prtPoses[pIndx] / clusterNum;
+		m_vOrientedPrtes[pIndx]->PrdPos(pos);
 	}
 
 	//速度，角速度，姿勢を更新
@@ -912,7 +956,8 @@ void IceObject::TestOrientedParticleWeightStep()
 		float defAmount = defSum[pIndx];
 		if(defAmount <= 0.0f){	continue;	}
 
-		m_vOrientedPrtes[pIndx]->PrdPos() = prtPoses[pIndx] / defAmount;
+		Vec3 pos = prtPoses[pIndx] / defAmount;
+		m_vOrientedPrtes[pIndx]->PrdPos(pos);
 	}
 
 	//速度，角速度，姿勢を更新
@@ -1095,13 +1140,10 @@ void IceObject::TestOrientedParticleItrStep2()
 
 //初回
 {
-QueryCounter sampling;
-QueryCounter notSampling;
-QueryCounter updateCluster;
-
-sampling.Start();
 	//粒子を更新
 	//サンプリング粒子
+QueryCounter sampling;
+sampling.Start();
 	#pragma omp parallel for
 	for(int i = 0; i < pNum; i++){
 		if(m_iceStrct->GetMotionCalcCluster(i) == 0){	continue;	}
@@ -1109,6 +1151,7 @@ sampling.Start();
 	}
 double sampling_t = sampling.End();
 
+QueryCounter notSampling;
 notSampling.Start();
 	//非サンプリング粒子
 	#pragma omp parallel for
@@ -1118,8 +1161,9 @@ notSampling.Start();
 	}
 double notSampling_t = notSampling.End();
 
-updateCluster.Start();
 	//クラスタの更新
+QueryCounter cluster;
+cluster.Start();
 	#pragma omp parallel for
 	for(int i = 0; i < pNum; ++i){
 		//サンプリングされているクラスタのみで運動計算を行う
@@ -1127,7 +1171,11 @@ updateCluster.Start();
 
 		m_orientedObj[i]->UpdateCluster();
 	}
-double updateCluster_t = updateCluster.End();
+double cluster_t = cluster.End();
+
+	cout << "sampling:" << sampling_t << endl;
+	cout << "notSampl:" << notSampling_t << endl;
+	cout << "cluster :" << cluster_t << endl;
 
 ////Type2 サンプリングされているクラスタの回転行列から，サンプリングされていないクラスタの回転行列を補間
 //	#pragma omp parallel for
@@ -1137,10 +1185,6 @@ double updateCluster_t = updateCluster.End();
 //
 //		m_orientedObj[i]->UpdateCluster_Sampling(m_iceStrct);
 //	}
-
-cout << "sampling:" << sampling_t << endl;
-cout << "notSampling_t:" << notSampling_t << endl;
-cout << "updateCluster_t:" << updateCluster_t << endl;
 
 	//最終位置決定
 	vector<unsigned> addParticleNum(pNum, 0);

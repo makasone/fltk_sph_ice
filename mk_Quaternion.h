@@ -78,12 +78,12 @@ public:
 	}
 
 	//ExpMapの補間
-	mk_ExpMap ExpLinerInterpolation(mk_ExpMap exp, float weight){
+	inline mk_ExpMap ExpLinerInterpolation(mk_ExpMap exp, float weight){
 		return (*this) * weight + exp * (1.0f-weight);
 	}
 
 	//ExpMapの補間
-	mk_ExpMap ExpLinerInterpolation(const vector<mk_ExpMap>& expes, const vector<float>& weights, unsigned prtNum){
+	inline mk_ExpMap ExpLinerInterpolation(const vector<mk_ExpMap>& expes, const vector<float>& weights, unsigned prtNum){
 		
 		mk_ExpMap exp = mk_ExpMap(0.0f, 0.0f, 0.0f);
 
@@ -97,30 +97,32 @@ public:
 };
 
 	//クォータニオン→ExpMap
-	static mk_ExpMap QuaternionToExpMap(const mk_Quaternion& q){
+	inline static mk_ExpMap QuaternionToExpMap(const mk_Quaternion& q){
 
 		//単位クォータニオンとExpMapのZeroを対応付け
-		if( abs(abs(q.w) - 1.0f) < 0.0001f ){
+		if( fabs(q.w) >= 1.0f - 0.00001f ){
 			return mk_ExpMap(0.0f, 0.0f, 0.0f);
 		}
-
+		
 		const float theta = acos(q.w);
 		const float thetaInV = theta / sin(theta);
+
 		return mk_ExpMap(q.x * thetaInV, q.y * thetaInV, q.z * thetaInV);
 	}
 
 	//ExpMap→クォータニオン
-	static mk_Quaternion ExpMapToQuaterinon(const mk_ExpMap& eq){
+	inline static mk_Quaternion ExpMapToQuaterinon(const mk_ExpMap& eq){
 
-		const float theta = sqrt(eq.x * eq.x + eq.y * eq.y + eq.z * eq.z);
+		const float theta = sqrtf(eq.x * eq.x + eq.y * eq.y + eq.z * eq.z);
 
 		//ゼロ除算を避ける
-		if(theta < 0.0001f){
+		if(theta < 0.001f){
 			return mk_Quaternion(0.0f, 0.0f, 0.0f, 1.0f);
 		}
 
-		const float sintheta = sin(theta) / theta;
-		return mk_Quaternion(eq.x * sintheta, eq.y * sintheta, eq.z * sintheta, cos(theta));
+		const float sintheta = sinf(theta) / theta;
+
+		return mk_Quaternion(eq.x * sintheta, eq.y * sintheta, eq.z * sintheta, cosf(theta));
 	}
 
 #endif

@@ -1938,12 +1938,6 @@ void IceStructure::UpdateMotionCalcCluster(unsigned cIndx, short unsigned num)
 	m_psuSelectClusterIndx[cIndx] = num;
 }
 
-short unsigned IceStructure::GetMotionCalcCluster(unsigned cIndx) const
-{
-	return m_psuSelectClusterIndx[cIndx];
-}
-
-
 //-------------------------------------デバッグ----------------------------------------
 void IceStructure::DebugPtoT(int pIndx)
 {	cout << __FUNCTION__ << " pIndx = " << pIndx;

@@ -305,6 +305,8 @@ public:
 	void TestOrientedParticleItrStep();
 	void TestOrientedParticleItrStep2();
 	void TestOrientedParticleItrWeightStep();
+	
+	void TestDisplayOrientedInfo();
 
 	void TestInterPolationForSPH();
 

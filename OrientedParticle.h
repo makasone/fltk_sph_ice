@@ -12,6 +12,8 @@
 #define _ORIENTED_PARTICLE_H_
 
 #include <math.h>
+#include <cmath>
+#include <iostream>
 
 #include "IceStructure.h"
 #include "mk_Quaternion.h"
@@ -46,6 +48,8 @@ private:
 
 	Vec3 m_vec3Vel;										//速度
 
+	Vec3 m_vec3Axis;									//回転軸
+
 	Vec3 m_vec3Force;									//力
 
 	float m_fMass;										//質量
@@ -71,38 +75,41 @@ public:
 
 	void Update();
 	void Update_Itr();
+	void Update_Itr_NotSampled(const IceStructure* iceStrct);
 	void Update_ItrEnd();
 
 //アクセッサ
 	int Id() const {		return m_iId;	}
 	float Mass() const {	return m_fMass;	}
 
-	Vec3 OrgPos() const {	return m_vec3OrgPos;	}
+	inline const Vec3& OrgPos() const {	return m_vec3OrgPos;	}
 
-	Vec3 PrdPos() const {	return m_vec3PrdPos;	}
-	void PrdPos(Vec3 pos){	m_vec3PrdPos = pos;		}
+	inline const Vec3 PrdPos() const {	return m_vec3PrdPos;	}
+	inline void PrdPos(Vec3 pos){	m_vec3PrdPos = pos;		}
 
-	rxMatrix3 A_elipsoid() const {		return m_mtrx3PrtA_elipsoid;	}
-	rxMatrix3 MomentMatrix() const {	return m_mtrx3PrdMomentMtrx;	}
+	inline const rxMatrix3& A_elipsoid() const {		return m_mtrx3PrtA_elipsoid;	}
+	inline const rxMatrix3& MomentMatrix() const {	return m_mtrx3PrdMomentMtrx;	}
 
-	void ElipsoidRadius(Vec3 radius){	m_vec3ElipsoidRadius = radius;	}
+	inline void ElipsoidRadius(Vec3 radius){	m_vec3ElipsoidRadius = radius;	}
 
-	void Rotation(rxMatrix3 rotation){	m_mtrx3Rotation = rotation;	}
-	rxMatrix3 Rotation() const { return m_mtrx3Rotation;	}
+	inline void Rotation(rxMatrix3 rotation){	m_mtrx3Rotation = rotation;	}
+	inline const rxMatrix3& Rotation() const { return m_mtrx3Rotation;	}
 
-	void Symmetric(rxMatrix3 sym){	m_mtrx3Symmetric = sym;	}
-	rxMatrix3 Symmetric(){		return m_mtrx3Symmetric;	}
+	inline void Symmetric(rxMatrix3 sym){	m_mtrx3Symmetric = sym;	}
+	inline rxMatrix3 Symmetric(){		return m_mtrx3Symmetric;	}
 
-	void CurOrientation(mk_Quaternion orientation){	m_QuatCurOrientation = orientation;	}
-	mk_Quaternion CurOrientation() const {	return m_QuatCurOrientation;	}
+	inline void CurOrientation(mk_Quaternion orientation){	m_QuatCurOrientation = orientation;	}
+	inline const mk_Quaternion& CurOrientation() const {	return m_QuatCurOrientation;	}
 
-	void PrdOrientation(mk_Quaternion orientation){	m_QuatPrdOrientation = orientation;	}
-	const mk_Quaternion& PrdOrientation() const {	return m_QuatPrdOrientation;	}
+	inline void PrdOrientation(mk_Quaternion orientation){	m_QuatPrdOrientation = orientation;	}
+	inline const mk_Quaternion& PrdOrientation() const {	return m_QuatPrdOrientation;	}
 
-	Vec3 AngularVel() const {	return m_vec3AngularVel;	}
-	void AngularVel(Vec3 angl){	m_vec3AngularVel = angl;	}
+	inline const Vec3& Axis() const {	return m_vec3Axis;	}
 
-	void Cluster(OrientedParticleBaseElasticObject* cluster){	m_smCluster = cluster;	}
+	inline const Vec3& AngularVel() const {	return m_vec3AngularVel;	}
+	inline void AngularVel(Vec3 angl){	m_vec3AngularVel = angl;	}
+
+	inline void Cluster(OrientedParticleBaseElasticObject* cluster){	m_smCluster = cluster;	}
 
 private:
 	void IntegrateEstimatedPos();

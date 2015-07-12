@@ -173,7 +173,7 @@ public:	//TODO: 全てpublicにしない
 	void ResetSelectCluster(vector<Ice_SM*>& iceSM);
 
 	void UpdateMotionCalcCluster(unsigned cIndx, short unsigned num);
-	short unsigned GetMotionCalcCluster(unsigned cIndx) const;
+	inline short unsigned GetMotionCalcCluster(unsigned cIndx) const{	return m_psuSelectClusterIndx[cIndx];	}
 
 	//デバッグ
 	void DebugPtoT(int pIndx);
