@@ -21,6 +21,8 @@
 
 #include "QueryCounter.h"
 
+typedef OrientedParticleBaseElasticObject ElasticObj;
+
 using namespace std;
 
 class OrientedParticleBaseElasticObject : public rxShapeMatching
@@ -41,7 +43,6 @@ private:
 	static float* s_pfClstrVel;							//各クラスタの最終的な速度
 
 	vector<OrientedParticle*> m_vOrientedPrtes;			//楕円粒子
-	//IceStructure* m_pIceStructure;						//物体に関する構造の情報　正直試作品なので使いづらい
 
 public:
 	//コンストラクタ
@@ -57,32 +58,36 @@ public:
 	void Copy(const OrientedParticleBaseElasticObject& copy);
 
 	static void AllocateStaticMemory(const float* prtPos, const float* prtVel, int prtNum);
-
 	void ReleaseMemory();
 	
+	//アクセッサー
 	static float* GetClstrPosPointer() {	return s_pfClstrPos;	}
 	static float* GetClstrVelPointer() {	return s_pfClstrVel;	}
 
 	rxMatrix3 Apq() const { return m_mtrx3Apq;	}
 
 	float DefAmount() const { return m_fDefAmount;	}
+	void DefAmount(float def){	m_fDefAmount = def;	}
 
 	OrientedParticle* Particle(int i) const{ return m_vOrientedPrtes.at(i);	}
 
-	void AddParticle(OrientedParticle* orientedPrt);
-	void AddParticle(const Vec3 &pos, double mass, int pIndx);
+	static void CopyPrtToClstrPos(unsigned prtNum);
 
 	void InitOrientation();
+
+	void AddParticle(OrientedParticle* orientedPrt);
+	void AddParticle(const Vec3 &pos, double mass, int pIndx);
 
 	void RemoveParticle(int pIndx);
 	void ClearParticle();
 
 	void CalcOrgCm();
 
-	void UpdateCluster();
+	void UpdateCluster_OP();
+	void UpdateCluster_SM();
+	void UpdateCluster_SM_Itr();	//あとで消す
+	void UpdateCluster_SM_Itr_End();//あとで消す
 	void UpdateCluster_Sampling(const IceStructure* ice_struct);
-
-	static void CopyPrtToClstrPos(unsigned prtNum);
 
 private:
 	void CalcNowCm();
@@ -99,8 +104,6 @@ private:
 	void DistanceConstraint(float dt);
 	void ApplyEstimatedPosition(float dt);
 	void CorrectVelocity(float dt);
-
-	void ShapeMatchingNormal();
 };
 
 #endif

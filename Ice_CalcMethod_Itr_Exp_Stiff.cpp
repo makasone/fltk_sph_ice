@@ -2,13 +2,14 @@
 
 typedef Ice_CalcMethod_Itr_Exp_Stiff CalcIteration;
 
-#define PNUM 2197
+#define PNUM 6525
 #define ADDLIMIT 50
 
-CalcIteration::Ice_CalcMethod_Itr_Exp_Stiff(const vector<Ice_SM*>& iceSM, Ice_ClusterMove* clusterMove, Ice_Convolution* convo)
+CalcIteration::Ice_CalcMethod_Itr_Exp_Stiff(const vector<Ice_SM*>& iceSM, Ice_SimuMethod* simuMethod, Ice_Convolution* convo)
 {
 	m_iceSM = iceSM;
-	SetObjMove(clusterMove);
+	//SetObjMove(clusterMove);
+	SetObjMove(simuMethod);
 	SetConvolution(convo);
 
 	//閾値用データ算出クラス
@@ -22,9 +23,10 @@ CalcIteration::~Ice_CalcMethod_Itr_Exp_Stiff()
 {
 }
 
-void CalcIteration::SetObjMove(Ice_ClusterMove* clusterMove)
+//void CalcIteration::SetObjMove(Ice_ClusterMove* clusterMove)
+void CalcIteration::SetObjMove(Ice_SimuMethod* simuMethod)
 {
-	m_iceMove = clusterMove;
+	m_simuMethod = simuMethod;
 }
 
 void CalcIteration::SetConvolution(Ice_Convolution* convo)
@@ -35,7 +37,8 @@ void CalcIteration::SetConvolution(Ice_Convolution* convo)
 void CalcIteration::StepObjMove()
 {
 	//初回の運動計算
-	m_iceMove->StepObjMove();
+	//m_iceMove->StepObjMove();
+	m_simuMethod->StepObjMove();
 
 	//rigidの最終結果　重力を反映しているバージョン
 	m_iceCalcStiff->StepUpdate();
@@ -60,7 +63,8 @@ void CalcIteration::StepObjMove()
 		ExpandeCluster(searchFinishIndxes);
 
 		//反復時の運動計算
-		m_iceMove->StepObjMoveItr();
+		//m_iceMove->StepObjMoveItr();
+		m_simuMethod->StepObjMoveItr();
 
 		//運動計算
 		m_iceConvo->StepConvolution();
@@ -82,7 +86,8 @@ void CalcIteration::CalcVel()
 	#pragma omp parallel for
 	for(int i = 0; i < IceObject::GetParticleNum(); ++i)
 	{	
-		if(m_iceMove->GetJudgeMove()->JudgeMove(i) == false){	continue;	}
+		//if(m_iceMove->GetJudgeMove()->JudgeMove(i) == false){	continue;	}
+		if(m_simuMethod->GetJudgeMove()->JudgeMove(i) == false){	continue;	}
 		m_iceSM[i]->integrateIteration();
 	}
 }
@@ -216,6 +221,7 @@ counter2.Start();
 	const float* sldVel = Ice_SM::GetSldVelPointer();
 
 	for(unsigned i = 0; i < m_iceSM.size(); i++){
+
 		bool isAdd[PNUM] = {};
 		//クラスタに含まれる粒子のフラグオン
 		for(unsigned j = 0; j < m_iceSM[i]->GetIndxNum(); j++){
@@ -263,7 +269,8 @@ double end2 = counter2.End();
 void CalcIteration::StepObjMoveDebug()
 {
 	//初回の運動計算
-	m_iceMove->StepObjMove();
+	//m_iceMove->StepObjMove();
+	m_simuMethod->StepObjMove();
 
 	//rigidの最終結果　重力を反映しているバージョン
 	m_iceCalcStiff->StepUpdate();
@@ -290,7 +297,8 @@ void CalcIteration::StepObjMoveDebug()
 		ExpandeCluster(searchFinishIndxes);
 
 		//反復時の運動計算
-		m_iceMove->StepObjMoveItr();
+		//m_iceMove->StepObjMoveItr();
+		m_simuMethod->StepObjMoveItr();
 
 		//運動計算
 		m_iceConvo->StepConvolution();

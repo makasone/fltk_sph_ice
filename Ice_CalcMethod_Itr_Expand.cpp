@@ -6,11 +6,12 @@ typedef Ice_CalcMethod_Itr_Expand CalcIteration;
 #define ADDLIMIT 50
 #define SEARCH_LAYER 5
 
-CalcIteration::Ice_CalcMethod_Itr_Expand(const vector<Ice_SM*>& iceSM, IceStructure* iceStrct, Ice_ClusterMove* clusterMove, Ice_Convolution* convo)
+CalcIteration::Ice_CalcMethod_Itr_Expand(const vector<Ice_SM*>& iceSM, IceStructure* iceStrct, Ice_SimuMethod* simuMethod, Ice_Convolution* convo)
 {
 	m_iceSM = iceSM;
 	m_iceStrct = iceStrct;
-	SetObjMove(clusterMove);
+	//SetObjMove(clusterMove);
+	SetObjMove(simuMethod);
 	SetConvolution(convo);
 }
 
@@ -18,9 +19,11 @@ CalcIteration::~Ice_CalcMethod_Itr_Expand()
 {
 }
 
-void CalcIteration::SetObjMove(Ice_ClusterMove* clusterMove)
+//void CalcIteration::SetObjMove(Ice_ClusterMove* clusterMove)
+void CalcIteration::SetObjMove(Ice_SimuMethod* simuMethod)
 {
-	m_iceMove = clusterMove;
+	//m_iceMove = clusterMove;
+	m_simuMethod = simuMethod;
 }
 
 void CalcIteration::SetConvolution(Ice_Convolution* convo)
@@ -31,7 +34,8 @@ void CalcIteration::SetConvolution(Ice_Convolution* convo)
 void CalcIteration::StepObjMove()
 {
 	//‰‰ñ‚Ì‰^“®ŒvŽZ
-	m_iceMove->StepObjMove();
+	//m_iceMove->StepObjMove();
+	m_simuMethod->StepObjMove();
 
 	//ŒÅ‘Ì‚É‚¨‚¯‚éÅIˆÊ’uŒˆ’è
 	m_iceConvo->StepConvolution();
@@ -66,7 +70,8 @@ void CalcIteration::StepObjMove()
 		//ExchangeCluster_Far();
 
 		//”½•œŽž‚Ì‰^“®ŒvŽZ
-		m_iceMove->StepObjMoveItr();
+		//m_iceMove->StepObjMoveItr();
+		m_simuMethod->StepObjMoveItr();
 
 		//ŒÅ‘Ì‚É‚¨‚¯‚éÅIˆÊ’uŒˆ’è
 		m_iceConvo->StepConvolution();
@@ -85,7 +90,8 @@ void CalcIteration::CalcVel()
 	#pragma omp parallel for
 	for(int i = 0; i < IceObject::GetParticleNum(); ++i)
 	{	
-		if(m_iceMove->GetJudgeMove()->JudgeMove(i) == false){	continue;	}
+		//if(m_iceMove->GetJudgeMove()->JudgeMove(i) == false){	continue;	}
+		if(m_simuMethod->GetJudgeMove()->JudgeMove(i) == false){	continue;	}
 		m_iceSM[i]->integrateIteration();
 	}
 }
@@ -705,7 +711,8 @@ QueryCounter counter4;
 
 counter1.Start();
 	//‰‰ñ‚Ì‰^“®ŒvŽZ
-	m_iceMove->StepObjMove();
+	//m_iceMove->StepObjMove();
+	m_simuMethod->StepObjMove();
 
 	//ŒÅ‘Ì‚É‚¨‚¯‚éÅIˆÊ’uŒˆ’è
 	m_iceConvo->StepConvolution();
@@ -739,7 +746,8 @@ counter3.Start();
 		//ExchangeCluster_Far();
 
 		//”½•œŽž‚Ì‰^“®ŒvŽZ
-		m_iceMove->StepObjMoveItr();
+		//m_iceMove->StepObjMoveItr();
+		m_simuMethod->StepObjMoveItr();
 
 		//ŒÅ‘Ì‚É‚¨‚¯‚éÅIˆÊ’uŒˆ’è
 		m_iceConvo->StepConvolution();

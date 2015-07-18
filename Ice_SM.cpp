@@ -1214,7 +1214,7 @@ void Ice_SM::ShapeMatchingIteration()
 		//	}
 		//}
 
-		//m_fDefAmount = 0.0f;
+		m_fDefAmount = 0.0f;
 
 		// 目標座標を計算し，現在の頂点座標を移動
 		for(int i = 0; i < m_iIndxNum; ++i)

@@ -195,7 +195,7 @@ void OrientedPrtObj::InitOrientation()
 	int indx = eigenValVec[Z].second;
 	Vector3f orientedVec = es.eigenvectors().row(indx);
 
-	//１	複数のベクトルから姿勢を定義する方法がわからない．行列に直せる？
+	//１	複数のベクトルから姿勢を定義する方法がわからない．２つからなら定義できるみたいだけど…　行列に直せる？
 	//２	仕方ないので，座標系が回転したと考える．
 	//		(1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0)の正規直交基底が
 	//		固有ベクトルとなるような回転行列を最小二乗法を用いて求める
@@ -249,7 +249,7 @@ void OrientedPrtObj::InitOrientation()
 	//cout << testMatrix << endl;
 }
 
-void OrientedPrtObj::UpdateCluster()
+void OrientedPrtObj::UpdateCluster_OP()
 {
 	float dt = m_dDt;
 
@@ -545,7 +545,7 @@ rxMatrix3 OrientedPrtObj::InterpolateApq(const IceStructure* ice_struct)
 
 
 //シェイプマッチングのテスト
-void OrientedPrtObj::ShapeMatchingNormal()
+void OrientedPrtObj::UpdateCluster_SM()
 {
 	double dt = m_dDt;
 
@@ -555,13 +555,20 @@ void OrientedPrtObj::ShapeMatchingNormal()
 		if( CheckHole(i) ){	continue;	}
 		int pIndx = m_iPIndxes[i]*4;
 		int cIndx = i*SM_DIM;
+		int indx = m_iPIndxes[i]*3;
+
+
+		Vec3 prdPos = m_vOrientedPrtes[i]->PrdPos();
+		Vec3 vel = m_vOrientedPrtes[i]->Velocity();
 
 		for(int j = 0; j < SM_DIM; j++)
 		{
 			int jpIndx = pIndx+j;
 			int jcIndx = cIndx+j;
-			
+
 			m_pCurPos[jcIndx] = s_pfPrtPos[jpIndx] + (s_pfPrtVel[jpIndx] + (m_v3Gravity[j] * dt)) *dt;
+			//m_pCurPos[jcIndx] = s_pfPrtPos[jpIndx] + (s_pfClstrVel[indx+j] + (m_v3Gravity[j] * dt)) *dt;	//かわらない
+			//m_pCurPos[jcIndx] = s_pfPrtPos[jpIndx] + (vel[j] + (m_v3Gravity[j] * dt)) *dt;	//なぜかできない
 		}
 	}
 
@@ -575,6 +582,7 @@ void OrientedPrtObj::ShapeMatchingNormal()
 
 		int pIndx =  m_iPIndxes[i]*4;
 		int cIndx = i*SM_DIM;
+		Vec3 vel = m_vOrientedPrtes[i]->Velocity();
 
 		if(m_pCurPos[cIndx+0] < m_v3Min[0] || m_pCurPos[cIndx+0] > m_v3Max[0]){
 			m_pCurPos[cIndx+0] = s_pfPrtPos[pIndx+0] - (s_pfPrtVel[pIndx+0] + (m_v3Gravity[0] * dt))*dt*res;
@@ -706,6 +714,192 @@ void OrientedPrtObj::ShapeMatchingNormal()
 	}
 }
 
+void OrientedPrtObj::UpdateCluster_SM_Itr()
+{
+	double dt = m_dDt;
+
+	//// 境界壁の影響
+	////処理がかなり重くなるが，安定はするみたい
+	//double res = 0.9;	// 反発係数
+	//for(int i = 0; i < m_iIndxNum; ++i)
+	//{
+	//	if( CheckHole(i) ){	continue;	}
+	//	if(m_pFix[i]) continue;
+
+	//	int pIndx =  m_iPIndxes[i]*4;
+	//	int cIndx = i*SM_DIM;
+
+	//	if(m_pCurPos[cIndx+0] < m_v3Min[0] || m_pCurPos[cIndx+0] > m_v3Max[0]){
+	//		m_pCurPos[cIndx+0] = s_pfPrtPos[pIndx+0] - (s_pfPrtVel[pIndx+0] + (m_v3Gravity[0] * dt))*dt*res;
+	//		m_pCurPos[cIndx+1] = s_pfPrtPos[pIndx+1];
+	//		m_pCurPos[cIndx+2] = s_pfPrtPos[pIndx+2];
+	//	}
+
+	//	if(m_pCurPos[cIndx+1] < m_v3Min[1] || m_pCurPos[cIndx+1] > m_v3Max[1]){
+	//		m_pCurPos[cIndx+1] = s_pfPrtPos[pIndx+1] - (s_pfPrtVel[pIndx+1] + (m_v3Gravity[1] * dt))*dt*res;
+	//		m_pCurPos[cIndx+0] = s_pfPrtPos[pIndx+0] ;
+	//		m_pCurPos[cIndx+2] = s_pfPrtPos[pIndx+2];
+	//	}
+
+	//	if(m_pCurPos[cIndx+2] < m_v3Min[2] || m_pCurPos[cIndx+2] > m_v3Max[2]){
+	//		m_pCurPos[cIndx+2] = s_pfPrtPos[pIndx+2] - (s_pfPrtVel[pIndx+2] + (m_v3Gravity[2] * dt))*dt*res;
+	//		m_pCurPos[cIndx+0] = s_pfPrtPos[pIndx+0];
+	//		m_pCurPos[cIndx+1] = s_pfPrtPos[pIndx+1];
+	//	}
+
+	//	clamp(m_pCurPos, cIndx);
+	//}
+
+	//更新位置をクラスタの各粒子に反映　各クラスタの各粒子は統一される
+	for(int i = 0; i < m_iIndxNum; ++i){
+		if( CheckHole(i) ){	continue;	}
+
+		int pIndx = m_iPIndxes[i];
+		int cIndx = i * SM_DIM;
+		Vec3 prdPos = m_vOrientedPrtes[i]->PrdPos();
+
+		for(int j = 0; j < SM_DIM; j++){
+			m_pCurPos[cIndx+j] = prdPos[j];
+		}
+	}
+
+	if(m_iNumVertices <= 1) return;
+
+	Vec3 p, q;
+	Vec3 cm(0.0), cm_org(0.0);	// 重心
+	double mass = 0.0;	// 総質量
+	rxMatrix3 R, S;
+
+	CalcNowCm();							//クラスタの重心を更新
+
+	if(m_iNumVertices <= 1) return;
+
+	rxMatrix3 Apq(0.0), Aqq(0.0);
+
+	cm = m_vec3NowCm;
+	cm_org = m_vec3OrgCm;
+
+	// Apq = Σmpq^T
+	// Aqq = Σmqq^T
+	for(int i = 0; i < m_iIndxNum; ++i)
+	{
+		if( CheckHole(i) ){	continue;	}
+
+		int pIndx = m_iPIndxes[i] * SM_DIM;
+		int cIndx = i*SM_DIM;
+
+		Vec3 prdPos = m_vOrientedPrtes[i]->PrdPos();
+
+		for(int j = 0; j < SM_DIM; j++)
+		{
+			p[j] = /*prdPos[j]*/m_pCurPos[cIndx+j]-cm[j];
+			q[j] = m_pOrgPos[cIndx+j]-cm_org[j];
+		}
+
+		double m = m_pMass[i];
+
+		Apq(0,0) += m*p[0]*q[0];
+		Apq(0,1) += m*p[0]*q[1];
+		Apq(0,2) += m*p[0]*q[2];
+		Apq(1,0) += m*p[1]*q[0];
+		Apq(1,1) += m*p[1]*q[1];
+		Apq(1,2) += m*p[1]*q[2];
+		Apq(2,0) += m*p[2]*q[0];
+		Apq(2,1) += m*p[2]*q[1];
+		Apq(2,2) += m*p[2]*q[2];
+
+		//Aqq(0,0) += m*q[0]*q[0];
+		//Aqq(0,1) += m*q[0]*q[1];
+		//Aqq(0,2) += m*q[0]*q[2];
+		//Aqq(1,0) += m*q[1]*q[0];
+		//Aqq(1,1) += m*q[1]*q[1];
+		//Aqq(1,2) += m*q[1]*q[2];
+		//Aqq(2,0) += m*q[2]*q[0];
+		//Aqq(2,1) += m*q[2]*q[1];
+		//Aqq(2,2) += m*q[2]*q[2];
+	}
+
+	//Apqの行列式を求め，反転するかを判定
+	//TODO:不安定な場合が多いので×
+	if(Apq.Determinant() < 0.0 && m_iNumVertices >= 10){
+		//１　符号を反転
+		Apq(0,2) = -Apq(0,2);
+		Apq(1,2) = -Apq(1,2);
+		Apq(2,2) = -Apq(2,2);
+	}
+
+	//PolarDecomposition(Apq, R, S, m_mtrxBeforeU); //warm start
+	PolarDecomposition(Apq, R, S);
+
+	if(m_bLinearDeformation)
+	{
+		//// Linear Deformations
+		//rxMatrix3 A;
+		//A = Apq*Aqq.Inverse();	// A = Apq*Aqq^-1
+
+		//// 体積保存のために√(det(A))で割る
+		//if(m_bVolumeConservation){
+		//	double det = fabs(A.Determinant());
+		//	if(det > RX_FEQ_EPS){
+		//		det = 1.0/sqrt(det);
+		//		if(det > 2.0) det = 2.0;
+		//		A *= det;
+		//	}
+		//}
+
+		m_fDefAmount = 0.0f;
+
+		// 目標座標を計算し，現在の頂点座標を移動
+		for(int i = 0; i < m_iIndxNum; ++i)
+		{
+			if( CheckHole(i) ){	continue;	}
+
+			if(m_pFix[i]) continue;
+
+			int cIndx = i*SM_DIM;
+
+			// 回転行列Rの代わりの行列RL=βA+(1-β)Rを計算
+			for(int j = 0; j < SM_DIM; j++)
+			{
+				q[j] = m_pOrgPos[cIndx+j]-cm_org[j];
+			}
+
+			Vec3 gp(R*q+cm);
+
+			for(int j = 0; j < SM_DIM; j++)
+			{
+				float defAmount = (gp[j]-m_pCurPos[cIndx+j]);
+				m_pCurPos[cIndx+j] += defAmount;
+
+				m_fDefAmount += abs(defAmount);
+			}
+		}
+	}
+
+	//境界処理
+	for(int i = 0; i < m_iIndxNum; ++i)
+	{
+		clamp(m_pCurPos, i*SM_DIM);
+	}
+}
+
+void OrientedPrtObj::UpdateCluster_SM_Itr_End()
+{
+	//double dt1 = 1.0/m_dDt;
+	//for(int i = 0; i < m_iIndxNum; ++i)
+	//{
+	//	if( CheckHole(i) ){	continue;	}
+
+	//	int pIndx = m_iPIndxes[i]*4;
+
+	//	for(int j = 0; j < SM_DIM; j++)
+	//	{
+	//		int cIndx = i*SM_DIM+j;
+	//		m_pVel[cIndx] = (m_pCurPos[cIndx] - s_pfPrtPos[pIndx+j]) * dt1/* + m_v3Gravity[j] * dt*/;
+	//	}
+	//}
+}
+
 //各粒子に加わる力を更新　主には重力など
 void OrientedPrtObj::CalcForce(float dt)
 {
@@ -824,19 +1018,19 @@ void OrientedPrtObj::ProjectConstraint(float dt)
 		Vec3 prdPos = m_vOrientedPrtes[i]->PrdPos();
 
 		if(m_pCurPos[cIndx+0] < m_v3Min[0] || m_pCurPos[cIndx+0] > m_v3Max[0]){
-			m_pCurPos[cIndx+0] = prdPos[0] - (s_pfClstrVel[cIndx+0] + (m_v3Gravity[0] * dt))*dt*res;
+			m_pCurPos[cIndx+0] = prdPos[0] - (s_pfClstrVel[pIndx * SM_DIM+0] + (m_v3Gravity[0] * dt))*dt*res;
 			m_pCurPos[cIndx+1] = prdPos[1];
 			m_pCurPos[cIndx+2] = prdPos[2];
 		}
 
 		if(m_pCurPos[cIndx+1] < m_v3Min[1] || m_pCurPos[cIndx+1] > m_v3Max[1]){
-			m_pCurPos[cIndx+1] = prdPos[1] - (s_pfClstrVel[cIndx+1] + (m_v3Gravity[1] * dt))*dt*res;
+			m_pCurPos[cIndx+1] = prdPos[1] - (s_pfClstrVel[pIndx * SM_DIM+1] + (m_v3Gravity[1] * dt))*dt*res;
 			m_pCurPos[cIndx+0] = prdPos[0] ;
 			m_pCurPos[cIndx+2] = prdPos[2];
 		}
 
 		if(m_pCurPos[cIndx+2] < m_v3Min[2] || m_pCurPos[cIndx+2] > m_v3Max[2]){
-			m_pCurPos[cIndx+2] = prdPos[2] - (s_pfClstrVel[cIndx+2] + (m_v3Gravity[2] * dt))*dt*res;
+			m_pCurPos[cIndx+2] = prdPos[2] - (s_pfClstrVel[pIndx * SM_DIM+2] + (m_v3Gravity[2] * dt))*dt*res;
 			m_pCurPos[cIndx+0] = prdPos[0];
 			m_pCurPos[cIndx+1] = prdPos[1];
 		}

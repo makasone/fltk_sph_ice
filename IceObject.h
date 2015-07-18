@@ -22,8 +22,10 @@
 #include "Ice_CalcMethod_Itr_Expand.h"
 #include "Ice_CalcMethod_Itr_Exp_Stiff.h"
 
-#include "Ice_ClusterMove.h"
-#include "Ice_ClusterMove_Normal.h"
+#include "Ice_SimuMethod.h"
+#include "Ice_SimuMethod_ShapeMatching.h"
+#include "Ice_SimuMethod_OrientedParticle.h"
+
 #include "Ice_ClusterMove_FastPath.h"
 
 #include "Ice_JudgeMove.h"
@@ -114,11 +116,11 @@ private:
 	//計算手法
 	Ice_CalcMethod* m_iceCalcMethod;
 
+	//シミュレーション手法
+	Ice_SimuMethod* m_iceSimuMethod;
+
 	//運動計算対象を判定するクラス
 	Ice_JudgeMove* m_iceJudeMove;
-
-	//運動計算方法を扱うクラス
-	Ice_ClusterMove* m_iceClsuterMove;
 
 	//最終統合結果に用いる対象を判定するクラス
 	Ice_ConvoJudge* m_iceConvoJudge;
@@ -167,13 +169,21 @@ public:
 	void ChangeMode_CalcMethod_Itr_Expand();
 	void ChangeMode_CalcMethod_Itr_Exp_Stiff();
 
+	//シミュレーション手法
+	void ChangeMode_SimuMethod_ShapeMatching();
+	void ChangeMode_SimuMethod_OrientedParticle();
+	void ChangeMode_SimuMethod_DistanceConstraint();
+	void ChangeMode_SimuMethod_Hybrid();
+	void ChangeMode_SimuMethod_Path();
+
 	//運動計算時のクラスタ選択
 	void ChangeMode_JudgeMove_Normal();
 	void ChangeMode_JudgeMove_Spears();
 
-	//クラスタのデータ構造
-	void ChangeMode_ClusterMove_Normal();
-	void ChangeMode_ClusterMove_Path();
+	//シミュレーション手法の切り替え
+	void ChangeMode_SimuMethod_SM();
+	void ChangeMode_SimuMedhod_OP();	//未実装
+	void ChangeMode_ClusterMove_Path();	//もう不要
 
 	//補間時のクラスタ選択
 	void ChangeMode_IntrpJudge_Normal();
@@ -300,15 +310,12 @@ public:
 	void TestSimulationFromFile(string fileName);
 
 	void TestOrientedParticleInit(Vec3 boundarySpaceLow, Vec3 boundarySpaceHigh, float timeStep, const vector<vector<rxNeigh>>& neights, const int* surfacePrtIndxes);
-	void TestOrientedParticleStep();
 	void TestOrientedParticleWeightStep();
 	void TestOrientedParticleItrStep();
 	void TestOrientedParticleItrStep2();
 	void TestOrientedParticleItrWeightStep();
 	
 	void TestDisplayOrientedInfo();
-
-	void TestInterPolationForSPH();
 
 	//--------------IceStructureと同じ動きをするために一時的に作った関数__----------------------------------
 	//ちゃんと実装すれば全部消せる

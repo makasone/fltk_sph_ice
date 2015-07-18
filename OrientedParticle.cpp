@@ -23,13 +23,13 @@ const unsigned Z = 2;
 
 //-------------------------------------------------------------------------------------------------------------------
 //うまくEigenをインクルードできなかったために作った変換関数
-Quaternionf ConvertQuaternion(mk_Quaternion mk_q)
+inline Quaternionf ConvertQuaternion(const mk_Quaternion& mk_q)
 {
 	return Quaternionf(mk_q.w, mk_q.x, mk_q.y, mk_q.z);
 }
 
 //なぜか，参照で渡さないと "error C2719: 'q': __declspec(align('16')) の仮引数は配置されません。" というエラーが出る
-mk_Quaternion ConvertQuaternion(const Quaternionf& q)
+inline mk_Quaternion ConvertQuaternion(const Quaternionf& q)
 {
 	return mk_Quaternion(q.x(), q.y(), q.z(), q.w());
 }
@@ -199,58 +199,84 @@ void OrientedParticle::InterpolateOrientation(const IceStructure* iceStrct)
 {
 	unsigned prtNum = m_smCluster->GetIndxNum();
 
-	//サンプリングされた粒子の姿勢を取得
-	vector<mk_ExpMap> exps;
-	exps.resize(prtNum);
+//ExpMap版
+	////サンプリングされた粒子の姿勢を取得
+	//vector<mk_ExpMap> exps;
+	//exps.resize(prtNum);
+	//int expNum = 0;
+
+	//mk_Quaternion pre_q = m_QuatPrdOrientation;
+
+	//for(unsigned i = 0;  i < prtNum; i++){
+
+	//	if(m_smCluster->CheckHole(i)){	continue;	}
+
+	//	int pIndx = m_smCluster->GetParticleIndx(i);
+	//	if(iceStrct->GetMotionCalcCluster(pIndx) == 0){	continue;	}
+
+	//	//まフレームの姿勢との内積を取って，値が負なら反転してやる　うまく安定した
+	//	mk_Quaternion quat = m_smCluster->Particle(i)->PrdOrientation();
+	//	float dot = pre_q.x * quat.x + pre_q.y * quat.y + pre_q.z * quat.z + pre_q.w * quat.w;
+	//	
+	//	if(dot < 0.0f){
+	//		quat.x = -quat.x; quat.y = -quat.y; quat.z = -quat.z; quat.w = -quat.w;
+	//	}
+	//	exps[expNum++] = QuaternionToExpMap(quat);
+	//	//exps[expNum++] = QuaternionToExpMap(m_smCluster->Particle(i)->PrdOrientation());
+	//}
+
+	////補間に用いる重み　とりあえず平均
+	//vector<float> weights;
+	//weights.resize(expNum);
+
+	//for(unsigned i = 0; i < expNum; i++){
+	//	float w = 1.0f/(float)expNum;
+	//	weights[i] = w;
+	//}
+
+	////補間結果で内積を取ってみる　回転がおかしくなる？
+	////mk_Quaternion prd = ExpMapToQuaterinon(mk_ExpMap().ExpLinerInterpolation(exps, weights, expNum));
+	////float dot = prd.x * m_QuatPrdOrientation.x + prd.y * m_QuatPrdOrientation.y + prd.z * m_QuatPrdOrientation.z + prd.w * m_QuatPrdOrientation.w;
+	////if(dot < 0.0){
+	////	prd.x = -prd.x;	prd.y = -prd.y;	prd.z = -prd.z;	prd.w = -prd.w;
+	////}
+
+	////m_QuatPrdOrientation = prd;
+
+	//m_QuatPrdOrientation = ExpMapToQuaterinon(mk_ExpMap().ExpLinerInterpolation(exps, weights, expNum));
+
+//QSLERP版
+	Quaternionf q = Quaternionf(0.0f, 0.0f, 0.0f, 0.0f);	//IdentityではなくZero
+	mk_Quaternion pre_q = m_QuatPrdOrientation;
 	int expNum = 0;
 
-	mk_Quaternion pre_q = m_QuatPrdOrientation;
-	//Quaternionf q = Quaternionf(0.0f, 0.0f, 0.0f, 0.0f);	//IdentityではなくZero
-
 	for(unsigned i = 0;  i < prtNum; i++){
-
 		if(m_smCluster->CheckHole(i)){	continue;	}
 
 		int pIndx = m_smCluster->GetParticleIndx(i);
 		if(iceStrct->GetMotionCalcCluster(pIndx) == 0){	continue;	}
 
-		//内積を取ると安定した
+		//まフレームの姿勢との内積を取って，値が負なら反転してやる　うまく安定した
 		mk_Quaternion quat = m_smCluster->Particle(i)->PrdOrientation();
 		float dot = pre_q.x * quat.x + pre_q.y * quat.y + pre_q.z * quat.z + pre_q.w * quat.w;
 		
 		if(dot < 0.0f){
 			quat.x = -quat.x; quat.y = -quat.y; quat.z = -quat.z; quat.w = -quat.w;
 		}
-		exps[expNum++] = QuaternionToExpMap(quat);
-
-		//exps[expNum++] = QuaternionToExpMap(m_smCluster->Particle(i)->PrdOrientation());
 
 		//Qslerp
-		//q.coeffs() += ConvertQuaternion(m_smCluster->Particle(i)->PrdOrientation()).coeffs();
-		//expNum++;
+		q.coeffs() += ConvertQuaternion(quat).coeffs();
+		expNum++;
 	}
 
-	//q.coeffs() /= expNum;
-	//q.normalize();
-
-	//補間に用いる重み　とりあえず平均
-	vector<float> weights;
-	weights.resize(expNum);
-
-	for(unsigned i = 0; i < expNum; i++){
-		float w = 1.0f/(float)expNum;
-		weights[i] = w;
+	q.coeffs() /= expNum;
+	if(q.norm() < 0.000001f){
+		q = Quaternionf::Identity();
 	}
 
-	//mk_Quaternion prd = ExpMapToQuaterinon(mk_ExpMap().ExpLinerInterpolation(exps, weights, expNum));
-	//float dot = prd.x * m_QuatPrdOrientation.x + prd.y * m_QuatPrdOrientation.y + prd.z * m_QuatPrdOrientation.z + prd.w * m_QuatPrdOrientation.w;
-	//if(dot < 0.0){
-	//	prd.x = -prd.x;	prd.y = -prd.y;	prd.z = -prd.z;	prd.w = -prd.w;
-	//}
+	q.normalize();
 
-	//m_QuatPrdOrientation = prd;
-
-	m_QuatPrdOrientation = ExpMapToQuaterinon(mk_ExpMap().ExpLinerInterpolation(exps, weights, expNum));
+	m_QuatPrdOrientation = ConvertQuaternion(q);
 }
 
 //楕円の変形勾配の線形近似

@@ -10,12 +10,16 @@
 #include "IceStructure.h"
 #include "Ice_SM.h"
 
+#include "Ice_OrientedParticle.h"
+#include "OrientedParticle.h"
+
 using namespace std;
 
 class Ice_Convolution_Normal : public Ice_Convolution
 {
 public:
 	Ice_Convolution_Normal(const vector<Ice_SM*>& iceSM, IceStructure* iceStrct);
+	Ice_Convolution_Normal(const vector<ElasticObj*>& elasticObj, const vector<OrientedParticle*>& particles, IceStructure* iceStrct);
 	~Ice_Convolution_Normal();
 
 	void SetConvoJudge(Ice_ConvoJudge* judge);
@@ -28,6 +32,10 @@ public:
 
 private:
 	vector<Ice_SM*> m_iceSM;
+
+	vector<ElasticObj*> m_elasticObj;
+	vector<OrientedParticle*> m_vOrientedPrtes;
+
 	IceStructure* m_iceStrct;
 
 	Ice_ConvoJudge* m_iceJudge;		//補間に用いるクラスタを判定するオブジェクト

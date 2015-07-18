@@ -2,10 +2,12 @@
 
 typedef Ice_CalcMethod_Itr_Stiffness CalcIteration;
 
-CalcIteration::Ice_CalcMethod_Itr_Stiffness(const vector<Ice_SM*>& iceSM, Ice_ClusterMove* clusterMove, Ice_Convolution* convo)
+//CalcIteration::Ice_CalcMethod_Itr_Stiffness(const vector<Ice_SM*>& iceSM, Ice_ClusterMove* clusterMove, Ice_Convolution* convo)
+CalcIteration::Ice_CalcMethod_Itr_Stiffness(const vector<Ice_SM*>& iceSM, Ice_SimuMethod* simuMethod, Ice_Convolution* convo)
 {
 	m_iceSM = iceSM;
-	SetObjMove(clusterMove);
+	//SetObjMove(clusterMove);
+	SetObjMove(simuMethod);
 	SetConvolution(convo);
 
 	//閾値用データ算出クラス
@@ -19,9 +21,11 @@ CalcIteration::~Ice_CalcMethod_Itr_Stiffness()
 {
 }
 
-void CalcIteration::SetObjMove(Ice_ClusterMove* clusterMove)
+//void CalcIteration::SetObjMove(Ice_ClusterMove* clusterMove)
+void CalcIteration::SetObjMove(Ice_SimuMethod* simuMethod)
 {
-	m_iceMove = clusterMove;
+	//m_iceMove = clusterMove;
+	m_iceSimu = simuMethod;
 }
 
 void CalcIteration::SetConvolution(Ice_Convolution* convo)
@@ -32,7 +36,8 @@ void CalcIteration::SetConvolution(Ice_Convolution* convo)
 void CalcIteration::StepObjMove()
 {
 	//初回
-	m_iceMove->StepObjMove();
+	//m_iceMove->StepObjMove();
+	m_iceSimu->StepObjMove();
 
 	//rigidの最終結果　重力を反映しているバージョン
 	m_iceCalcStiff->StepUpdate();
@@ -47,7 +52,8 @@ void CalcIteration::StepObjMove()
 	while(threshold > Ice_SM::GetItrStiffness())
 	{
 		//各クラスタで運動計算
-		m_iceMove->StepObjMoveItr();
+		//m_iceMove->StepObjMoveItr();
+		m_iceSimu->StepObjMoveItr();
 
 		//rigidの最終結果
 		m_iceCalcStiff->StepUpdateItr();
@@ -63,7 +69,8 @@ void CalcIteration::StepObjMove()
 	#pragma omp parallel for
 	for(int i = 0; i < IceObject::GetParticleNum(); ++i)
 	{	
-		if(m_iceMove->GetJudgeMove()->JudgeMove(i) == false){	continue;	}
+		//if(m_iceMove->GetJudgeMove()->JudgeMove(i) == false){	continue;	}
+		if(m_iceSimu->GetJudgeMove()->JudgeMove(i) == false){	continue;	}
 		m_iceSM[i]->integrateIteration();
 	}
 }
@@ -71,7 +78,8 @@ void CalcIteration::StepObjMove()
 void CalcIteration::StepObjMoveDebug()
 {
 	//初回
-	m_iceMove->StepObjMoveDebug();
+	//m_iceMove->StepObjMoveDebug();
+	m_iceSimu->StepObjMoveDebug();
 
 	//rigidの最終結果　重力を反映しているバージョン
 	m_iceCalcStiff->StepUpdate();
@@ -89,7 +97,7 @@ void CalcIteration::StepObjMoveDebug()
 	while(threshold > Ice_SM::GetItrStiffness())
 	{
 		//各クラスタで運動計算
-		m_iceMove->StepObjMoveItrDebug();
+		m_iceSimu->StepObjMoveItrDebug();
 
 		//rigidの最終結果
 		m_iceCalcStiff->StepUpdateItr();
@@ -109,7 +117,7 @@ void CalcIteration::StepObjMoveDebug()
 	#pragma omp parallel for
 	for(int i = 0; i < IceObject::GetParticleNum(); ++i)
 	{	
-		if(m_iceMove->GetJudgeMove()->JudgeMoveDebug(i) == false){	continue;	}
+		if(m_iceSimu->GetJudgeMove()->JudgeMoveDebug(i) == false){	continue;	}
 		m_iceSM[i]->integrateIteration();
 	}
 

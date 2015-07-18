@@ -9,12 +9,17 @@
 #include "IceObject.h"
 #include "IceStructure.h"
 
+#include "Ice_OrientedParticle.h"
+#include "OrientedParticle.h"
+
 using namespace std;
 
 class Ice_JudgeMove_Spears : public Ice_JudgeMove
 {
 public:
 	Ice_JudgeMove_Spears(const vector<Ice_SM*>& iceSM, IceStructure* strct);
+	Ice_JudgeMove_Spears(const vector<ElasticObj*>& elasticObj, IceStructure* strct);
+
 	~Ice_JudgeMove_Spears();
 
 	bool JudgeMove(unsigned indx);
@@ -22,6 +27,8 @@ public:
 
 private:
 	vector<Ice_SM*> m_iceSM;
+	vector<ElasticObj*> m_elasticObj;
+
 	IceStructure* m_iceStrct;
 };
 

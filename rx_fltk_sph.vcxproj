@@ -259,6 +259,8 @@
     <ClCompile Include="Ice_JudgeMove_Normal.cpp" />
     <ClCompile Include="Ice_JudgeMove_Spears.cpp" />
     <ClCompile Include="Ice_OrientedParticle.cpp" />
+    <ClCompile Include="Ice_SimulMethod_OrientedParticle.cpp" />
+    <ClCompile Include="Ice_SimuMethod_ShapeMatching.cpp" />
     <ClCompile Include="Ice_SM.cpp" />
     <ClCompile Include="OrientedParticle.cpp" />
     <ClCompile Include="rx_fltk_glcanvas.cpp" />
@@ -316,6 +318,9 @@
     <ClInclude Include="Ice_JudgeMove_Normal.h" />
     <ClInclude Include="Ice_JudgeMove_Spears.h" />
     <ClInclude Include="Ice_OrientedParticle.h" />
+    <ClInclude Include="Ice_SimuMethod.h" />
+    <ClInclude Include="Ice_SimuMethod_OrientedParticle.h" />
+    <ClInclude Include="Ice_SimuMethod_ShapeMatching.h" />
     <ClInclude Include="Ice_SM.h" />
     <ClInclude Include="mk_ArrayScript.h" />
     <ClInclude Include="mk_Quaternion.h" />

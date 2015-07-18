@@ -261,7 +261,7 @@ rxFlWindow::rxFlWindow(int w_, int h_, const char* title)
 			m_pSliderVScale->value(m_pGLCanvas->m_fVScale);
 			m_pSliderVScale->align(Fl_Align(FL_ALIGN_LEFT));
 			m_pSliderVScale->clear_visible_focus();
-			
+
 			m_pSliderMeshThr = new Fl_Value_Slider(xs+dx, ys+30, 145, 25, "Mesh Threshold ");
 			m_pSliderMeshThr->type(1);
 			m_pSliderMeshThr->callback(OnSliderDraw_s, this);
@@ -272,17 +272,57 @@ rxFlWindow::rxFlWindow(int w_, int h_, const char* title)
 			m_pSliderMeshThr->align(Fl_Align(FL_ALIGN_LEFT));
 			m_pSliderMeshThr->clear_visible_focus();
 
-			m_pCheckMesh = new Fl_Check_Button(xs+dx, ys+60, 25, 25, "Surface Mesh ");
+			int dx2 = 95;
+
+			m_pCheckMesh = new Fl_Check_Button(xs+dx2, ys+60, 25, 25, "Surface Mesh");
 			m_pCheckMesh->down_box(FL_DOWN_BOX);
 			m_pCheckMesh->callback(OnCheckDraw_s, this);
 			m_pCheckMesh->align(Fl_Align(FL_ALIGN_LEFT));
 			m_pCheckMesh->clear_visible_focus();
 
-			m_pCheckRefraction = new Fl_Check_Button(xs+dx, ys+80, 25, 25, "Refraction ");
+			m_pCheckRefraction = new Fl_Check_Button(xs+dx2, ys+80, 25, 25, "Refraction");
 			m_pCheckRefraction->down_box(FL_DOWN_BOX);
 			m_pCheckRefraction->callback(OnCheckDraw_s, this);
 			m_pCheckRefraction->align(Fl_Align(FL_ALIGN_LEFT));
 			m_pCheckRefraction->clear_visible_focus();
+
+			//追加：シェーダーパラメータ
+			dx2 = dx2 + 55;
+			m_pSpinEtaRatio = new Fl_Spinner(xs+dx2, ys+60, 50, 20, "Ratio");
+			m_pSpinEtaRatio->type(FL_FLOAT_INPUT);
+			m_pSpinEtaRatio->callback(OnSpinDegree_Shader_s, this);
+			m_pSpinEtaRatio->minimum(0.0);
+			m_pSpinEtaRatio->maximum(1.0);
+			m_pSpinEtaRatio->step(0.01);
+			m_pSpinEtaRatio->value(0.0);
+			m_pSpinEtaRatio->clear_visible_focus();
+
+			m_pSpinFresnelBias = new Fl_Spinner(xs+dx2, ys+80, 50, 20, "Bias");
+			m_pSpinFresnelBias->type(FL_FLOAT_INPUT);
+			m_pSpinFresnelBias->callback(OnSpinDegree_Shader_s, this);
+			m_pSpinFresnelBias->minimum(0.0);
+			m_pSpinFresnelBias->maximum(1.0);
+			m_pSpinFresnelBias->step(0.01);
+			m_pSpinFresnelBias->value(0.0);
+			m_pSpinFresnelBias->clear_visible_focus();
+
+			m_pSpinFresnelPower = new Fl_Spinner(xs+dx2+100, ys+60, 50, 20, "Power");
+			m_pSpinFresnelPower->type(FL_FLOAT_INPUT);
+			m_pSpinFresnelPower->callback(OnSpinDegree_Shader_s, this);
+			m_pSpinFresnelPower->minimum(0.0);
+			m_pSpinFresnelPower->maximum(1.0);
+			m_pSpinFresnelPower->step(0.01);
+			m_pSpinFresnelPower->value(0.0);
+			m_pSpinFresnelPower->clear_visible_focus();
+
+			m_pSpinFresnelScale = new Fl_Spinner(xs+dx2+100, ys+80, 50, 20, "Scale");
+			m_pSpinFresnelScale->type(FL_FLOAT_INPUT);
+			m_pSpinFresnelScale->callback(OnSpinDegree_Shader_s, this);
+			m_pSpinFresnelScale->minimum(0.0);
+			m_pSpinFresnelScale->maximum(1.0);
+			m_pSpinFresnelScale->step(0.01);
+			m_pSpinFresnelScale->value(0.0);
+			m_pSpinFresnelScale->clear_visible_focus();
 
 			sg->resizable(NULL);
 			sg->end();
@@ -449,7 +489,7 @@ rxFlWindow::rxFlWindow(int w_, int h_, const char* title)
 			//運動計算の反復
 			int calc_xs = xs+5;
 			int calc_ys = ys+65;
-			gr = new Fl_Group(calc_xs, calc_ys, 380, 60);
+			gr = new Fl_Group(calc_xs, calc_ys, 365, 60);
 			{
 				gr->box(FL_THIN_UP_FRAME);
 				Fl_Round_Button *radio;
@@ -513,12 +553,57 @@ rxFlWindow::rxFlWindow(int w_, int h_, const char* title)
 				gr->resizable(0);
 			}
 
-			//パス
-			m_pCheckPath = new Fl_Check_Button(xs+450, ys+85, 25, 25, "Path ");
-			m_pCheckPath->down_box(FL_DOWN_BOX);
-			m_pCheckPath->callback(OnCheckMode_Path_s, this);
-			m_pCheckPath->align(Fl_Align(FL_ALIGN_LEFT));
-			m_pCheckPath->clear_visible_focus();
+			//運動計算手法の切り替え
+			int mode_xs = xs+375;
+			int mode_ys = ys;
+			gr = new Fl_Group(mode_xs, mode_ys, 120, 125);
+			{
+				gr->box(FL_THIN_UP_FRAME);
+				Fl_Round_Button *radio;
+
+				//Shape Matching
+				radio = new Fl_Round_Button(mode_xs, mode_ys+0, 25, 25, "SM");
+				radio->type(102);
+				radio->down_box(FL_ROUND_DOWN_BOX);
+				radio->callback(OnRadioMode_SimulationMethod_s, this);
+				radio->align(Fl_Align(FL_ALIGN_RIGHT));
+				radio->clear_visible_focus();
+				radio->value(1);
+
+				//Oriented Particle
+				radio = new Fl_Round_Button(mode_xs, mode_ys+20, 25, 25, "OP");
+				radio->type(102);
+				radio->down_box(FL_ROUND_DOWN_BOX);
+				radio->callback(OnRadioMode_SimulationMethod_s, this);
+				radio->align(Fl_Align(FL_ALIGN_RIGHT));
+				radio->clear_visible_focus();
+
+				//Distance Constraint
+				radio = new Fl_Round_Button(mode_xs, mode_ys+40, 25, 25, "DC");
+				radio->type(102);
+				radio->down_box(FL_ROUND_DOWN_BOX);
+				radio->callback(OnRadioMode_SimulationMethod_s, this);
+				radio->align(Fl_Align(FL_ALIGN_RIGHT));
+				radio->clear_visible_focus();
+
+				//Hybrid
+				radio = new Fl_Round_Button(mode_xs, mode_ys+60, 25, 25, "Hybrid");
+				radio->type(102);
+				radio->down_box(FL_ROUND_DOWN_BOX);
+				radio->callback(OnRadioMode_SimulationMethod_s, this);
+				radio->align(Fl_Align(FL_ALIGN_RIGHT));
+				radio->clear_visible_focus();
+
+				////パス
+				//m_pCheckPath = new Fl_Check_Button(mode_xs, mode_ys+80, 25, 25, "Path");
+				//m_pCheckPath->down_box(FL_ROUND_DOWN_BOX);
+				//m_pCheckPath->callback(OnRadioMode_SimulationMethod_s, this);
+				//m_pCheckPath->align(Fl_Align(FL_ALIGN_RIGHT));
+				//m_pCheckPath->clear_visible_focus();
+
+				gr->end();
+				gr->resizable(0);
+			}
 
 			sg->resizable(NULL);
 			sg->end();
@@ -607,6 +692,7 @@ rxFlWindow::~rxFlWindow()
 	if(m_pSpinWaveletScale) delete m_pSpinWaveletScale;
 	if(m_pSliderMeshThr) delete m_pSliderMeshThr;
 	if(m_pSliderVScale) delete m_pSliderVScale;
+
 	if(m_pCheckMesh) delete m_pCheckMesh;
 	if(m_pCheckRefraction) delete m_pCheckRefraction;
 
@@ -845,7 +931,6 @@ void rxFlWindow::OnSliderParam(Fl_Widget *widget)
 	}
 }
 
-//モード切替のチェックボックスのコールバック関数
 //高速化パス
 void rxFlWindow::OnCheckMode_Path_s(Fl_Widget *widget, void* x)
 {
@@ -859,7 +944,7 @@ void rxFlWindow::OnCheckMode_Path(Fl_Widget *widget)
 	cout << __FUNCTION__ << "flag = " << flag << endl;
 
 	if(flag){	m_pGLCanvas->m_iceObj->ChangeMode_ClusterMove_Path();	}
-	else	{	m_pGLCanvas->m_iceObj->ChangeMode_ClusterMove_Normal();	}
+	else	{	m_pGLCanvas->m_iceObj->ChangeMode_SimuMethod_ShapeMatching();	}
 }
 
 //スパースな運動計算
@@ -957,6 +1042,36 @@ void rxFlWindow::OnSpinDegree_Weight(Fl_Widget *widget)
 	convoObj->SetKernelDegree(degree);
 }
 
+//シェーダーパラメータ
+void rxFlWindow::OnSpinDegree_Shader_s(Fl_Widget *widget, void* x)
+{
+	((rxFlWindow*)x)->OnSpinDegree_Shader(widget);
+}
+
+void rxFlWindow::OnSpinDegree_Shader(Fl_Widget *widget)
+{
+	Fl_Spinner* check = (Fl_Spinner*)widget;
+	double param = check->value();
+	string label = check->label();
+
+	cout << label << ":" << param << endl;
+
+	if(label == "Ratio"){
+		m_pGLCanvas->UpdateShaderParamRatio(param);
+	}
+	else if(label == "Bias"){
+		m_pGLCanvas->UpdateShaderParamBias(param);
+	}
+	else if(label == "Power"){
+		m_pGLCanvas->UpdateShaderParamPower(param);
+	}
+	else if(label == "Scale"){
+		m_pGLCanvas->UpdateShaderParamScale(param);
+
+	}
+
+}
+
 //反復処理モード
 void rxFlWindow::OnRadioMode_CalcMethod_s(Fl_Widget *widget, void* x)
 {
@@ -992,6 +1107,41 @@ void rxFlWindow::OnRadioMode_CalcMethod(Fl_Widget *widget)
 		double stiff = m_pSpinStiff->value();
 		Ice_SM::SetItrStiffness(stiff);
 		m_pGLCanvas->m_iceObj->ChangeMode_CalcMethod_Itr_Exp_Stiff();
+	}
+}
+
+//運動計算モード
+void rxFlWindow::OnRadioMode_SimulationMethod_s(Fl_Widget *widget, void* x)
+{
+	((rxFlWindow*)x)->OnRadioMode_SimulationMethod(widget);
+}
+void rxFlWindow::OnRadioMode_SimulationMethod(Fl_Widget *widget)
+{
+	Fl_Round_Button* check = (Fl_Round_Button*)widget;
+	int type = check->value();
+	string label = check->label();
+
+	cout << __FUNCTION__ << "label  " << label << endl;
+
+	if(label == "SM")
+	{
+		m_pGLCanvas->m_iceObj->ChangeMode_SimuMethod_ShapeMatching();
+	}
+	else if(label == "OP")
+	{	
+		m_pGLCanvas->m_iceObj->ChangeMode_SimuMethod_OrientedParticle();		
+	}
+	else if(label == "DC")
+	{
+		m_pGLCanvas->m_iceObj->ChangeMode_SimuMethod_DistanceConstraint();
+	}
+	else if(label == "Hybrid")
+	{
+		m_pGLCanvas->m_iceObj->ChangeMode_SimuMethod_Hybrid();
+	}
+	else if(label == "Path")
+	{
+		m_pGLCanvas->m_iceObj->ChangeMode_SimuMethod_Path();
 	}
 }
 

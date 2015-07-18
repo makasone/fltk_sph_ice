@@ -8,6 +8,13 @@ ConvoNormal::Ice_Convolution_Normal(const vector<Ice_SM*>& iceSM, IceStructure* 
 	m_iceStrct = iceStrct;
 }
 
+ConvoNormal::Ice_Convolution_Normal(const vector<ElasticObj*>& elasticObj, const vector<OrientedParticle*>& particles, IceStructure* iceStrct)
+{
+	m_elasticObj = elasticObj;
+	m_vOrientedPrtes = particles;
+	m_iceStrct = iceStrct;
+}
+
 ConvoNormal::~Ice_Convolution_Normal()
 {
 }
@@ -24,42 +31,23 @@ Ice_ConvoJudge* ConvoNormal::GetConvoJudge()
 
 void ConvoNormal::StepConvolution()
 {
-	//現在はm_iceStrctを用いずにsm法のデータm_iceSMだけで計算している
 	unsigned pNum = IceObject::GetParticleNum();
+
+	//最終位置決定
+	vector<Vec3> prtPoses(pNum, Vec3(0.0f));
 	vector<unsigned> addParticleNum(pNum, 0);
 
-	float* sldPos = Ice_SM::GetSldPosPointer();
-	float* sldVel = Ice_SM::GetSldVelPointer();
-
-	float* s_sphPrtPos = IceObject::GetSPHHostPosPointer();
-	float* s_sphPrtVel = IceObject::GetSPHHostVelPointer();
-
-	//sldの初期化
-	Ice_SM::ResetFinalParamPointer(pNum);
-
 	//単純な足しあわせ
-	for(int cIndx = 0; cIndx < pNum; cIndx++)
-	{
-		//最終結果算出に用いるクラスタの判定
+	for(int cIndx = 0; cIndx < pNum; cIndx++){
+		///最終結果算出に用いるクラスタの判定
 		if(m_iceJudge->JudgeConvolution(cIndx) == false){	continue;	}
 
-		//クラスタが含んでいる各粒子の位置・速度をstaticな最終位置に足す
-		Vec3 pos, vel;
-		int pIndx, dim;
-
-		for(int oIndx = 0; oIndx < m_iceSM[cIndx]->GetIndxNum(); oIndx++)
-		{
-			int pIndx = m_iceSM[cIndx]->GetParticleIndx(oIndx);
+		for(int oIndx = 0; oIndx < m_elasticObj[cIndx]->GetIndxNum(); oIndx++){
+			int pIndx = m_elasticObj[cIndx]->GetParticleIndx(oIndx);
 			if(pIndx == MAXINT){	continue;	}
 
-			Vec3 pos = m_iceSM[cIndx]->GetVertexPos(oIndx);
-			Vec3 vel = m_iceSM[cIndx]->GetVertexVel(oIndx);
-
-			for(int dim = 0; dim < SM_DIM; dim++)
-			{
-				sldPos[pIndx*SM_DIM+dim] += pos[dim];
-				sldVel[pIndx*SM_DIM+dim] += vel[dim];
-			}
+			Vec3 pos = m_elasticObj[cIndx]->GetVertexPos(oIndx);
+			prtPoses[pIndx] += pos;
 
 			//粒子数のカウント
 			addParticleNum[pIndx] += 1;
@@ -67,22 +55,79 @@ void ConvoNormal::StepConvolution()
 	}
 
 	//平均値を固体位置に反映
-	for(int pIndx = 0; pIndx < pNum; pIndx++)
-	{
+	for(int pIndx = 0; pIndx < pNum; pIndx++){
 		int smIndx = pIndx*SM_DIM;
 
 		//CtoPNum == PtoCNumより
 		float clusterNum = (float)addParticleNum[pIndx];
 		if(clusterNum <= 0.0f){	continue;	}
 
-		//固体の最終位置
-		for(int dim = 0; dim < SM_DIM; dim++)
-		{
-			sldPos[smIndx+dim] /= clusterNum;
-			sldVel[smIndx+dim] /= clusterNum;
-		}
+		Vec3 pos = prtPoses[pIndx] / clusterNum;
+		m_vOrientedPrtes[pIndx]->PrdPos(pos);
 	}
 }
+
+//void ConvoNormal::StepConvolution()
+//{
+//	//現在はm_iceStrctを用いずにsm法のデータm_iceSMだけで計算している
+//	unsigned pNum = IceObject::GetParticleNum();
+//	vector<unsigned> addParticleNum(pNum, 0);
+//
+//	float* sldPos = Ice_SM::GetSldPosPointer();
+//	float* sldVel = Ice_SM::GetSldVelPointer();
+//
+//	float* s_sphPrtPos = IceObject::GetSPHHostPosPointer();
+//	float* s_sphPrtVel = IceObject::GetSPHHostVelPointer();
+//
+//	//sldの初期化
+//	Ice_SM::ResetFinalParamPointer(pNum);
+//
+//	//単純な足しあわせ
+//	for(int cIndx = 0; cIndx < pNum; cIndx++)
+//	{
+//		//最終結果算出に用いるクラスタの判定
+//		if(m_iceJudge->JudgeConvolution(cIndx) == false){	continue;	}
+//
+//		//クラスタが含んでいる各粒子の位置・速度をstaticな最終位置に足す
+//		Vec3 pos, vel;
+//		int pIndx, dim;
+//
+//		for(int oIndx = 0; oIndx < m_iceSM[cIndx]->GetIndxNum(); oIndx++)
+//		{
+//			int pIndx = m_iceSM[cIndx]->GetParticleIndx(oIndx);
+//			if(pIndx == MAXINT){	continue;	}
+//
+//			Vec3 pos = m_iceSM[cIndx]->GetVertexPos(oIndx);
+//			Vec3 vel = m_iceSM[cIndx]->GetVertexVel(oIndx);
+//
+//			for(int dim = 0; dim < SM_DIM; dim++)
+//			{
+//				sldPos[pIndx*SM_DIM+dim] += pos[dim];
+//				sldVel[pIndx*SM_DIM+dim] += vel[dim];
+//			}
+//
+//			//粒子数のカウント
+//			addParticleNum[pIndx] += 1;
+//		}
+//	}
+//
+//	//平均値を固体位置に反映
+//	for(int pIndx = 0; pIndx < pNum; pIndx++)
+//	{
+//		int smIndx = pIndx*SM_DIM;
+//
+//		//CtoPNum == PtoCNumより
+//		float clusterNum = (float)addParticleNum[pIndx];
+//		if(clusterNum <= 0.0f){	continue;	}
+//
+//		//固体の最終位置
+//		for(int dim = 0; dim < SM_DIM; dim++)
+//		{
+//			sldPos[smIndx+dim] /= clusterNum;
+//			sldVel[smIndx+dim] /= clusterNum;
+//		}
+//	}
+//}
 
 //テストコード　PtoCを毎フレーム作ってみたり
 void ConvoNormal::StepConvolution2()

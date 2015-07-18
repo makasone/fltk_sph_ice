@@ -304,7 +304,7 @@ void IceObject::InitMoveMethod()
 
 	//NULLで初期化
 	m_fpStepObjMove = NULL;
-	m_iceClsuterMove = NULL;
+	m_iceSimuMethod = NULL;
 	m_iceJudeMove = NULL;
 	m_iceConvolution = NULL;
 	m_iceConvoJudge = NULL;
@@ -312,7 +312,7 @@ void IceObject::InitMoveMethod()
 
 	//全てノーマル
 	ChangeMode_Normal();
-	ChangeMode_ClusterMove_Normal();
+	ChangeMode_SimuMethod_ShapeMatching();
 	ChangeMode_JudgeMove_Normal();
 	ChangeMode_Convolution_Normal();
 	ChangeMode_IntrpJudge_Normal();
@@ -352,85 +352,123 @@ void IceObject::ChangeMode_Normal()
 
 //計算手法
 void IceObject::ChangeMode_CalcMethod_Normal()
-{	FUNCTION_NAME
+{	
+	FUNCTION_NAME
 
 	if(m_iceCalcMethod != NULL) delete m_iceCalcMethod;
-	m_iceCalcMethod = new Ice_CalcMethod_Normal(m_iceClsuterMove);
+	m_iceCalcMethod = new Ice_CalcMethod_Normal(m_iceSimuMethod, m_iceConvolution);
 }
 
 void IceObject::ChangeMode_CalcMethod_Itr_Num()
-{	FUNCTION_NAME
+{	
+	FUNCTION_NAME
 
 	if(m_iceCalcMethod != NULL) delete m_iceCalcMethod;
-	m_iceCalcMethod = new Ice_CalcMethod_Iteration(m_iceSM, m_iceClsuterMove, m_iceConvolution);
+	//m_iceCalcMethod = new Ice_CalcMethod_Iteration(m_iceSM, m_iceSimuMethod, m_iceConvolution);
+	m_iceCalcMethod = new Ice_CalcMethod_Iteration(m_iceSimuMethod, m_iceConvolution);
 }
 
 void IceObject::ChangeMode_CalcMethod_Itr_Stiff()
-{	FUNCTION_NAME;
+{	
+	FUNCTION_NAME;
 	
 	if(m_iceCalcMethod != NULL) delete m_iceCalcMethod;
-	m_iceCalcMethod = new Ice_CalcMethod_Itr_Stiffness(m_iceSM, m_iceClsuterMove, m_iceConvolution);
+	m_iceCalcMethod = new Ice_CalcMethod_Itr_Stiffness(m_iceSM, m_iceSimuMethod, m_iceConvolution);
 }
 
 void IceObject::ChangeMode_CalcMethod_Itr_Expand()
-{	FUNCTION_NAME;
+{	
+	FUNCTION_NAME;
 
 	if(m_iceCalcMethod != NULL) delete m_iceCalcMethod;
-	m_iceCalcMethod = new Ice_CalcMethod_Itr_Expand(m_iceSM, m_iceStrct, m_iceClsuterMove, m_iceConvolution);
+	m_iceCalcMethod = new Ice_CalcMethod_Itr_Expand(m_iceSM, m_iceStrct, m_iceSimuMethod, m_iceConvolution);
 }
 
 void IceObject::ChangeMode_CalcMethod_Itr_Exp_Stiff()
-{	FUNCTION_NAME;
+{	
+	FUNCTION_NAME;
 
 	if(m_iceCalcMethod != NULL) delete m_iceCalcMethod;
-	m_iceCalcMethod = new Ice_CalcMethod_Itr_Exp_Stiff(m_iceSM, m_iceClsuterMove, m_iceConvolution);
+	m_iceCalcMethod = new Ice_CalcMethod_Itr_Exp_Stiff(m_iceSM, m_iceSimuMethod, m_iceConvolution);
 }
-
 
 //運動計算クラスタ選択
 void IceObject::ChangeMode_JudgeMove_Normal()
-{	FUNCTION_NAME
+{	
+	FUNCTION_NAME
 
 	ResetSelectCluster();		//選択的運動計算の初期化
 
 	if(m_iceJudeMove != NULL) delete m_iceJudeMove;
 	m_iceJudeMove = new Ice_JudgeMove_Normal(m_iceSM);
 
-	m_iceClsuterMove->SetJudgeMove(m_iceJudeMove);
+	m_iceSimuMethod->SetJudgeMove(m_iceJudeMove);
 }
 
 void IceObject::ChangeMode_JudgeMove_Spears()
-{	FUNCTION_NAME
+{	
+	FUNCTION_NAME
 
 	if(m_iceJudeMove != NULL) delete m_iceJudeMove;
-	m_iceJudeMove = new Ice_JudgeMove_Spears(m_iceSM, m_iceStrct);
+	//m_iceJudeMove = new Ice_JudgeMove_Spears(m_iceSM, m_iceStrct);
+	m_iceJudeMove = new Ice_JudgeMove_Spears(m_orientedObj, m_iceStrct);
 
-	m_iceClsuterMove->SetJudgeMove(m_iceJudeMove);
+	m_iceSimuMethod->SetJudgeMove(m_iceJudeMove);
+
+	//m_iceStrct->InitSelectCluster(m_iceSM);
+	m_iceStrct->InitSelectClusterFromClusterSet(m_iceSM);
 }
 
-//運動計算
-void IceObject::ChangeMode_ClusterMove_Normal()
-{	FUNCTION_NAME
+//シミュレーション手法
+void IceObject::ChangeMode_SimuMethod_ShapeMatching()
+{
+	FUNCTION_NAME;
 
-	if(m_iceClsuterMove != NULL) delete m_iceClsuterMove;
-	m_iceClsuterMove = new Ice_ClusterMove_Normal(m_iceSM);
+	if(m_iceSimuMethod != NULL) delete m_iceSimuMethod;
+	//m_iceSimuMethod = new Ice_SimuMethod_SM(m_iceSM);
+	m_iceSimuMethod = new Ice_SimuMethod_SM(m_orientedObj, m_vOrientedPrtes);
 
-	m_iceClsuterMove->SetJudgeMove(m_iceJudeMove);
+	m_iceSimuMethod->SetJudgeMove(m_iceJudeMove);
+	if(m_iceCalcMethod != NULL)	m_iceCalcMethod->SetObjMove(m_iceSimuMethod);
+}
 
-	if(m_iceCalcMethod != NULL)	m_iceCalcMethod->SetObjMove(m_iceClsuterMove);
+void IceObject::ChangeMode_SimuMethod_OrientedParticle()
+{
+	FUNCTION_NAME;
+
+	if(m_iceSimuMethod != NULL) delete m_iceSimuMethod;
+	//m_iceSimuMethod = new Ice_SimuMethod_SM(m_iceSM);
+	m_iceSimuMethod = new Ice_SimuMethod_OP(m_orientedObj, m_vOrientedPrtes, m_iceStrct);
+
+	m_iceSimuMethod->SetJudgeMove(m_iceJudeMove);
+	if(m_iceCalcMethod != NULL)	m_iceCalcMethod->SetObjMove(m_iceSimuMethod);
+}
+
+void IceObject::ChangeMode_SimuMethod_DistanceConstraint()
+{
+	FUNCTION_NAME;
+}
+
+void IceObject::ChangeMode_SimuMethod_Hybrid()
+{
+	FUNCTION_NAME;
+}
+
+void IceObject::ChangeMode_SimuMethod_Path()
+{
+	FUNCTION_NAME;
 }
 
 void IceObject::ChangeMode_ClusterMove_Path()
 {	FUNCTION_NAME
 
-	if(m_SurfSm == NULL){	InitPath();	}	//高速な運動計算のためのパスを準備
+	//if(m_SurfSm == NULL){	InitPath();	}	//高速な運動計算のためのパスを準備
 
-	if(m_iceClsuterMove != NULL) delete m_iceClsuterMove;
-	m_iceClsuterMove = new Ice_ClusterMove_FastPath(m_iceSM, m_SurfSm);
+	//if(m_iceSimuMethod != NULL) delete m_iceSimuMethod;
+	//m_iceSimuMethod = new Ice_SimuMethod_SM(m_iceSM);
 
-	m_iceClsuterMove->SetJudgeMove(m_iceJudeMove);
-
-	if(m_iceCalcMethod != NULL)	m_iceCalcMethod->SetObjMove(m_iceClsuterMove);
+	//m_iceSimuMethod->SetJudgeMove(m_iceJudeMove);
+	//if(m_iceCalcMethod != NULL)	m_iceCalcMethod->SetObjMove(m_iceSimuMethod);
 }
 
 //最終結果補間クラスタ選択
@@ -457,7 +495,8 @@ void IceObject::ChangeMode_Convolution_Normal()
 {	cout << __FUNCTION__ << endl;
 
 	if(m_iceConvolution != NULL) delete m_iceConvolution;
-	m_iceConvolution = new Ice_Convolution_Normal(m_iceSM, m_iceStrct);
+	//m_iceConvolution = new Ice_Convolution_Normal(m_iceSM, m_iceStrct);
+	m_iceConvolution = new Ice_Convolution_Normal(m_orientedObj, m_vOrientedPrtes, m_iceStrct);
 
 	m_iceConvolution->SetConvoJudge(m_iceConvoJudge);
 }
@@ -467,7 +506,8 @@ void IceObject::ChangeMode_Convolution_Weight()
 {	cout << __FUNCTION__ << endl;
 
 	if(m_iceConvolution != NULL) delete m_iceConvolution;
-	m_iceConvolution = new Ice_Convolution_Weight(m_iceSM, m_iceStrct);
+	//m_iceConvolution = new Ice_Convolution_Weight(m_iceSM, m_iceStrct);
+	m_iceConvolution = new Ice_Convolution_Weight(m_orientedObj, m_vOrientedPrtes, m_iceStrct);
 
 	m_iceConvolution->SetConvoJudge(m_iceConvoJudge);
 }
@@ -728,25 +768,31 @@ void IceObject::InitIceObjGPU()
 //デバッグ情報の描画
 void IceObject::Display()
 {
-	//クォータニオンの情報を描画
-	TestDisplayOrientedInfo();
-
 	//テスト
 	//現在のCalcMethodのモード確認
 	const char* calcMethodName1 = typeid(Ice_CalcMethod_Itr_Stiffness).name();
 	const char* calcMethodName2 = typeid(Ice_CalcMethod_Itr_Exp_Stiff).name();
-	const char* nowName = typeid(*(m_iceCalcMethod)).name();
 
-	//現在iteration_stiffnessモードかの確認　strcmpは文字列が一致すると0になる
-	if(strcmp(calcMethodName1, nowName) != 0
-	&& strcmp(calcMethodName2, nowName) != 0) return ;
+	const char* simuMethodName1 = typeid(Ice_SimuMethod_OP).name();
 
-	//rigidオブジェクトの位置を描画してみる
-	if(strcmp(calcMethodName1, nowName) == 0){
-		((Ice_CalcMethod_Itr_Stiffness*)m_iceCalcMethod)->DebugStiffness();
-	}
-	else if(strcmp(calcMethodName2, nowName) == 0){
-		((Ice_CalcMethod_Itr_Exp_Stiff*)m_iceCalcMethod)->DebugStiffness();
+	const char* nowCalcMethodName = typeid(*(m_iceCalcMethod)).name();
+	const char* nowSimuMethodName = typeid(*(m_iceSimuMethod)).name();
+
+	////現在iteration_stiffnessモードかの確認　strcmpは文字列が一致すると0になる
+	//if(strcmp(calcMethodName1, calcMethodName) != 0
+	//&& strcmp(calcMethodName2, calcMethodName) != 0) return ;
+
+	////rigidオブジェクトの位置を描画してみる
+	//if(strcmp(calcMethodName1, calcMethodName) == 0){
+	//	((Ice_CalcMethod_Itr_Stiffness*)m_iceCalcMethod)->DebugStiffness();
+	//}
+	//else if(strcmp(calcMethodName2, calcMethodName) == 0){
+	//	((Ice_CalcMethod_Itr_Exp_Stiff*)m_iceCalcMethod)->DebugStiffness();
+	//}
+
+	//クォータニオンの情報を描画
+	if(strcmp(simuMethodName1, nowSimuMethodName) == 0){
+		TestDisplayOrientedInfo();
 	}
 }
 
@@ -760,30 +806,24 @@ void IceObject::StepObjMoveCPU()
 
 void IceObject::StepObjMoveCPUNormal()
 {
-	////固体の運動計算
-	//m_iceCalcMethod->StepObjMove();			RXTIMER("StepObjMove");
+	//固体の運動計算
+	m_iceCalcMethod->StepObjMove();		RXTIMER("StepObjMove");
 
-	////固体の最終位置決定
-	//m_iceConvolution->StepConvolution();	RXTIMER("StepConvolution");
+	//液体と固体の線形補間
+	StepInterPolation();					RXTIMER("StepInterPolation");
+	//StepInterPolationKenjya();
 
-	////液体と固体の線形補間
-	//StepInterPolation();					RXTIMER("StepInterPolation");
-	////StepInterPolationKenjya();
-
-	//OrientedParticleを用いた場合のテスト
-	//TestOrientedParticleStep();
-	//TestOrientedParticleWeightStep();
-	
-	//TestOrientedParticleItrStep();
-	TestOrientedParticleItrStep2();
-	//TestOrientedParticleItrWeightStep();
+	////OrientedParticleを用いた場合のテスト
+	////TestOrientedParticleWeightStep();
+	//
+	////TestOrientedParticleItrStep();
+	//TestOrientedParticleItrStep2();
+	////TestOrientedParticleItrWeightStep();
 }
 
 //orientedParticleの情報を描画
 void IceObject::TestDisplayOrientedInfo()
 {
-	return;
-
 	//クォータニオンの方向ベクトルとその大きさを可視化
 	glLineWidth(3.0);
 	glColor3f(0.0f,1.0f,0.0f);	//
@@ -818,92 +858,6 @@ void IceObject::TestDisplayOrientedInfo()
 	glEnd();
 }
 
-void IceObject::TestInterPolationForSPH()
-{
-	//最終位置，速度決定
-	float* s_sphPrtPos = IceObject::GetSPHHostPosPointer();
-	float* s_sphPrtVel = IceObject::GetSPHHostVelPointer();
-
-	for(int pIndx = 0; pIndx < sm_particleNum; pIndx++){
-		int sphIndx = pIndx*4;
-		int sldIndx = pIndx*3;
-		double intrps = 1.0 - m_fInterPolationCoefficience[pIndx];	//補間係数
-	
-		float* sldVel = OrientedParticleBaseElasticObject::GetClstrVelPointer();
-		float* sldPos = OrientedParticleBaseElasticObject::GetClstrPosPointer();
-	
-		for(int i = 0; i < 3; i++){
-			s_sphPrtVel[sphIndx+i] = sldVel[sldIndx+i] * m_fInterPolationCoefficience[pIndx] + s_sphPrtVel[sphIndx+i] * intrps;
-			s_sphPrtPos[sphIndx+i] = sldPos[sldIndx+i] * m_fInterPolationCoefficience[pIndx] + s_sphPrtPos[sphIndx+i] * intrps;
-		}
-	}
-}
-
-//OrientedParticleを用いた場合のテスト
-void IceObject::TestOrientedParticleStep()
-{
-	unsigned pNum = IceObject::GetParticleNum();
-
-	//マウスによるドラッグを反映させるために，無理やり値を更新
-	OrientedParticleBaseElasticObject::CopyPrtToClstrPos(pNum);
-
-	//粒子を更新
-	#pragma omp parallel for
-	for(int i = 0; i < pNum; i++){
-		m_vOrientedPrtes[i]->Integrate();
-	}
-
-	//クラスタの更新
-	#pragma omp parallel for
-	for(int i = 0; i < pNum; ++i){
-		m_orientedObj[i]->UpdateCluster();
-	}
-	
-	//最終位置決定
-	//現在はm_iceStrctを用いずにsm法のデータm_iceSMだけで計算している
-	vector<Vec3> prtPoses(pNum, Vec3(0.0f));
-	vector<unsigned> addParticleNum(pNum, 0);
-
-	//単純な足しあわせ
-	for(int cIndx = 0; cIndx < pNum; cIndx++){
-		//クラスタが含んでいる各粒子の位置・速度をstaticな最終位置に足す
-		Vec3 pos, vel;
-		int pIndx, dim;
-
-		for(int oIndx = 0; oIndx < m_orientedObj[cIndx]->GetIndxNum(); oIndx++){
-			int pIndx = m_orientedObj[cIndx]->GetParticleIndx(oIndx);
-			if(pIndx == MAXINT){	continue;	}
-
-			Vec3 pos = m_orientedObj[cIndx]->GetVertexPos(oIndx);
-			prtPoses[pIndx] += pos;
-
-			//粒子数のカウント
-			addParticleNum[pIndx] += 1;
-		}
-	}
-
-	//平均値を固体位置に反映
-	for(int pIndx = 0; pIndx < pNum; pIndx++){
-		int smIndx = pIndx*SM_DIM;
-
-		//CtoPNum == PtoCNumより
-		float clusterNum = (float)addParticleNum[pIndx];
-		if(clusterNum <= 0.0f){	continue;	}
-
-		Vec3 pos = prtPoses[pIndx] / clusterNum;
-		m_vOrientedPrtes[pIndx]->PrdPos(pos);
-	}
-
-	//速度，角速度，姿勢を更新
-	#pragma omp parallel for
-	for(int i = 0; i < pNum; i++){
-		m_vOrientedPrtes[i]->Update();
-	}
-
-	//最終位置・速度決定
-	TestInterPolationForSPH();
-}
-
 //重み付けの実験
 void IceObject::TestOrientedParticleWeightStep()
 {
@@ -919,7 +873,7 @@ void IceObject::TestOrientedParticleWeightStep()
 
 	//クラスタの更新
 	for(int i = 0; i < pNum; ++i){
-		m_orientedObj[i]->UpdateCluster();
+		m_orientedObj[i]->UpdateCluster_OP();
 	}
 	
 	//最終位置決定
@@ -966,7 +920,7 @@ void IceObject::TestOrientedParticleWeightStep()
 	}
 
 	//最終位置・速度決定
-	TestInterPolationForSPH();
+	StepInterPolation();
 }
 
 //反復の実験　姿勢・回転行列を補間しないタイプ
@@ -1004,7 +958,7 @@ void IceObject::TestOrientedParticleItrStep()
 		//サンプリングされているクラスタのみで運動計算を行う
 		if(m_iceStrct->GetMotionCalcCluster(i) == 0){	continue;	}
 
-		m_orientedObj[i]->UpdateCluster();
+		m_orientedObj[i]->UpdateCluster_OP();
 	}
 
 	//最終位置決定
@@ -1073,7 +1027,7 @@ void IceObject::TestOrientedParticleItrStep()
 			//サンプリングされているクラスタのみで運動計算を行う
 			if(m_iceStrct->GetMotionCalcCluster(i) == 0){	continue;	}
 
-			m_orientedObj[i]->UpdateCluster();
+			m_orientedObj[i]->UpdateCluster_OP();
 		}
 
 		//最終位置決定
@@ -1127,7 +1081,7 @@ void IceObject::TestOrientedParticleItrStep()
 	}
 
 	//最終位置・速度決定
-	TestInterPolationForSPH();
+	StepInterPolation();
 }
 
 //反復処理の実験２　姿勢・回転行列の補完処理を導入
@@ -1142,40 +1096,40 @@ void IceObject::TestOrientedParticleItrStep2()
 {
 	//粒子を更新
 	//サンプリング粒子
-QueryCounter sampling;
-sampling.Start();
+//QueryCounter sampling;
+//sampling.Start();
 	#pragma omp parallel for
 	for(int i = 0; i < pNum; i++){
 		if(m_iceStrct->GetMotionCalcCluster(i) == 0){	continue;	}
 		m_vOrientedPrtes[i]->Integrate();
 	}
-double sampling_t = sampling.End();
-
-QueryCounter notSampling;
-notSampling.Start();
+//double sampling_t = sampling.End();
+//
+//QueryCounter notSampling;
+//notSampling.Start();
 	//非サンプリング粒子
 	#pragma omp parallel for
 	for(int i = 0; i < pNum; i++){
 		if(m_iceStrct->GetMotionCalcCluster(i) != 0){	continue;	}
 		m_vOrientedPrtes[i]->Integrate_NotSampled2(m_iceStrct);
 	}
-double notSampling_t = notSampling.End();
+//double notSampling_t = notSampling.End();
 
 	//クラスタの更新
-QueryCounter cluster;
-cluster.Start();
+//QueryCounter cluster;
+//cluster.Start();
 	#pragma omp parallel for
 	for(int i = 0; i < pNum; ++i){
 		//サンプリングされているクラスタのみで運動計算を行う
 		if(m_iceStrct->GetMotionCalcCluster(i) == 0){	continue;	}
 
-		m_orientedObj[i]->UpdateCluster();
+		m_orientedObj[i]->UpdateCluster_OP();
 	}
-double cluster_t = cluster.End();
+//double cluster_t = cluster.End();
 
-	cout << "sampling:" << sampling_t << endl;
-	cout << "notSampl:" << notSampling_t << endl;
-	cout << "cluster :" << cluster_t << endl;
+	//cout << "sampling:" << sampling_t << endl;
+	//cout << "notSampl:" << notSampling_t << endl;
+	//cout << "cluster :" << cluster_t << endl;
 
 ////Type2 サンプリングされているクラスタの回転行列から，サンプリングされていないクラスタの回転行列を補間
 //	#pragma omp parallel for
@@ -1253,7 +1207,7 @@ double cluster_t = cluster.End();
 			//サンプリングされているクラスタのみで運動計算を行う
 			if(m_iceStrct->GetMotionCalcCluster(i) == 0){	continue;	}
 
-			m_orientedObj[i]->UpdateCluster();
+			m_orientedObj[i]->UpdateCluster_OP();
 		}
 		
 	////Type2 サンプリングされているクラスタの回転行列から，サンプリングされていないクラスタの回転行列を補間
@@ -1288,16 +1242,60 @@ double cluster_t = cluster.End();
 		}
 
 		//平均値を粒子位置に反映
+		int smIndx = 0;
+		float clusterNum = 0.0f;
+		Vec3 pos = Vec3(0.0);
+
+		//#pragma omp parallel for private(smIndx, clusterNum, pos)
 		for(int pIndx = 0; pIndx < pNum; pIndx++){
-			int smIndx = pIndx*SM_DIM;
+			//int smIndx = pIndx*SM_DIM;
+			smIndx = pIndx*SM_DIM;
 
 			//CtoPNum == PtoCNumより
-			float clusterNum = (float)addParticleNum[pIndx];
+			//float clusterNum = (float)addParticleNum[pIndx];
+			clusterNum = (float)addParticleNum[pIndx];
 			if(clusterNum <= 0.0f){	continue;	}
 
-			Vec3 pos = prtPoses[pIndx] / clusterNum;
+			//Vec3 pos = prtPoses[pIndx] / clusterNum;
+			pos = prtPoses[pIndx] / clusterNum;
 			m_vOrientedPrtes[pIndx]->PrdPos(pos);
 		}
+
+	////重み付き和版
+		////最終位置決定
+		//vector<float> defSum(pNum, 0.0f);
+		//vector<Vec3> prtPoses(pNum, Vec3(0.0f));
+	
+		////単純な足しあわせ
+		//for(int cIndx = 0; cIndx < pNum; cIndx++){
+		//	//サンプリングされていないクラスタの情報は反映しない
+		//	if(m_iceStrct->GetMotionCalcCluster(cIndx) == 0){	continue;	}
+	
+		//	for(int oIndx = 0; oIndx < m_orientedObj[cIndx]->GetIndxNum(); oIndx++){
+		//		int pIndx = m_orientedObj[cIndx]->GetParticleIndx(oIndx);
+		//		if(pIndx == MAXINT){	continue;	}
+	
+		//		Vec3 pos = m_orientedObj[cIndx]->GetVertexPos(oIndx);
+		//		//float defAmount = m_orientedObj[cIndx]->DefAmount() * m_orientedObj[cIndx]->DefAmount();
+		//		float defAmount = m_orientedObj[cIndx]->DefAmount();
+		//		prtPoses[pIndx] += pos * defAmount;
+	
+		//		//総変形量をカウント
+		//		defSum[pIndx] += defAmount;
+		//	}
+		//}
+
+		////平均値を固体位置に反映
+		//for(int pIndx = 0; pIndx < pNum; pIndx++){
+		//	int smIndx = pIndx*SM_DIM;
+		//
+		//	//CtoPNum == PtoCNumより
+		//	float defAmount = defSum[pIndx];
+		//	if(defAmount <= 0.0f){	continue;	}
+		//	
+		//	Vec3 pos = prtPoses[pIndx] / defAmount;
+		//	m_vOrientedPrtes[pIndx]->PrdPos(pos);
+		//}
 
 		//姿勢を更新
 		//TODO: これはミスでは？ サンプリングのせいでUpdateClusterされていないクラスタ・粒子は回転行列が更新されないはず
@@ -1316,23 +1314,7 @@ double cluster_t = cluster.End();
 		m_vOrientedPrtes[i]->Update_ItrEnd();
 	}
 
-	//最終位置，速度決定
-	float* s_sphPrtPos = IceObject::GetSPHHostPosPointer();
-	float* s_sphPrtVel = IceObject::GetSPHHostVelPointer();
-
-	for(int pIndx = 0; pIndx < sm_particleNum; pIndx++){
-		int sphIndx = pIndx*4;
-		int sldIndx = pIndx*3;
-		double intrps = 1.0 - m_fInterPolationCoefficience[pIndx];	//補間係数
-	
-		float* sldVel = OrientedParticleBaseElasticObject::GetClstrVelPointer();
-		float* sldPos = OrientedParticleBaseElasticObject::GetClstrPosPointer();
-	
-		for(int i = 0; i < 3; i++){
-			s_sphPrtVel[sphIndx+i] = sldVel[sldIndx+i] * m_fInterPolationCoefficience[pIndx] + s_sphPrtVel[sphIndx+i] * intrps;
-			s_sphPrtPos[sphIndx+i] = sldPos[sldIndx+i] * m_fInterPolationCoefficience[pIndx] + s_sphPrtPos[sphIndx+i] * intrps;
-		}
-	}
+	StepInterPolation();
 }
 
 
@@ -1375,7 +1357,7 @@ void IceObject::TestOrientedParticleItrWeightStep()
 		//サンプリングされていないクラスタの情報は反映しない
 		if(m_iceStrct->GetMotionCalcCluster(i) == 0){	continue;	}
 
-		m_orientedObj[i]->UpdateCluster();
+		m_orientedObj[i]->UpdateCluster_OP();
 	}
 
 	//最終位置決定
@@ -1449,7 +1431,7 @@ void IceObject::TestOrientedParticleItrWeightStep()
 		for(int i = 0; i < pNum; ++i){
 			if(m_iceStrct->GetMotionCalcCluster(i) == 0){	continue;	}
 
-			m_orientedObj[i]->UpdateCluster();
+			m_orientedObj[i]->UpdateCluster_OP();
 		}
 		
 		//最終位置決定
@@ -1503,23 +1485,7 @@ void IceObject::TestOrientedParticleItrWeightStep()
 		m_vOrientedPrtes[i]->Update_ItrEnd();
 	}
 
-	//最終位置，速度決定
-	float* s_sphPrtPos = IceObject::GetSPHHostPosPointer();
-	float* s_sphPrtVel = IceObject::GetSPHHostVelPointer();
-
-	for(int pIndx = 0; pIndx < sm_particleNum; pIndx++){
-		int sphIndx = pIndx*4;
-		int sldIndx = pIndx*3;
-		double intrps = 1.0 - m_fInterPolationCoefficience[pIndx];	//補間係数
-	
-		float* sldVel = OrientedParticleBaseElasticObject::GetClstrVelPointer();
-		float* sldPos = OrientedParticleBaseElasticObject::GetClstrPosPointer();
-	
-		for(int i = 0; i < 3; i++){
-			s_sphPrtVel[sphIndx+i] = sldVel[sldIndx+i] * m_fInterPolationCoefficience[pIndx] + s_sphPrtVel[sphIndx+i] * intrps;
-			s_sphPrtPos[sphIndx+i] = sldPos[sldIndx+i] * m_fInterPolationCoefficience[pIndx] + s_sphPrtPos[sphIndx+i] * intrps;
-		}
-	}
+	StepInterPolation();
 }
 
 void IceObject::StepObjMoveCPUDebug()
@@ -1550,9 +1516,11 @@ void IceObject::StepInterPolation()
 		int sldIndx = pIndx*3;
 		double intrps = 1.0 - m_fInterPolationCoefficience[pIndx];	//補間係数
 	
-		float* sldVel = Ice_SM::GetSldVelPointer();
-		float* sldPos = Ice_SM::GetSldPosPointer();
-	
+		//float* sldVel = Ice_SM::GetSldVelPointer();
+		//float* sldPos = Ice_SM::GetSldPosPointer();
+		float* sldVel = OrientedParticleBaseElasticObject::GetClstrVelPointer();
+		float* sldPos = OrientedParticleBaseElasticObject::GetClstrPosPointer();
+
 		for(int i = 0; i < 3; i++)
 		{
 			s_sphPrtVel[sphIndx+i] = sldVel[sldIndx+i] * m_fInterPolationCoefficience[pIndx] + s_sphPrtVel[sphIndx+i] * intrps;
@@ -2367,6 +2335,17 @@ void IceObject::ResetPosAndVel()
 		p[smIndx+0] = m_VecInitPos[pIndx][0];
 		p[smIndx+1] = m_VecInitPos[pIndx][1];
 		p[smIndx+2] = m_VecInitPos[pIndx][2];
+
+		float* sldVel = OrientedParticleBaseElasticObject::GetClstrVelPointer();
+		float* sldPos = OrientedParticleBaseElasticObject::GetClstrPosPointer();
+	
+		sldVel[smIndx+0] = 0.0f;
+		sldVel[smIndx+1] = 0.0f;
+		sldVel[smIndx+2] = 0.0f;
+	
+		sldPos[smIndx+0] = m_VecInitPos[pIndx][0];
+		sldPos[smIndx+1] = m_VecInitPos[pIndx][1];
+		sldPos[smIndx+2] = m_VecInitPos[pIndx][2];
 	}
 
 	//orientedParticleのリセット
@@ -2374,6 +2353,9 @@ void IceObject::ResetPosAndVel()
 		m_vOrientedPrtes[i]->AngularVel(Vec3(0.0f));
 		m_vOrientedPrtes[i]->Rotation(rxMatrix3(0.0f));
 		m_vOrientedPrtes[i]->CurOrientation(mk_Quaternion());
+		m_vOrientedPrtes[i]->Velocity(Vec3(0.0f));
+
+		m_orientedObj[i]->DefAmount(0.0f);
 	}
 }
 
@@ -3008,7 +2990,7 @@ string IceObject::DebugNowMoveMethod()
 	string end = "\n";
 	nowMode = string("CalcMethod	") +	typeid(*m_iceCalcMethod).name() +	end		//計算方法
 			+ string("JudgeMove	") +		typeid(*m_iceJudeMove).name() +		end		//運動計算対象を判定
-			+ string("ClsuterMove	") +	typeid(*m_iceClsuterMove).name() +	end		//運動計算方法
+			+ string("SimuMethod	") +	typeid(*m_iceSimuMethod).name() +	end		//シミュレーション手法
 			+ string("ConvopoJudge	") +	typeid(*m_iceConvoJudge).name() +	end		//最終統合結果に用いる対象を判定
 			+ string("Convolution	" ) +	typeid(*m_iceConvolution).name() +	end;	//最終統合結果を求める
 

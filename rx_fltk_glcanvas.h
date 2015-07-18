@@ -553,6 +553,11 @@ public:
 
 	//追加：シミュレーション
 	void ResetSimulation();
+	void UpdateShaderParamRatio(float etaRatio){	m_etaRatio = etaRatio;	}
+	void UpdateShaderParamBias(float bias){	m_fresnelBias = bias;	}
+	void UpdateShaderParamPower(float power){	m_fresnelPower = power;	}
+	void UpdateShaderParamScale(float scale){	m_fresnelScale = scale;	}
+
 	void ApplyNowData();
 	void SetObjMove(bool flag){	m_bSolidMove = flag;	}
 

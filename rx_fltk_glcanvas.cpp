@@ -487,6 +487,7 @@ void rxFlGLWindow::InitGL(void)
 	// GLSLのコンパイル
 	g_glslPointSprite = CreateGLSL(ps_vs, ps_fs, "point sprite");
 	g_glslFresnel     = CreateGLSL(fresnel2_vs, fresnel2_fs, "fresnel");
+	//g_glslFresnel     = CreateGLSL(fresnel_vs, fresnel_fs, "fresnel");
 
 
 	m_pParent->UpdateMenuState();
@@ -4915,23 +4916,23 @@ void rxFlGLWindow::RenderSphScene(void)
 
 			// パラメータ設定
 			// バーテックスシェーダ用パラメータ
-			//glUniform1f(glGetUniformLocation(g_glslFresnel.Prog, "etaRatio"), 0.93);
+			//glUniform1f(glGetUniformLocation(g_glslFresnel.Prog, "etaRatio"), 0.53);
 			//glUniform1f(glGetUniformLocation(g_glslFresnel.Prog, "fresnelBias"), 0.005);
 			//glUniform1f(glGetUniformLocation(g_glslFresnel.Prog, "fresnelPower"), 0.98);
 			//glUniform1f(glGetUniformLocation(g_glslFresnel.Prog, "fresnelScale"), 1.0);
 			//glUniform3f(glGetUniformLocation(g_glslFresnel.Prog, "eyePosition"), eye_pos[0], eye_pos[1], eye_pos[2]);
 
-			glUniform1f(glGetUniformLocation(g_glslFresnel.Prog, "etaRatio"), 0.93);
-			glUniform1f(glGetUniformLocation(g_glslFresnel.Prog, "fresnelBias"), 0.005);
-			glUniform1f(glGetUniformLocation(g_glslFresnel.Prog, "fresnelPower"), 0.98);
-			glUniform1f(glGetUniformLocation(g_glslFresnel.Prog, "fresnelScale"), 1.0);
-			glUniform3f(glGetUniformLocation(g_glslFresnel.Prog, "eyePosition"), eye_pos[0], eye_pos[1], eye_pos[2]);
-
-			//glUniform1f(glGetUniformLocation(g_glslFresnel.Prog, "etaRatio"),		m_etaRatio);
-			//glUniform1f(glGetUniformLocation(g_glslFresnel.Prog, "fresnelBias"),	m_fresnelBias);
-			//glUniform1f(glGetUniformLocation(g_glslFresnel.Prog, "fresnelPower"),	m_fresnelPower);
-			//glUniform1f(glGetUniformLocation(g_glslFresnel.Prog, "fresnelScale"),	m_fresnelScale);
+			//glUniform1f(glGetUniformLocation(g_glslFresnel.Prog, "etaRatio"), 0.53);
+			//glUniform1f(glGetUniformLocation(g_glslFresnel.Prog, "fresnelBias"), 0.85);
+			//glUniform1f(glGetUniformLocation(g_glslFresnel.Prog, "fresnelPower"), 0.11);
+			//glUniform1f(glGetUniformLocation(g_glslFresnel.Prog, "fresnelScale"), 0.5);
 			//glUniform3f(glGetUniformLocation(g_glslFresnel.Prog, "eyePosition"), eye_pos[0], eye_pos[1], eye_pos[2]);
+
+			glUniform1f(glGetUniformLocation(g_glslFresnel.Prog, "etaRatio"),		m_etaRatio);
+			glUniform1f(glGetUniformLocation(g_glslFresnel.Prog, "fresnelBias"),	m_fresnelBias);
+			glUniform1f(glGetUniformLocation(g_glslFresnel.Prog, "fresnelPower"),	m_fresnelPower);
+			glUniform1f(glGetUniformLocation(g_glslFresnel.Prog, "fresnelScale"),	m_fresnelScale);
+			glUniform3f(glGetUniformLocation(g_glslFresnel.Prog, "eyePosition"), eye_pos[0], eye_pos[1], eye_pos[2]);
 
 			// フラグメントシェーダ用パラメータ
 			glUniform1i(glGetUniformLocation(g_glslFresnel.Prog, "envmap"), 0);

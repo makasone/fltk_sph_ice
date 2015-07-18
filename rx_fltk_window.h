@@ -80,6 +80,12 @@ protected:
 	Fl_Check_Button *m_pCheckStiff;
 	Fl_Spinner* m_pSpinStiff;
 
+	//レンダリングパラメータ
+	Fl_Spinner* m_pSpinEtaRatio;
+	Fl_Spinner* m_pSpinFresnelBias; 
+	Fl_Spinner* m_pSpinFresnelPower;
+	Fl_Spinner* m_pSpinFresnelScale;
+
 	//デバッグモード
 	Fl_Check_Button *m_pCheckDebug;
 	Fl_Check_Button* m_pCheckHeatObj;
@@ -156,11 +162,17 @@ public:
 	static void OnSpinDegree_Weight_s(Fl_Widget *widget, void* x);
 	inline void OnSpinDegree_Weight(Fl_Widget *widget);
 
+	static void OnSpinDegree_Shader_s(Fl_Widget *widget, void* x);
+	inline void OnSpinDegree_Shader(Fl_Widget *widget);
+
 	//static void OnSpinDegree_DirVec_s(Fl_Widget *widget, void* x);
 	//inline void OnSpinDegree_DirVec(Fl_Widget *widget);
 
 	static void OnRadioMode_CalcMethod_s(Fl_Widget *widget, void* x);
 	inline void OnRadioMode_CalcMethod(Fl_Widget *widget);
+
+	static void OnRadioMode_SimulationMethod_s(Fl_Widget* widget, void* x);
+	inline void OnRadioMode_SimulationMethod(Fl_Widget* widget);
 
 	static void OnSliderItrNum_s(Fl_Widget *widget, void* x);
 	inline void OnSliderItrNum(Fl_Widget *widget);

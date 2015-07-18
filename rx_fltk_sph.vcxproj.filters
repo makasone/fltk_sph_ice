@@ -67,6 +67,9 @@
     <Filter Include="IceObject\SM Files\OP_SM">
       <UniqueIdentifier>{88346a04-bbdd-4a5a-ab19-c7b4b3184d2a}</UniqueIdentifier>
     </Filter>
+    <Filter Include="IceObject\SimuMethod Files">
+      <UniqueIdentifier>{b4a9db59-63d4-4c3d-ae8b-0439a8dd22f3}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="rx_sph_solid.cpp">
@@ -209,6 +212,12 @@
     </ClCompile>
     <ClCompile Include="OrientedParticle.cpp">
       <Filter>IceObject\SM Files\OP_SM</Filter>
+    </ClCompile>
+    <ClCompile Include="Ice_SimuMethod_ShapeMatching.cpp">
+      <Filter>IceObject\SimuMethod Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Ice_SimulMethod_OrientedParticle.cpp">
+      <Filter>IceObject\SimuMethod Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -406,6 +415,15 @@
     </ClInclude>
     <ClInclude Include="mk_Quaternion.h">
       <Filter>UnilityScript</Filter>
+    </ClInclude>
+    <ClInclude Include="Ice_SimuMethod.h">
+      <Filter>IceObject\SimuMethod Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Ice_SimuMethod_ShapeMatching.h">
+      <Filter>IceObject\SimuMethod Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Ice_SimuMethod_OrientedParticle.h">
+      <Filter>IceObject\SimuMethod Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

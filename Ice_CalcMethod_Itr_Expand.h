@@ -21,10 +21,12 @@ using namespace std;
 class Ice_CalcMethod_Itr_Expand: public Ice_CalcMethod
 {
 public:
-	Ice_CalcMethod_Itr_Expand(const vector<Ice_SM*>& iceSM, IceStructure* iceStrct, Ice_ClusterMove* clusterMove, Ice_Convolution* convo);
+	//Ice_CalcMethod_Itr_Expand(const vector<Ice_SM*>& iceSM, IceStructure* iceStrct, Ice_ClusterMove* clusterMove, Ice_Convolution* convo);
+	Ice_CalcMethod_Itr_Expand(const vector<Ice_SM*>& iceSM, IceStructure* iceStrct, Ice_SimuMethod* simuMethod, Ice_Convolution* convo);
 	~Ice_CalcMethod_Itr_Expand();
 	
-	void SetObjMove(Ice_ClusterMove* clusterMove);
+	//void SetObjMove(Ice_ClusterMove* clusterMove);
+	void SetObjMove(Ice_SimuMethod* simuMethod);
 	void SetConvolution(Ice_Convolution* convo);
 
 	void StepObjMove();
@@ -64,7 +66,8 @@ private:
 	IceStructure* m_iceStrct;
 
 	//運動計算方法を扱うクラス
-	Ice_ClusterMove* m_iceMove;
+	//Ice_ClusterMove* m_iceMove;
+	Ice_SimuMethod* m_simuMethod;
 
 	//最終統合結果を求めるクラス
 	Ice_Convolution* m_iceConvo;

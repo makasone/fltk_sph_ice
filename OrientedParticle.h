@@ -62,9 +62,9 @@ public:
 	OrientedParticle();
 	OrientedParticle(int id, float mass, Vec3 orgPos);
 
-	void Init();
-
 	~OrientedParticle();
+
+	void Init();
 
 	void Integrate();
 	void Integrate_Itr();
@@ -78,6 +78,10 @@ public:
 	void Update_Itr_NotSampled(const IceStructure* iceStrct);
 	void Update_ItrEnd();
 
+	void UpdatePosAndVel();
+	void UpdateOrientation();
+	void UpdateAngularVel();
+
 //アクセッサ
 	int Id() const {		return m_iId;	}
 	float Mass() const {	return m_fMass;	}
@@ -86,6 +90,9 @@ public:
 
 	inline const Vec3 PrdPos() const {	return m_vec3PrdPos;	}
 	inline void PrdPos(Vec3 pos){	m_vec3PrdPos = pos;		}
+
+	inline const Vec3 Velocity() const {	return m_vec3Vel;	}
+	inline void Velocity(Vec3 vel){	m_vec3Vel = vel;	}
 
 	inline const rxMatrix3& A_elipsoid() const {		return m_mtrx3PrtA_elipsoid;	}
 	inline const rxMatrix3& MomentMatrix() const {	return m_mtrx3PrdMomentMtrx;	}
@@ -120,10 +127,6 @@ private:
 
 	void IntegrateA_elipsoid_Itr();
 	void IntegrateMomentMatrix_Itr();
-
-	void UpdatePosAndVel();
-	void UpdateOrientation();
-	void UpdateAngularVel();
 };
 
 #endif
