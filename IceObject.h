@@ -8,7 +8,7 @@
 #include "rx_matrix.h"
 
 #include "Ice_SM.h"
-#include "Ice_OrientedParticle.h"
+#include "ElasticObject_OP.h"
 #include "OrientedParticle.h"
 
 #include "IceStructure.h"
@@ -25,6 +25,7 @@
 #include "Ice_SimuMethod.h"
 #include "Ice_SimuMethod_ShapeMatching.h"
 #include "Ice_SimuMethod_OrientedParticle.h"
+#include "Ice_SimuMethod_DistanceConstraint.h"
 
 #include "Ice_ClusterMove_FastPath.h"
 
@@ -308,13 +309,7 @@ public:
 	void TestFixSidePos();
 
 	void TestSimulationFromFile(string fileName);
-
 	void TestOrientedParticleInit(Vec3 boundarySpaceLow, Vec3 boundarySpaceHigh, float timeStep, const vector<vector<rxNeigh>>& neights, const int* surfacePrtIndxes);
-	void TestOrientedParticleWeightStep();
-	void TestOrientedParticleItrStep();
-	void TestOrientedParticleItrStep2();
-	void TestOrientedParticleItrWeightStep();
-	
 	void TestDisplayOrientedInfo();
 
 	//--------------IceStructureÇ∆ìØÇ∂ìÆÇ´ÇÇ∑ÇÈÇΩÇﬂÇ…àÍéûìIÇ…çÏÇ¡ÇΩä÷êî__----------------------------------

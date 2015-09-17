@@ -31,15 +31,6 @@ Ice_JudgeMove* MoveSM::GetJudgeMove()
 
 void MoveSM::StepObjMove()
 {
-	////運動計算
-	//#pragma omp parallel for
-	//for(int i = 0; i < IceObject::GetParticleNum(); ++i)
-	//{	
-	//	if(m_iceJudge->JudgeMove(i) == false){	continue;	}
-
-	//	m_iceSM[i]->UpdateCPU();
-	//}
-
 	//マウスによるドラッグを反映させるために，無理やり値を更新
 	OrientedParticleBaseElasticObject::CopyPrtToClstrPos(IceObject::GetParticleNum());
 
@@ -72,13 +63,6 @@ void MoveSM::StepObjMove()
 
 void MoveSM::StepObjMoveItr()
 {
-	//#pragma omp parallel for
-	//for(int i = 0; i < IceObject::GetParticleNum(); ++i){	
-	//	if(! m_iceJudge->JudgeMove(i)){	continue;	}
-
-	//	m_iceSM[i]->ShapeMatchingIteration();
-	//}
-
 	//サンプリング粒子を更新
 	#pragma omp parallel for
 	for(int i = 0; i < IceObject::GetParticleNum(); i++){
@@ -109,7 +93,7 @@ void MoveSM::StepObjMoveItr()
 //粒子情報の更新
 void MoveSM::StepObjUpdate()
 {
-	//面白いことに，反復用の処理２つを組み合わせたものが通常の運動計算を表現できた．
+	//面白いことに，反復用の処理２つを組み合わせたもので通常の運動計算を表現できた．
 	//つまり，名前を変えるべき
 	StepObjUpdateItr();
 	StepObjUpdateItrEnd();

@@ -4092,12 +4092,226 @@ void rxFlGLWindow::StepParticleColor()
 	{
 		float* tempColor = new float[m_pPS->GetNumParticles()];
 
-		for( int i = 0; i < m_pPS->GetNumParticles(); i++ )
-		{
-			tempColor[i] = m_iceObj->GetMoveObj(i)->GetDefAmount();
+		float threshold = 0.1f;
+		int defNum = 0;
+
+		////相対的な変形量
+		////ある程度正確に検出できるが，耳の付け根をガッツリ検出する，といったことができない．
+		////平均や標準偏差の定義上，近傍に含まれるうちの幾つかしか検出することができない．
+		//for(int i = 0; i < m_pPS->GetNumParticles(); i++){
+		//	//平均値
+		//	float defAmountSum = 0.0f;
+		//	for(int j = 0; j < m_iceObj->GetOrientedObj(i)->GetIndxNum(); j++){
+		//		int pIndx = m_iceObj->GetOrientedObj(i)->GetParticleIndx(j);
+
+		//		float defAmount = m_iceObj->GetOrientedObj(pIndx)->FinalDefAmount();
+		//		if(defAmount < 0.0f) defAmount = 0.0f;
+
+		//		defAmountSum += defAmount;
+		//	}
+
+		//	float defAmountAve = defAmountSum / m_iceObj->GetOrientedObj(i)->GetNumVertices();
+
+		//	//分散
+		//	float variance = 0.0f;
+		//	for(int j = 0; j < m_iceObj->GetOrientedObj(i)->GetIndxNum(); j++){
+		//		int pIndx = m_iceObj->GetOrientedObj(i)->GetParticleIndx(j);
+
+		//		float diff = m_iceObj->GetOrientedObj(pIndx)->FinalDefAmount() - defAmountAve;
+		//		variance += diff * diff;
+		//	}
+
+		//	variance /= m_iceObj->GetOrientedObj(i)->GetNumVertices();
+
+		//	//標準偏差
+		//	float deviation = sqrt(variance);
+
+		//	//平均より大きく上ならば変形部位
+		//	//float defAmount = m_iceObj->GetOrientedObj(i)->FinalDefAmount();
+		//	//if(defAmount < 0.0f) defAmount = 0.0f;
+		//
+		//	//if(defAmount > defAmountAve + deviation /* || pNumAve > 20*/){
+		//	//	tempColor[i] = 0.83f;	//赤
+		//	//	defNum++;
+		//	//}
+		//	//else{
+		//	//	tempColor[i] = 0.15f;	//青
+		//	//}
+
+		//	//標準偏差より下なら非変形部位
+		//	float defAmount = m_iceObj->GetOrientedObj(i)->FinalDefAmount();
+		//	if(defAmount < 0.0f) defAmount = 0.0f;
+		//
+		//	if(defAmount < defAmountAve + deviation * 1.0f /* || pNumAve > 20*/){
+		//		tempColor[i] = 0.15f;	//青
+		//	}
+		//	else{
+		//		tempColor[i] = 0.83f;	//赤
+		//		defNum++;
+		//	}
+		//}
+
+		//cout << defNum << endl;
+
+		////非変形部位の検出
+		//for(int i = 0; i < m_pPS->GetNumParticles(); i++){
+
+		//	if(m_iceObj->GetOrientedObj(i)->IsThereOutlier()){
+		//		tempColor[i] = 0.15f;	//青
+		//	}
+		//	else{
+		//		tempColor[i] = 0.95f;	//赤
+		//		defNum++;
+		//	}
+		//}
+
+		////外れ値の検出
+		//for(int i = 0; i < m_pPS->GetNumParticles(); i++){
+
+		//	if(m_iceObj->GetOrientedObj(i)->IsThereOutlier()){
+		//		tempColor[i] = 0.95f;	//赤
+		//		defNum++;
+		//	}
+		//	else{
+		//		tempColor[i] = 0.15f;	//青
+		//	}
+		//}
+
+		////体積変化率
+		////妙な色の分布になる　内部に色がついて，表面粒子は黒　大きな変形には反応する
+		//for(int i = 0; i < m_pPS->GetNumParticles(); i++){
+		//	float defAmount = abs(m_iceObj->GetOrientedObj(i)->VolumeChange()*2000.0f);
+		//	if(defAmount < 0.0f) defAmount = 0.0f;
+		//	if(defAmount > 1.0f) defAmount = 1.0f;
+
+		//	tempColor[i] = defAmount;
+
+		//	//defAmount= defAmount;
+		//	//if(defAmount < 0.6f){
+		//	//	tempColor[i] = 0.15f;	//青
+		//	//}
+		//	//else{
+		//	//	tempColor[i] = 0.95f;	//赤
+		//	//	defNum++;
+		//	//}
+		//}
+
+		//粒子数と変形量の組み合わせ　ギリギリ及第点
+		for(int i = 0; i < m_pPS->GetNumParticles(); i++){
+			int pNumAve = 0;
+
+			//クラスタに含まれる粒子数
+			//for(int j = 0; j < m_iceObj->GetOrientedObj(i)->GetNumVertices(); j++){
+			//	int pIndx = m_iceObj->GetOrientedObj(i)->GetParticleIndx(j);
+			//	int particleNum = m_iceObj->GetOrientedObj(pIndx)->GetNumVertices();
+			//	pNumAve += particleNum;
+			//}
+
+			//pNumAve /= m_iceObj->GetOrientedObj(i)->GetNumVertices();
+
+			//閾値の代わりに変形量の標準偏差を用いて判定
+			float defAmount = m_iceObj->GetOrientedObj(i)->FinalDefAmount() * 1000.0f;
+			if(defAmount < 0.0f) defAmount = 0.0f;
+			if(defAmount > 1.0f) defAmount = 1.0f;
+		
+			defAmount= defAmount;
+
+			float def2 = m_iceObj->GetOrientedObj(i)->DefAmount();
+
+			if(defAmount < threshold/* || pNumAve > 20*/){
+			//if(defAmount < def2){
+				tempColor[i] = 0.15f;	//青
+			}
+			else{
+				tempColor[i] = 0.83f;	//赤
+				defNum++;
+			}
 		}
 
-		m_pPS->SetColorVBOFromArray( tempColor, 1, false, 10.0f );
+		cout << defNum << endl;
+
+		//最終位置と初期位置の差分の平均
+		//for(int i = 0; i < m_pPS->GetNumParticles(); i++){
+		//	float defAmount = m_iceObj->GetOrientedObj(i)->FinalDefAmount() * 100.0f;
+		//	if(defAmount < 0.0f) defAmount = 0.0f;
+		//	if(defAmount > 1.0f) defAmount = 1.0f;
+
+		//	//tempColor[i] = defAmount;
+
+		//	defAmount= defAmount;
+		//	if(defAmount < threshold || m_iceObj->GetMoveObj(i)->GetNumVertices() > 17){
+		//		tempColor[i] = 0.15f;	//青
+		//	}
+		//	else{
+		//		tempColor[i] = 0.95f;	//赤
+		//		defNum++;
+		//	}
+		//}
+
+		//cout << defNum << endl;
+
+		//角速度の分布
+		//for(int i = 0; i < m_pPS->GetNumParticles(); i++){
+		//	float vel = norm(m_iceObj->GetOrientedObj(i)->Particle(0)->AngularVel());
+		//	if(vel < 0.0f) vel = 0.0f;
+		//	tempColor[i] = vel/5.0f;
+		//}
+
+		//速度の分布
+		//for(int i = 0; i < m_pPS->GetNumParticles(); i++){
+		//	float vel = norm(m_iceObj->GetOrientedObj(i)->GetVertexVel(0));
+		//	if(vel < 0.0f) vel = 0.0f;
+		//	tempColor[i] = vel/5.0f;
+		//}
+
+		////変形量がどんな分布になっているか
+		//for(int i = 0; i < m_pPS->GetNumParticles(); i++){
+		//	float defAmount = m_iceObj->GetOrientedObj(i)->DefAmount();
+		//	if(defAmount < 0.0f) defAmount = 0.0f;
+		//	tempColor[i] = defAmount;
+		//}
+
+		//方向ベクトルの内積総和　quaternionの場合と全然変わらない
+		//for(int i = 0; i < m_pPS->GetNumParticles(); i++){
+		//	float dotSum = m_iceObj->GetOrientedObj(i)->QuatInnerDotSum();
+		//	if(dotSum < 0.0f) dotSum = 0.0f;
+		//	if(dotSum > 1.0f) dotSum = 1.0f;
+		//	tempColor[i] = dotSum;
+		//}
+
+		//quaternionの内積総和がどんな分布になっているか
+		//全然色変わらない
+		//for(int i = 0; i < m_pPS->GetNumParticles(); i++){
+		//	float quatDef = m_iceObj->GetOrientedObj(i)->QuatInnerDotSum();
+		//	if(quatDef < 0.0f) quatDef = 0.0f;
+		//	if(quatDef > 1.0f) quatDef = 1.0f;
+		//	tempColor[i] = quatDef * quatDef * quatDef * quatDef * quatDef * quatDef;
+		//}
+
+		//quaternionの内積総和を閾値とした場合
+		//for(int i = 0; i < m_pPS->GetNumParticles(); i++){
+		//	float quatDef = m_iceObj->GetOrientedObj(i)->QuatInnerDotSum();
+		//	if(quatDef < threshold){
+		//		tempColor[i] = 0.95f;	//赤
+		//		cout << quatDef << endl;
+		//	}
+		//	else{
+		//		tempColor[i] = 0.15f;	//青
+		//	}
+		//}
+
+		////変形量を閾値とした場合
+		//for( int i = 0; i < m_pPS->GetNumParticles(); i++ ){
+		//	float defAmount = m_iceObj->GetOrientedObj(i)->DefAmount();
+		//	if(defAmount > threshold){				
+		//		tempColor[i] = 0.95f;	//赤
+		//	}
+		//	else{
+		//		tempColor[i] = 0.25f;	//青
+		//	}
+		//}
+
+		m_pPS->SetColorVBOFromArray( tempColor, 1, false, 1.0f );
 
 		delete[] tempColor;
 	}

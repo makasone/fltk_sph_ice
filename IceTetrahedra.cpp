@@ -656,7 +656,7 @@ void IceTetrahedra::Load_NODE_File(const string name, float* p)
 			double radius = 0.875f;
 			//double radius = 1.0f;
 			p[pIndx+0] = db * radius;
-			p[pIndx+1] = dc * radius - 0.6;	//TODO:最悪なことに，ここで初期位置を調整しないといけない…
+			p[pIndx+1] = dc * radius - 0.3;	//TODO:最悪なことに，ここで初期位置を調整しないといけない… 0.6
 			p[pIndx+2] = dd * radius;
 		}
 	}

@@ -1,26 +1,22 @@
-//運動計算手法クラス Shape Matching法
+//運動計算手法クラス 距離制約
 
-#ifndef _ICE_SIMU_METHOD_OP_
-#define _ICE_SIMU_METHOD_OP_
+#ifndef _ICE_SIMU_METHOD_DC_
+#define _ICE_SIMU_METHOD_DC_
 
 #include "Ice_ClusterMove.h"
 #include "Ice_SimuMethod.h"
 
 #include "IceObject.h"
 #include "Ice_SM.h"
-#include "ElasticObject_OP.h"
-#include "OrientedParticle.h"
-
-typedef OrientedParticleBaseElasticObject ElasticObj;
 
 using namespace std;
 
-class Ice_SimuMethod_OP : public Ice_SimuMethod
+class Ice_SimuMethod_DC : public Ice_SimuMethod
 {
 public:
-	Ice_SimuMethod_OP(const vector<Ice_SM*>& iceSM);
-	Ice_SimuMethod_OP(const vector<ElasticObj*>& elasticObj, const vector<OrientedParticle*>& particles, IceStructure* iceStrct);
-	~Ice_SimuMethod_OP();
+	Ice_SimuMethod_DC(const vector<Ice_SM*>& iceSM);
+	Ice_SimuMethod_DC(const vector<ElasticObj*>& elasticObj, const vector<OrientedParticle*>& particles);
+	~Ice_SimuMethod_DC();
 
 	void SetJudgeMove(Ice_JudgeMove* judge);
 	Ice_JudgeMove* GetJudgeMove();
@@ -41,7 +37,6 @@ private:
 	vector<ElasticObj*> m_elasticObj;
 	vector<OrientedParticle*> m_vOrientedPrtes;
 	
-	IceStructure* m_iceStrct;
 	Ice_JudgeMove* m_iceJudge;	//運動計算するクラスタを判定するオブジェクト
 };
 

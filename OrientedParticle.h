@@ -1,5 +1,5 @@
 /*!
-  @file Ice_OrientedParticle.h
+  @file OrientedParticle.h
 	
   @brief Oriented Particleñ@Ç…ÇÊÇÈíeê´ëÃïœå`                                                                                                                                                                                                                                                                                                                                                                                                                                                        
   @ref M. Muller et al., "Solid Simulation with Oriented Particles", SIGGRAPH2011. 

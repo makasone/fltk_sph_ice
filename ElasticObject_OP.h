@@ -1,5 +1,5 @@
 /*!
-  @file Ice_OrientedParticle.h
+  @file ElasticObject_OP.h
 	
   @brief Oriented Particleñ@Ç…ÇÊÇÈíeê´ëÃïœå`                                                                                                                                                                                                                                                                                                                                                                                                                                                        
   @ref M. Muller et al., "Solid Simulation with Oriented Particles", SIGGRAPH2011. 
@@ -69,6 +69,12 @@ public:
 	float DefAmount() const { return m_fDefAmount;	}
 	void DefAmount(float def){	m_fDefAmount = def;	}
 
+	float QuatInnerDotSum() const;
+	float DirectionalVecInnerDotSum() const;
+	float FinalDefAmount() const;
+	float VolumeChange() const;
+	bool IsThereOutlier() const;
+
 	OrientedParticle* Particle(int i) const{ return m_vOrientedPrtes.at(i);	}
 
 	static void CopyPrtToClstrPos(unsigned prtNum);
@@ -86,8 +92,10 @@ public:
 	void UpdateCluster_OP();
 	void UpdateCluster_SM();
 	void UpdateCluster_SM_Itr();	//Ç†Ç∆Ç≈è¡Ç∑
-	void UpdateCluster_SM_Itr_End();//Ç†Ç∆Ç≈è¡Ç∑
 	void UpdateCluster_Sampling(const IceStructure* ice_struct);
+
+	void UpdateCluster_DC();
+	void UpdateCluster_DC_Itr();
 
 private:
 	void CalcNowCm();

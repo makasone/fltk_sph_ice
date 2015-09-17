@@ -237,6 +237,7 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="ElasticObject_OP.cpp" />
     <ClCompile Include="HeatTransfar.cpp" />
     <ClCompile Include="Ice_CalcMethod_Iteration.cpp" />
     <ClCompile Include="Ice_CalcMethod_Itr_Expand.cpp" />
@@ -258,8 +259,8 @@
     <ClCompile Include="Ice_Convolution_Weight.cpp" />
     <ClCompile Include="Ice_JudgeMove_Normal.cpp" />
     <ClCompile Include="Ice_JudgeMove_Spears.cpp" />
-    <ClCompile Include="Ice_OrientedParticle.cpp" />
     <ClCompile Include="Ice_SimulMethod_OrientedParticle.cpp" />
+    <ClCompile Include="Ice_SimuMethod_DC.cpp" />
     <ClCompile Include="Ice_SimuMethod_ShapeMatching.cpp" />
     <ClCompile Include="Ice_SM.cpp" />
     <ClCompile Include="OrientedParticle.cpp" />
@@ -289,6 +290,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\common\shared\inc\rx_timer.h" />
+    <ClInclude Include="ElasticObject_OP.h" />
     <ClInclude Include="gnuplot.h" />
     <ClInclude Include="HeatTransfar.h" />
     <ClInclude Include="Ice_CalcMethod.h" />
@@ -317,8 +319,8 @@
     <ClInclude Include="Ice_JudgeMove.h" />
     <ClInclude Include="Ice_JudgeMove_Normal.h" />
     <ClInclude Include="Ice_JudgeMove_Spears.h" />
-    <ClInclude Include="Ice_OrientedParticle.h" />
     <ClInclude Include="Ice_SimuMethod.h" />
+    <ClInclude Include="Ice_SimuMethod_DistanceConstraint.h" />
     <ClInclude Include="Ice_SimuMethod_OrientedParticle.h" />
     <ClInclude Include="Ice_SimuMethod_ShapeMatching.h" />
     <ClInclude Include="Ice_SM.h" />

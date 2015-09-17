@@ -1,34 +1,34 @@
-#include "Ice_SimuMethod_ShapeMatching.h"
+#include "Ice_SimuMethod_DistanceConstraint.h"
 
-typedef Ice_SimuMethod_SM MoveSM;
+typedef Ice_SimuMethod_DC MoveDC;
 
 
-MoveSM::Ice_SimuMethod_SM(const vector<Ice_SM*>& iceSM)
+MoveDC::Ice_SimuMethod_DC(const vector<Ice_SM*>& iceSM)
 {
 	m_iceSM = iceSM;
 }
 
-MoveSM::Ice_SimuMethod_SM(const vector<ElasticObj*>& elasticObj, const vector<OrientedParticle*>& particles)
+MoveDC::Ice_SimuMethod_DC(const vector<ElasticObj*>& elasticObj, const vector<OrientedParticle*>& particles)
 {
 	m_elasticObj = elasticObj;
 	m_vOrientedPrtes = particles;
 }
 
-MoveSM::~Ice_SimuMethod_SM()
+MoveDC::~Ice_SimuMethod_DC()
 {
 }
 
-void MoveSM::SetJudgeMove(Ice_JudgeMove* judge)
+void MoveDC::SetJudgeMove(Ice_JudgeMove* judge)
 {
 	m_iceJudge = judge;	
 }
 
-Ice_JudgeMove* MoveSM::GetJudgeMove()
+Ice_JudgeMove* MoveDC::GetJudgeMove()
 {
 	return m_iceJudge;
 }
 
-void MoveSM::StepObjMove()
+void MoveDC::StepObjMove()
 {
 	//マウスによるドラッグを反映させるために，無理やり値を更新
 	OrientedParticleBaseElasticObject::CopyPrtToClstrPos(IceObject::GetParticleNum());
@@ -38,22 +38,22 @@ void MoveSM::StepObjMove()
 	for(int i = 0; i < IceObject::GetParticleNum(); i++){	
 		if(! m_iceJudge->JudgeMove(i)){	continue;	}
 
-		m_elasticObj[i]->UpdateCluster_SM();
+		m_elasticObj[i]->UpdateCluster_DC();
 	}
 }
 
-void MoveSM::StepObjMoveItr()
+void MoveDC::StepObjMoveItr()
 {
 	#pragma omp parallel for
 	for(int i = 0; i < IceObject::GetParticleNum(); ++i){	
 		if(! m_iceJudge->JudgeMove(i)){	continue;	}
 
-		m_elasticObj[i]->UpdateCluster_SM_Itr();
+		m_elasticObj[i]->UpdateCluster_DC_Itr();
 	}
 }
 
 //粒子情報の更新
-void MoveSM::StepObjUpdate()
+void MoveDC::StepObjUpdate()
 {
 	//速度，角速度，姿勢を更新
 	#pragma omp parallel for
@@ -62,12 +62,12 @@ void MoveSM::StepObjUpdate()
 	}
 }
 
-void MoveSM::StepObjUpdateItr()
+void MoveDC::StepObjUpdateItr()
 {
 
 }
 
-void MoveSM::StepObjUpdateItrEnd()
+void MoveDC::StepObjUpdateItrEnd()
 {
 	//速度，角速度，姿勢を更新
 	#pragma omp parallel for
@@ -77,7 +77,7 @@ void MoveSM::StepObjUpdateItrEnd()
 }
 
 //デバッグ
-void MoveSM::StepObjMoveDebug()
+void MoveDC::StepObjMoveDebug()
 {
 	#pragma omp parallel for
 	for(int i = 0; i < IceObject::GetParticleNum(); ++i)
@@ -88,7 +88,7 @@ void MoveSM::StepObjMoveDebug()
 	}	
 }
 
-void MoveSM::StepObjMoveItrDebug()
+void MoveDC::StepObjMoveItrDebug()
 {
 	#pragma omp parallel for
 	for(int i = 0; i < IceObject::GetParticleNum(); ++i)

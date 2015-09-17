@@ -10,7 +10,7 @@ using namespace Eigen;
 #include <math.h>
 
 #include "OrientedParticle.h"
-#include "Ice_OrientedParticle.h"
+#include "ElasticObject_OP.h"
 #include "ShapeMatching.h"
 
 typedef OrientedParticleBaseElasticObject OrientedCluster;
@@ -256,7 +256,7 @@ void OrientedParticle::InterpolateOrientation(const IceStructure* iceStrct)
 		int pIndx = m_smCluster->GetParticleIndx(i);
 		if(iceStrct->GetMotionCalcCluster(pIndx) == 0){	continue;	}
 
-		//まフレームの姿勢との内積を取って，値が負なら反転してやる　うまく安定した
+		//前フレームの姿勢との内積を取って，値が負なら反転してやる　うまく安定した
 		mk_Quaternion quat = m_smCluster->Particle(i)->PrdOrientation();
 		float dot = pre_q.x * quat.x + pre_q.y * quat.y + pre_q.z * quat.z + pre_q.w * quat.w;
 		
@@ -414,7 +414,7 @@ void OrientedParticle::UpdateAngularVel()
 	Quaternionf qp = ConvertQuaternion(m_QuatPrdOrientation);
 	Quaternionf q_inv = ConvertQuaternion(m_QuatCurOrientation).inverse();
 
-	//これを入れると回転に制限がかかる？
+	////これを入れると回転に制限がかかる？なんか変
 	//float dot = qp.dot(q_inv);
 
 	//if(dot < 0.0f){

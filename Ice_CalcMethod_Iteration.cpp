@@ -31,24 +31,6 @@ void CalcIteration::SetConvolution(Ice_Convolution* convo)
 
 void CalcIteration::StepObjMove()
 {
-	////èââÒ
-	//m_iceSimu->StepObjMove();
-
-	////îΩïú
-	//for(int itr = 1; itr < Ice_SM::GetIteration(); itr++)
-	//{
-	//	m_iceConvo->StepConvolution();
-	//	m_iceSimu->StepObjMoveItr();
-	//}
-
-	////ë¨ìxéZèo
-	//#pragma omp parallel for
-	//for(int i = 0; i < IceObject::GetParticleNum(); ++i)
-	//{	
-	//	if(m_iceSimu->GetJudgeMove()->JudgeMove(i) == false){ continue;	}
-	//	m_iceSM[i]->integrateIteration();
-	//}
-
 	//èââÒ
 	m_iceSimu->StepObjMove();
 	m_iceConvo->StepConvolution();

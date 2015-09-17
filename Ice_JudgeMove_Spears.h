@@ -9,7 +9,7 @@
 #include "IceObject.h"
 #include "IceStructure.h"
 
-#include "Ice_OrientedParticle.h"
+#include "ElasticObject_OP.h"
 #include "OrientedParticle.h"
 
 using namespace std;
